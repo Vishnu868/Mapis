@@ -1,0 +1,27 @@
+{
+  "name": "mapis-dashboard",
+  "version": "1.0.0",
+  "description": "MAPIS — Multi-Agent Prompt Injection Shield Dashboard",
+  "private": true,
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-scripts": "5.0.1",
+    "recharts": "^2.12.7",
+    "lucide-react": "^0.447.0",
+    "axios": "^1.7.7"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test"
+  },
+  "eslintConfig": {
+    "extends": ["react-app"]
+  },
+  "browserslist": {
+    "production": [">0.2%", "not dead", "not op_mini all"],
+    "development": ["last 1 chrome version"]
+  },
+  "proxy": "http://localhost:8000"
+}
