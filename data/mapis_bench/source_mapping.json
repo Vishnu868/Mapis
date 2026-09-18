@@ -1,0 +1,59 @@
+﻿{
+  "version": "MAPIS-Bench-v1",
+  "sources": {
+    "InjecAgent": {
+      "local_path": "data/external/injecagent",
+      "primary_use": "training_candidate",
+      "usable_representation": [
+        "session_multihop"
+      ],
+      "known_records": {
+        "data_stealing_base": 544,
+        "user_cases": 17
+      },
+      "notes": "Converted DS base cases contain three derived hops. Original source labels are preserved."
+    },
+    "AgentDojo": {
+      "local_path": "data/external/agentdojo",
+      "primary_use": "held_out_evaluation_candidate",
+      "usable_representation": [
+        "session_multihop"
+      ],
+      "notes": "Execution/run records represent trajectories. Individual run files must not automatically be counted as independent benchmark samples."
+    },
+    "ASB": {
+      "local_path": "data/external/ASB",
+      "primary_use": "external_evaluation_candidate",
+      "usable_representation": [
+        "session_multihop"
+      ],
+      "notes": "Attack-tool definitions and normal-tool definitions are not themselves attack sessions. Actual executable evaluation/task records must be identified before conversion."
+    },
+    "BIPIA": {
+      "local_path": "data/external/BIPIA",
+      "primary_use": "training_or_external_evaluation_candidate",
+      "usable_representation": [
+        "static_context",
+        "single_message"
+      ],
+      "notes": "Available records contain indirect-injection benchmark contexts/questions. Do not represent static records as genuine agent trajectories."
+    },
+    "PINT": {
+      "local_path": "data/external/pint-benchmark",
+      "primary_use": "external_evaluation_candidate",
+      "usable_representation": [
+        "single_message",
+        "static_context"
+      ],
+      "notes": "Local repository does not contain the full published benchmark. Do not claim the published total as locally available."
+    }
+  },
+  "global_rules": [
+    "Preserve original dataset labels.",
+    "Do not fabricate missing hops.",
+    "Do not duplicate samples to reach a target count.",
+    "Do not treat tool definitions as attack sessions.",
+    "Keep provenance for every converted sample.",
+    "Do not mix related variants across train and test when this creates leakage."
+  ]
+}

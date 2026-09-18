@@ -1,0 +1,46 @@
+﻿{
+  "version": "MAPIS-Bench-v1",
+  "principles": [
+    "Split at session/task/scenario level where the source provides such identifiers.",
+    "Keep all messages from one session in exactly one split.",
+    "Do not split individual hops from the same attack session across train, validation, and test.",
+    "Do not place near-duplicate or source-variant records across training and evaluation splits.",
+    "Preserve source provenance in every sample.",
+    "Do not duplicate samples to balance splits.",
+    "Samples that cannot be assigned safely remain unassigned until reviewed."
+  ],
+  "target_structure": {
+    "train": "Model training data",
+    "validation": "Model selection and threshold tuning",
+    "test": "Final held-out evaluation",
+    "external": "Independent-source/generalization evaluation"
+  },
+  "source_strategy": {
+    "InjecAgent": {
+      "role": "training_validation_test_candidate",
+      "split_unit": "session"
+    },
+    "AgentDojo": {
+      "role": "held_out_or_external_evaluation",
+      "split_unit": "task_or_execution_scenario"
+    },
+    "ASB": {
+      "role": "external_evaluation_candidate",
+      "split_unit": "task_or_scenario"
+    },
+    "BIPIA": {
+      "role": "training_or_external_evaluation_candidate",
+      "split_unit": "source_record_or_scenario"
+    },
+    "PINT": {
+      "role": "external_evaluation_candidate",
+      "split_unit": "source_record_or_scenario"
+    }
+  },
+  "recommended_ratio_for_trainable_sources": {
+    "train": 0.70,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "important_constraint": "Ratios are targets, not permission to violate source-level or scenario-level leakage constraints."
+}

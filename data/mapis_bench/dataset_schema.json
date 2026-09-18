@@ -1,0 +1,146 @@
+﻿{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MAPIS-Bench v1 Sample",
+  "type": "object",
+  "required": [
+    "sample_id",
+    "source_dataset",
+    "source_file",
+    "source_record_id",
+    "provenance",
+    "split",
+    "is_attack",
+    "source_label",
+    "mapis_attack_class",
+    "representation_type",
+    "messages",
+    "conversion_notes"
+  ],
+  "properties": {
+    "sample_id": {
+      "type": "string"
+    },
+    "source_dataset": {
+      "type": "string"
+    },
+    "source_file": {
+      "type": "string"
+    },
+    "source_record_id": {
+      "type": "string"
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "original_dataset",
+        "original_label",
+        "conversion_type"
+      ],
+      "properties": {
+        "original_dataset": {
+          "type": "string"
+        },
+        "original_label": {},
+        "conversion_type": {
+          "type": "string",
+          "enum": [
+            "native",
+            "derived",
+            "cleaned"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "split": {
+      "type": "string",
+      "enum": [
+        "train",
+        "validation",
+        "test",
+        "external"
+      ]
+    },
+    "is_attack": {
+      "type": "boolean"
+    },
+    "source_label": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "mapis_attack_class": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "representation_type": {
+      "type": "string",
+      "enum": [
+        "session_multihop",
+        "single_message",
+        "static_context"
+      ]
+    },
+    "session_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "hop",
+          "role",
+          "source",
+          "target",
+          "content"
+        ],
+        "properties": {
+          "hop": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "role": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "tool_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tool_call": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "tool_response": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "conversion_notes": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
