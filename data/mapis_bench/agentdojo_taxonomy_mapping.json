@@ -1,0 +1,25 @@
+{
+  "source_dataset": "AgentDojo",
+  "mapping_status": "proposed",
+  "taxonomy_version": "MAPIS-Bench-v1",
+  "mapping": {
+    "captcha_dos": "instruction_override",
+    "dos": "instruction_override",
+    "felony_dos": "instruction_override",
+    "important_instructions": "financial_manipulation",
+    "important_instructions_no_model_name": "financial_manipulation",
+    "important_instructions_no_names": "financial_manipulation",
+    "important_instructions_no_user_name": "financial_manipulation",
+    "important_instructions_wrong_model_name": "financial_manipulation",
+    "important_instructions_wrong_user_name": "financial_manipulation",
+    "offensive_email_dos": "physical_safety_harm",
+    "swearwords_dos": null,
+    "tool_knowledge": "financial_manipulation"
+  },
+  "unmapped_source_types": [],
+  "notes": {
+    "swearwords_dos": "Null mapping retained because the inspected injection is abusive language but does not clearly establish one of the five MAPIS attack objectives.",
+    "important_instructions": "The inspected variants request an unauthorized financial transaction, so they map to financial_manipulation.",
+    "tool_knowledge": "The inspected injection explicitly directs the agent to invoke send_money, so it maps to financial_manipulation."
+  }
+}

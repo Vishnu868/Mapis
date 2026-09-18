@@ -1,4 +1,4 @@
-﻿{
+{
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "MAPIS-Bench v1 Sample",
   "type": "object",
@@ -27,7 +27,11 @@
       "type": "string"
     },
     "source_record_id": {
-      "type": "string"
+      "type": [
+        "string",
+        "object"
+      ],
+      "additionalProperties": true
     },
     "provenance": {
       "type": "object",
@@ -46,7 +50,8 @@
           "enum": [
             "native",
             "derived",
-            "cleaned"
+            "cleaned",
+            "chronological_native_trajectory"
           ]
         }
       },
@@ -114,7 +119,10 @@
             "type": "string"
           },
           "content": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tool_name": {
             "type": [

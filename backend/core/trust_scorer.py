@@ -27,8 +27,8 @@ INJECTION_PATTERNS = {
     "direct_override": {
         "weight": 0.9,
         "patterns": [
-            r"ignore (all |your |previous |above |prior )?(instructions?|rules?|guidelines?|system prompt)",
-            r"disregard (all |your |previous |above |prior )?(instructions?|rules?|guidelines?)",
+            r"ignore (all )?(your )?(previous |above |prior )?(instructions?|rules?|guidelines?|system prompt)",
+            r"disregard (all )?(your )?(previous |above |prior )?(instructions?|rules?|guidelines?)",
             r"forget (everything|all|your instructions?|what you were told)",
             r"do not follow (your |the |any )?(instructions?|rules?|guidelines?)",
             r"override (system|previous|all) (prompt|instructions?|rules?)",
@@ -77,6 +77,7 @@ INJECTION_PATTERNS = {
     "instruction_embedding": {
         "weight": 0.75,
         "patterns": [
+            r"(important message|message from|instructions? from).{0,150}(to you|for you|the ai|language model).{0,300}(do the following|do this first|before you|please do)",
             r"\[SYSTEM\].*?(instruction|command|directive)",
             r"<\|im_start\|>system",
             r"<<SYS>>",

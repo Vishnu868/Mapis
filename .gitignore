@@ -53,3 +53,21 @@ htmlcov/
 
 # Local Python virtual environment
 mapiss/
+
+# MAPIS generated / large data
+artifacts/
+results/
+data/external/
+data/training/*.jsonl
+
+# Large generated benchmark files
+data/mapis_bench/mapis_bench_v1.jsonl
+data/mapis_bench/mapis_bench_v1_injecagent.jsonl
+data/mapis_multihop/
+
+# External repository
+InjecAgent/
+
+# Local inspection/generated files
+data/external_dataset_inspection.txt
+data/external_dataset_summary.json
