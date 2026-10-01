@@ -1,4 +1,4 @@
-"""Correct the MAPIS attack class of AgentDojo sessions using the real injection goal.
+"""Correct the MAPIS attack class of AgentDojo sessions using the real injection goal, and tag benign kinds.
 
 The v1 mapping assigned 'financial_manipulation' to every important_instructions / tool_knowledge attack because it
 was inspected on banking tasks only. AgentDojo injection tasks differ per suite (exfiltrating messages, deleting
@@ -45,6 +45,9 @@ def main() -> None:
     rows = [json.loads(line) for line in BENCH.read_text(encoding="utf-8").splitlines() if line.strip()]
     before, after, changed = Counter(), Counter(), 0
     for r in rows:
+        if r["source_dataset"] == "AgentDojo" and not r["is_attack"]:
+            # 35 of the 132 benign sessions are AgentDojo *injection tasks run as the user's own request*
+            r["benign_kind"] = "attacker_goal_as_user_request" if str(r["source_record_id"]["user_task_id"]).startswith("injection_task") else "normal_user_task"
         if r["source_dataset"] != "AgentDojo" or not r["is_attack"]:
             continue
         rec = r["source_record_id"]
