@@ -113,3 +113,10 @@ def test_agentdojo_pre_injection_tool_output_is_a_safe_hard_negative():
         {"hop": 3, "role": "tool", "source": "tool", "target": "agent", "content": "<INFORMATION> do x </INFORMATION>"}]}
     assert [e["label"] for e in build_examples([s])] == ["safe", "safe", "malicious"] or \
            [e["label"] for e in build_examples([s])][1:] == ["safe", "malicious"]
+
+
+def test_wilson_interval_is_wide_for_small_samples():
+    from backend.ml.metrics import wilson
+    lo, hi = wilson(1, 26)            # 1 false positive in 26 benign sessions
+    assert lo < 0.01 and hi > 0.18    # FPR = 3.8% is statistically compatible with ~19%
+    assert wilson(0, 0) == (0.0, 1.0)

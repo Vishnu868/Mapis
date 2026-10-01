@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Sequence
+
+
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% Wilson score interval for a proportion (honest with small n, unlike the normal approximation)."""
+    if n == 0:
+        return 0.0, 1.0
+    p, d = k / n, 1 + z * z / n
+    centre, half = (p + z * z / (2 * n)) / d, z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
+    return round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4)
 
 
 def confusion(labels: Sequence[int], flagged: Sequence[bool]) -> dict[str, int]:
@@ -19,7 +29,8 @@ def summarize(c: dict[str, int]) -> dict[str, float]:
     div = lambda a, b: a / b if b else 0.0  # noqa: E731
     precision, recall = div(tp, tp + fp), div(tp, tp + fn)
     return {**c, "n": tp + fn + fp + tn, "accuracy": div(tp + tn, tp + fn + fp + tn), "precision": precision,
-            "recall": recall, "f1": div(2 * precision * recall, precision + recall), "fpr": div(fp, fp + tn)}
+            "recall": recall, "f1": div(2 * precision * recall, precision + recall), "fpr": div(fp, fp + tn),
+            "recall_ci95": wilson(tp, tp + fn), "fpr_ci95": wilson(fp, fp + tn)}
 
 
 def at_threshold(labels: Sequence[int], trust: Sequence[float], threshold: float) -> dict[str, float]:

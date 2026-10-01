@@ -17,7 +17,14 @@
 
 ## Dataset audit (done against the original sources where available)
 - InjecAgent: 544 attack sessions match `test_cases_ds_base.json` exactly (user instruction, tool response, attacker instruction; 32 distinct instructions). Only the data-stealing (ds) cases are used; the 510 direct-harm (dh) cases are not.
-- AgentDojo: could not be checked against the original runs here; internal checks pass (1,000 attack + 132 benign, every attack has exactly one injected tool output, no benign session contains the tag, no duplicate sessions, zero cross-split groups).
+- AgentDojo: all 1,132 sessions (1,000 attack + 132 benign) match the original `runs/` files exactly (message count, role, content, suite / task / attack metadata; 0 mismatches,
+  0 missing files). No benign session contains the injection tag, no duplicate sessions, zero split leakage by (suite, user task).
+- Composition caveats (true, but not errors): the 132 benign AgentDojo sessions are 97 normal user tasks + 35 AgentDojo *injection goals run as the user's own request*
+  (tagged `benign_kind`; all 35 landed in train). Sessions come from three models (gpt-4o 927, claude-3.5 122, claude-3.7 83). 617 of the 1,000 attacks did not succeed
+  (the agent resisted); they still contain the injection, so they are valid detection samples. Injection payloads repeat across splits (88 of 160 test payloads also occur in
+  train after whitespace normalisation), hence the held-out-template `test_ood` split.
+- Benign data is thin: 26 test sessions (23 independent AgentDojo tasks + 3 InjecAgent). One false positive = 3.8 %, and the 95 % interval of "1 in 26" is 0.7 %-18.9 %.
+  Benchmarks therefore print Wilson 95 % intervals; do not quote a bare FPR.
 - Class labels were wrong in v1 (all 910 important_instructions / tool_knowledge attacks were 'financial_manipulation', decided from banking tasks only). Remapped by (suite, injection task)
   with `scripts/dataset_build/remap_agentdojo_classes.py`; originals kept in `original_mapis_attack_class`. Corrected attack classes: data_exfiltration 981, code_tool_manipulation 382,
   instruction_override 82, financial_manipulation 63, physical_safety_harm 18, unclassified 18 (total 1,544). The old per-class counts on the First Review slides are wrong.

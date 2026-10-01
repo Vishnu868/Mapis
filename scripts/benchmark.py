@@ -122,8 +122,10 @@ def main() -> None:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
             flags.append(held); labels.append(y); lats += lat
-            by_set[s["source_dataset"] if s["source_dataset"] == "MAPIS-Decomposed" else "MAPIS-Bench v1"][0].append(y)
-            by_set[s["source_dataset"] if s["source_dataset"] == "MAPIS-Decomposed" else "MAPIS-Bench v1"][1].append(held)
+            set_name = s["source_dataset"] if s["source_dataset"] == "MAPIS-Decomposed" else "MAPIS-Bench v1"
+            by_set[set_name][0].append(y); by_set[set_name][1].append(held)
+            if s.get("benign_kind"):  # benign sessions reported separately by kind
+                by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)
             if s["is_attack"]:
                 by_class[s["mapis_attack_class"]].append(held)
         report[system.name] = {
@@ -133,9 +135,10 @@ def main() -> None:
             "latency_ms_per_event": {"mean": round(statistics.fmean(lats), 2), "p95": round(sorted(lats)[int(0.95 * len(lats))], 2)} if lats else None,
         }
         o = report[system.name]["overall"]
-        print(f"{system.name:22s} recall {o['recall']:.3f}  FPR {o['fpr']:.3f}  F1 {o['f1']:.3f}  acc {o['accuracy']:.3f}")
+        ci = lambda m, key: f"[{m[key + '_ci95'][0]:.2f}-{m[key + '_ci95'][1]:.2f}]"  # noqa: E731
+        print(f"{system.name:22s} recall {o['recall']:.3f} {ci(o, 'recall')}  FPR {o['fpr']:.3f} {ci(o, 'fpr')}  F1 {o['f1']:.3f}  acc {o['accuracy']:.3f}")
         for k, v in report[system.name]["by_set"].items():
-            print(f"   {k:16s} recall {v['recall']:.3f}  FPR {v['fpr']:.3f}  (n={v['n']})")
+            print(f"   {k:44s} recall {v['recall']:.3f}  FPR {v['fpr']:.3f} {ci(v, 'fpr')}  (n={v['n']})")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(report, indent=2) + "\n")
 
