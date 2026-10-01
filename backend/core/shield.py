@@ -103,7 +103,8 @@ class MapisShield:
         if tier is not Tier.PASS and not trace:
             trace = [self._trace_row(hop, "origin")]
 
-        F.register_indicators(hop, state, 1.0 - trust)
+        designated = hop["role"] in F.UNTRUSTED_FOR_TAINT and F.user_designated(window, state["goal"])
+        F.register_indicators(hop, state, 1.0 - trust, trusted_source=designated)
         F.update_baselines(hop, state)
         self.store.push(sid, hop)
         self.store.save(sid, state)

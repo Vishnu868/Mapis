@@ -116,11 +116,34 @@ def update_baselines(hop: dict[str, Any], state: dict) -> None:
     state["lens"][agent] = [count + 1, (mean * count + len(hop.get("content") or "")) / (count + 1)]
 
 
-def register_indicators(hop: dict[str, Any], state: dict, risk: float) -> None:
-    """User/system text is trusted; anything new from a data channel is tainted with its origin."""
+UNTRUSTED_FOR_TAINT = UNTRUSTED_ROLES
+
+
+def register_indicators(hop: dict[str, Any], state: dict, risk: float, trusted_source: bool = False) -> None:
+    """User/system text (or a source the user explicitly named) is trusted; anything else from a data channel is tainted."""
     found = hop_indicators(hop)
-    if hop["role"] in ("user", "system"):
+    if hop["role"] in ("user", "system") or (trusted_source and risk < 0.25):
         state["trusted"] = sorted(set(state["trusted"]) | found)
     elif hop["role"] in UNTRUSTED_ROLES:
         for i in found:
             state["taint"].setdefault(i, {"hop": hop["hop"], "source": hop["source"], "risk": round(risk, 3)})
+
+
+def user_designated(window: list[dict], goal: str | None) -> bool:
+    """True when the data being read was fetched by a call whose target the USER named
+    (e.g. goal says 'pay the bill in bill.txt' and the preceding call opened bill.txt)."""
+    if not goal or not window or window[-1]["role"] != "assistant":
+        return False
+    prev, goal = window[-1], goal.lower()
+    args = [v for key in ("tool_call", "tool_calls") for v in _strings(prev.get(key))]
+    return any(len(a) >= 4 and a.lower() in goal for a in args)
+
+
+def _strings(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings(v)]
+    return []

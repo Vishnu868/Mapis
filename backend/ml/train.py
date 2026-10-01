@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 from .config import TrainingConfig
-from .data import load_rows
+from .data import drop_markers, load_rows
 from .metrics import at_threshold, confusion, summarize
 
 
@@ -58,6 +58,7 @@ def train(cfg: TrainingConfig) -> dict:
     seed_everything(cfg.seed)
     train_rows = load_rows(cfg.training_data, "train", cfg.use_context)
     val_rows = load_rows(cfg.training_data, "validation", cfg.use_context)
+    train_rows = drop_markers(train_rows, cfg.marker_dropout, cfg.seed)
     if not train_rows or not val_rows:
         raise SystemExit(f"No supervised train/validation rows found in {cfg.training_data}")
 
