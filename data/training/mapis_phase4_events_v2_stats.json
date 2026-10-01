@@ -26,10 +26,10 @@
   },
   "attack_class": {
     "None": 1967,
-    "code_tool_manipulation": 51,
-    "data_exfiltration": 1581,
-    "financial_manipulation": 9296,
-    "instruction_override": 483,
+    "code_tool_manipulation": 4054,
+    "data_exfiltration": 6121,
+    "financial_manipulation": 433,
+    "instruction_override": 803,
     "physical_safety_harm": 143
   },
   "label_source": {

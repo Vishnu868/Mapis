@@ -2,9 +2,9 @@
 
 ```bash
 git pull && pip install -r requirements.txt
-# Needs data/mapis_bench/mapis_bench_v1.jsonl and data/training/mapis_phase4_events_v2.jsonl (both committed).
+# Needs only data/mapis_bench/mapis_bench_v1.jsonl (committed). Build the v2 events from it first:
 # v2 = hard negatives + held-out templates. Do NOT train on the old v1 events file.
-python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # optional: rebuild v2 from MAPIS-Bench v1 (deterministic)
+python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # REQUIRED: builds data/training/mapis_phase4_events_v2.jsonl (deterministic, ~1 min)
 
 # 1. stateful detector  (~ 30-60 min on a 3050; batch 4 x 4 accumulation, mixed precision)
 python -m backend.ml.train --run
