@@ -14,7 +14,7 @@ def _message_text(hop: dict) -> str:
 
 
 class LlamaGuardBaseline:
-    """Meta Llama Guard 3 (needs `huggingface-cli login` and access to meta-llama/Llama-Guard-3-1B)."""
+    """Meta Llama Guard 3 (needs `hf auth login` and access to meta-llama/Llama-Guard-3-1B)."""
 
     name, use_context = "llama-guard-3", False
 
@@ -23,15 +23,22 @@ class LlamaGuardBaseline:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.torch = torch
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        self.model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.bfloat16, device_map="auto")
+        dtype = torch.bfloat16 if self.device == "cuda" else torch.float32
+        try:  # `dtype` on new transformers, `torch_dtype` on old ones; no accelerate needed
+            model = AutoModelForCausalLM.from_pretrained(model_id, dtype=dtype)
+        except TypeError:
+            model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=dtype)
+        self.model = model.to(self.device).eval()
 
     def score_chunks(self, texts: list[str], hop: dict) -> tuple[float, int]:
         chat = [{"role": "user", "content": [{"type": "text", "text": _message_text(hop)[:6000]}]}]
-        ids = self.tokenizer.apply_chat_template(chat, return_tensors="pt").to(self.model.device)
+        enc = self.tokenizer.apply_chat_template(chat, return_tensors="pt", return_dict=True)
+        input_ids = enc["input_ids"].to(self.device)
         with self.torch.inference_mode():
-            out = self.model.generate(ids, max_new_tokens=8, do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
-        verdict = self.tokenizer.decode(out[0][ids.shape[-1]:], skip_special_tokens=True).strip().lower()
+            out = self.model.generate(input_ids, max_new_tokens=8, do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
+        verdict = self.tokenizer.decode(out[0][input_ids.shape[-1]:], skip_special_tokens=True).strip().lower()
         return (0.0 if verdict.startswith("unsafe") else 1.0), 0
 
 
