@@ -69,3 +69,6 @@ data/external_dataset_inspection.txt
 data/external_dataset_summary.json
 
 # Trained weights stay local (publish via a release); metrics under results/ are ignored by default
+
+# Event dataset is rebuilt deterministically from MAPIS-Bench v1 (scripts/prepare_phase4_training_data.py)
+data/training/*.jsonl

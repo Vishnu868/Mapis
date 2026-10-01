@@ -15,6 +15,13 @@
 - Latency of the full shield with the transformer; thresholds tuned on validation.
 - Llama Guard / NeMo baselines (adapters written, never run).
 
+## Dataset audit (done against the original sources where available)
+- InjecAgent: 544 attack sessions match `test_cases_ds_base.json` exactly (user instruction, tool response, attacker instruction; 32 distinct instructions). Only the data-stealing (ds) cases are used; the 510 direct-harm (dh) cases are not.
+- AgentDojo: could not be checked against the original runs here; internal checks pass (1,000 attack + 132 benign, every attack has exactly one injected tool output, no benign session contains the tag, no duplicate sessions, zero cross-split groups).
+- Class labels were wrong in v1 (all 910 important_instructions / tool_knowledge attacks were 'financial_manipulation', decided from banking tasks only). Remapped by (suite, injection task)
+  with `scripts/dataset_build/remap_agentdojo_classes.py`; originals kept in `original_mapis_attack_class`. Corrected attack classes: data_exfiltration 981, code_tool_manipulation 382,
+  instruction_override 82, financial_manipulation 63, physical_safety_harm 18, unclassified 18 (total 1,544). The old per-class counts on the First Review slides are wrong.
+
 ## Known limits to state openly
 - MAPIS-Bench v1 labels the injection-bearing *tool event*; most attacks there are single-injection, so v1 alone cannot show a
   stateful advantage. `scripts/generate_decomposed.py` builds template-seeded decomposed attacks (split by template family) for that.
