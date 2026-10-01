@@ -15,7 +15,9 @@ torch>=2.4
 transformers>=4.44
 sentencepiece
 protobuf
+tiktoken
 numpy
+scikit-learn
 
 # Tests
 pytest>=8
