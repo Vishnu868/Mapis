@@ -26,7 +26,7 @@ class LlamaGuardBaseline:
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         self.model = AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.bfloat16, device_map="auto")
 
-    def score(self, text: str, hop: dict) -> float:
+    def score_chunks(self, texts: list[str], hop: dict) -> float:
         chat = [{"role": "user", "content": [{"type": "text", "text": _message_text(hop)[:6000]}]}]
         ids = self.tokenizer.apply_chat_template(chat, return_tensors="pt").to(self.model.device)
         with self.torch.inference_mode():
@@ -45,6 +45,6 @@ class NemoBaseline:
 
         self.rails = LLMRails(RailsConfig.from_path(config_dir))
 
-    def score(self, text: str, hop: dict) -> float:
+    def score_chunks(self, texts: list[str], hop: dict) -> float:
         reply = self.rails.generate(messages=[{"role": "user", "content": _message_text(hop)[:6000]}])
         return 0.0 if "can't respond" in reply["content"].lower() or "cannot respond" in reply["content"].lower() else 1.0

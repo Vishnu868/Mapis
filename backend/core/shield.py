@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 
 from . import features as F
-from .context import build_text, normalize_hop, rolling_context
+from .context import build_texts, normalize_hop, rolling_context
 from .detector import load_detector
 from .store import make_store
 
@@ -91,7 +91,7 @@ class MapisShield:
             trust, reasons = 0.0, [f"channel {channel} is suspended after an earlier BLOCK"]
         else:
             context = rolling_context(window + [hop], len(window), self.cfg.window_hops) if self.detector.use_context else []
-            model_trust = self.detector.score(build_text(context, hop), hop)
+            model_trust = self.detector.score_chunks(build_texts(context, hop), hop)
             name = self.detector.name
             trust, feats, reasons, trace = self._fuse(model_trust, hop, state, window)
 
