@@ -2,15 +2,16 @@
 
 ```bash
 git pull && pip install -r requirements.txt
-# Needs: data/mapis_bench/mapis_bench_v1.jsonl  and  data/training/mapis_phase4_events_v2.jsonl (v2 = hard negatives + held-out templates; do NOT train on v1)
-python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # regenerates v2 from MAPIS-Bench v1 (already committed)
+# Needs data/mapis_bench/mapis_bench_v1.jsonl and data/training/mapis_phase4_events_v2.jsonl (both committed).
+# v2 = hard negatives + held-out templates. Do NOT train on the old v1 events file.
+python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # optional: rebuild v2 from MAPIS-Bench v1 (deterministic)
 
 # 1. stateful detector  (~ 30-60 min on a 3050; batch 4 x 4 accumulation, mixed precision)
 python -m backend.ml.train --run
 # 2. stateless ablation, same model, current event only (for the comparison)
 python -m backend.ml.train --run --no-context --output-dir artifacts/mapis_stateless
 
-# 3. headline test metrics + shortcut diagnostics (run ONCE, after you stop changing things)
+# 3. test + test_ood metrics with cheap baselines on the same rows (run ONCE, after you stop changing things)
 python -m backend.ml.evaluate --model artifacts/mapis_detector --stateless artifacts/mapis_stateless
 
 # 4. session-level benchmark: MAPIS vs ablations vs baselines on identical events
