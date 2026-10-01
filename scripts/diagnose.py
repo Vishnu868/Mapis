@@ -58,6 +58,9 @@ def main() -> None:
             print(f"      signals={v.features}")
             print(f"      reasons={v.reasons}")
             print(f"      preview={v.preview[:140]!r}")
+            wc = v.extra.get("worst_chunk")
+            if wc and wc["of"] > 1:
+                print(f"      WORST CHUNK {wc['index']}/{wc['of']} (chars {wc['chars']}): {wc['snippet'][:300]!r}")
     print(f"\n{shown} of {total} {args.kind} sessions in {args.sets}/{args.split} were {'flagged' if args.kind == 'benign' else 'missed'}")
 
 

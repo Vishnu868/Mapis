@@ -24,7 +24,7 @@ _INSTRUCTION = [re.compile(p, re.I | re.S) for p in (
     r"\bnew\s+(instruction|task|goal|directive)s?\s*:",
     r"\bbefore\s+you\s+(continue|proceed|respond|answer|summari[sz]e)\b",
     r"\b(you\s+must|you\s+should|please)\s+(first|now|also|immediately)\b",
-    r"\b(send|forward|email|transfer|upload|post|delete|execute|run)\b.{0,80}(@|https?://)",
+    r"\b(send|forward|email|transfer|upload|post)\b[^.\n]{0,80}\b(to|at)\b[^.\n]{0,40}(@|https?://)",
     r"\bimportant\s+(message|instruction)s?\b",
     r"\b(system\s+prompt|developer\s+mode|jailbreak)\b",
 )]
