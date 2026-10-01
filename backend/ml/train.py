@@ -56,12 +56,16 @@ def train(cfg: TrainingConfig) -> dict:
     from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup
 
     seed_everything(cfg.seed)
+    print(f"[1/4] Loading data from {cfg.training_data} (can take up to a minute on a slow disk)...", flush=True)
     train_rows = load_rows(cfg.training_data, "train", cfg.use_context)
     val_rows = load_rows(cfg.training_data, "validation", cfg.use_context)
     if not train_rows or not val_rows:
         raise SystemExit(f"No supervised train/validation rows found in {cfg.training_data}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"      {len(train_rows)} train / {len(val_rows)} validation chunk rows; device = {device}"
+          + (f" ({torch.cuda.get_device_name(0)})" if device.type == "cuda" else "  <-- NO GPU: this will be very slow"), flush=True)
+    print(f"[2/4] Loading {cfg.model_name} ...", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg.model_name, num_labels=2, id2label={0: "MALICIOUS", 1: "SAFE"}, label2id={"MALICIOUS": 0, "SAFE": 1},
@@ -89,6 +93,7 @@ def train(cfg: TrainingConfig) -> dict:
     out = Path(cfg.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     cfg.save(out / "training_config.json")
+    print(f"[3/4] Training {cfg.epochs} epochs, {len(loader)} batches per epoch (a progress line every 100 batches)", flush=True)
 
     def validate():
         model.eval()
@@ -117,6 +122,8 @@ def train(cfg: TrainingConfig) -> dict:
             loss = torch.nn.functional.cross_entropy(logits.float(), labels, weight=weights) / cfg.gradient_accumulation_steps
             scaler.scale(loss).backward()
             running += loss.item() * cfg.gradient_accumulation_steps
+            if step % 100 == 0:
+                print(f"      epoch {epoch} batch {step}/{len(loader)}  loss {running / step:.4f}  ({time.time() - start:.0f}s elapsed)", flush=True)
             if step % cfg.gradient_accumulation_steps == 0 or step == len(loader):
                 scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
@@ -134,6 +141,7 @@ def train(cfg: TrainingConfig) -> dict:
             tokenizer.save_pretrained(out)
             best_logits, best_labels = val_logits, val_labels
 
+    print("[4/4] Calibrating on validation ...", flush=True)
     temperature = fit_temperature(best_logits, best_labels)
     trust = torch.softmax(best_logits / temperature, -1)[:, 1].tolist()
     calibration = {"temperature": temperature, "max_length": cfg.max_length, "use_context": cfg.use_context,
