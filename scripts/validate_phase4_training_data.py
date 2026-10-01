@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 
 
 VALID_LABELS = {"malicious", "safe", "unlabeled"}
-VALID_SPLITS = {"train", "validation", "test"}
+VALID_SPLITS = {"train", "validation", "test", "test_ood", "external"}
 
 
 def load_examples(path: Path) -> list[dict]:

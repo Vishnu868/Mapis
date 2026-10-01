@@ -2,8 +2,8 @@
 
 ```bash
 git pull && pip install -r requirements.txt
-# Needs: data/mapis_bench/mapis_bench_v1.jsonl  and  data/training/mapis_phase4_events_v1.jsonl
-python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # optional: regenerate + validate
+# Needs: data/mapis_bench/mapis_bench_v1.jsonl  and  data/training/mapis_phase4_events_v2.jsonl (v2 = hard negatives + held-out templates; do NOT train on v1)
+python scripts/prepare_phase4_training_data.py && python scripts/validate_phase4_training_data.py   # regenerates v2 from MAPIS-Bench v1 (already committed)
 
 # 1. stateful detector  (~ 30-60 min on a 3050; batch 4 x 4 accumulation, mixed precision)
 python -m backend.ml.train --run
@@ -22,5 +22,8 @@ python scripts/benchmark.py --systems llamaguard,nemo --sets v1,decomposed
 Outputs land in `artifacts/` (weights, calibration.json, history.json) and `results/` (metrics JSON).
 Send `results/*.json` and `artifacts/mapis_detector/{calibration,history,training_config}.json` back; the weights themselves need not be shared unless you want them committed.
 
-Reading the diagnostics: if `diagnostic_role_only_baseline` scores close to the model, or
-`diagnostic_markers_stripped` collapses, the classifier is using dataset artifacts, not injection semantics.
+Reading the results
+- `test` = unseen sessions, same attack templates. `test_ood` = attack templates never seen in training (AgentDojo `tool_knowledge`, a quarter of the InjecAgent instructions). Quote `test_ood` as the generalisation number.
+- `baselines_same_rows` (role-only, length-only, TF-IDF + logistic regression) show what a cheap model scores on the identical rows. On these public benchmarks a lexical model
+  already scores ~98-100 %, because injected instructions are blatantly imperative. A DeBERTa number is therefore NOT evidence of an advantage by itself; the stateful claim rests on
+  the decomposed benchmark (`scripts/benchmark.py --sets decomposed`) where no single message contains an instruction.
