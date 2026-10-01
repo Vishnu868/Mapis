@@ -14,56 +14,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from backend.core.context import build_text, normalize_hop, render_hop, rolling_context  # noqa: E402,F401
+
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "data" / "mapis_bench" / "mapis_bench_v1.jsonl"
 DEFAULT_OUTPUT = ROOT / "data" / "training" / "mapis_phase4_events_v1.jsonl"
-
-
-def _json(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-
-
-def normalize_hop(message: dict[str, Any]) -> dict[str, Any]:
-    """Preserve tool fields and represent absent assistant text explicitly."""
-    content = message.get("content")
-    return {
-        "hop": message["hop"],
-        "role": message["role"],
-        "source": message["source"],
-        "target": message["target"],
-        "content": content,
-        "content_state": "null_assistant_tool_call" if message.get("role") == "assistant" and content is None else
-                         "empty" if content == "" else "text" if isinstance(content, str) else "null",
-        "tool_name": message.get("tool_name"),
-        "tool_call": message.get("tool_call"),
-        "tool_calls": message.get("tool_calls"),
-        "tool_response": message.get("tool_response"),
-    }
-
-
-def render_hop(hop: dict[str, Any]) -> str:
-    fields = [
-        f"[HOP {hop['hop']}] role={hop['role']} source={hop['source']} target={hop['target']}",
-        f"content_state={hop['content_state']}",
-    ]
-    if hop["content"] is not None:
-        fields.append(f"content={hop['content']}")
-    if hop["tool_name"] is not None:
-        fields.append(f"tool_name={hop['tool_name']}")
-    for key in ("tool_call", "tool_calls", "tool_response"):
-        if hop[key] is not None:
-            fields.append(f"{key}={_json(hop[key])}")
-    return "\n".join(fields)
-
-
-def rolling_context(hops: list[dict[str, Any]], current_index: int, max_context_hops: int) -> list[dict[str, Any]]:
-    """Return preceding hops only, retaining system context when available."""
-    prior = hops[:current_index]
-    systems = [hop for hop in prior if hop["role"] == "system"]
-    recent = prior[-max_context_hops:]
-    selected: dict[int, dict[str, Any]] = {hop["hop"]: hop for hop in systems + recent}
-    return [selected[key] for key in sorted(selected)]
 
 
 def label_event(sample: dict[str, Any], hop: dict[str, Any]) -> tuple[str, str, str]:
@@ -106,9 +65,7 @@ def build_examples(samples: list[dict[str, Any]], max_context_hops: int = 6) -> 
             context = rolling_context(hops, index, max_context_hops)
             label, granularity, label_source = label_event(sample, current)
             example_id = hashlib.sha256(f"phase4-v1|{sample['sample_id']}|{current['hop']}".encode()).hexdigest()[:24]
-            text = "\n\n".join(
-                ["MAPIS CAUSAL EVENT WINDOW"] + [render_hop(hop) for hop in context] + ["CURRENT SCORING EVENT", render_hop(current)]
-            )
+            text = build_text(context, current)
             examples.append({
                 "example_id": example_id,
                 "source_sample_id": sample["sample_id"],

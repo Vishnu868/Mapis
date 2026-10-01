@@ -1,275 +1,154 @@
-"""
-MAPIS API Routes
-================
-All REST API endpoints for the MAPIS backend.
-"""
+"""REST + WebSocket API. Every inspection runs the synchronous shield in a worker thread."""
 
-import uuid
+from __future__ import annotations
+
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
-from loguru import logger
 
-from backend.models.schemas import (
-    ScanRequest, ScanResponse, PipelineRunRequest, PipelineRunResponse,
-    AlertResponse, SessionSummaryResponse, StatsResponse, TrustDecision
-)
-from backend.models.database import AlertLog, MessageLog, get_db
-from backend.core.trust_scorer import trust_scorer
-from backend.agents.pipeline import run_pipeline
+from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.concurrency import run_in_threadpool
+from loguru import logger
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.agents.graph import run_pipeline
+from backend.agents.testbed import make_environment
+from backend.core.shield import Tier
+from backend.db import EventLog, get_db, save_verdict, tier_counts
 
 router = APIRouter()
 
-# WebSocket connection manager
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: list[WebSocket] = []
 
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.active_connections.append(ws)
+class InspectRequest(BaseModel):
+    session_id: str
+    role: str = Field("assistant", description="user | assistant | tool | tool_response | memory_read | memory_write | system")
+    source: str
+    target: str
+    content: str | None = None
+    tool_name: str | None = None
+    tool_call: dict | None = None
 
-    def disconnect(self, ws: WebSocket):
-        self.active_connections.remove(ws)
 
-    async def broadcast(self, data: dict):
-        for connection in self.active_connections:
+class PipelineRequest(BaseModel):
+    task: str = "Summarise the vendor contracts in our shared drive and email me the key terms."
+    scenario: str = "clean"          # clean | attack | decomposed
+    web: dict[str, str] = {}
+    files: dict[str, str] = {}
+    session_id: str | None = None
+
+
+class Hub:
+    """Fan-out of live verdicts to dashboard WebSockets."""
+
+    def __init__(self) -> None:
+        self.clients: list[WebSocket] = []
+
+    async def send(self, payload: dict) -> None:
+        for ws in list(self.clients):
             try:
-                await connection.send_json(data)
-            except Exception:
-                pass
-
-manager = ConnectionManager()
+                await ws.send_json(payload)
+            except Exception:  # noqa: BLE001 - drop dead sockets
+                self.clients.remove(ws)
 
 
-# ── Health Check ───────────────────────────────────────────────────────────
+hub = Hub()
+
+
+async def _record(db: AsyncSession, verdict: dict) -> dict:
+    await save_verdict(db, verdict)
+    await hub.send({"type": "verdict", "data": verdict})
+    return verdict
+
 
 @router.get("/health")
-async def health_check():
-    return {
-        "status": "ok",
-        "service": "MAPIS",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+async def health(request: Request):
+    shield = request.app.state.shield
+    return {"status": "ok", "detector": shield.detector.name, "store": shield.store.kind, "time": datetime.utcnow().isoformat()}
 
 
-# ── Core: Scan a Single Message ────────────────────────────────────────────
-
-@router.post("/scan", response_model=ScanResponse)
-async def scan_message(
-    request: ScanRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Scan a single inter-agent message through MAPIS trust scorer.
-    This is the core API endpoint — call this before passing any
-    message from one agent to another.
-    """
+@router.post("/inspect")
+async def inspect(req: InspectRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    """Tap endpoint: call before delivering any agent message, tool output or memory read/write."""
+    shield = request.app.state.shield
     try:
-        trust_score = trust_scorer.score_message(
-            session_id=request.session_id,
-            source_agent=request.source_agent,
-            target_agent=request.target_agent,
-            message=request.message,
-            metadata=request.metadata
-        )
-
-        # Persist to DB if flagged
-        if trust_score.decision in [TrustDecision.BLOCK, TrustDecision.WARN]:
-            alert = AlertLog(
-                session_id=request.session_id,
-                source_agent=request.source_agent,
-                target_agent=request.target_agent,
-                decision=trust_score.decision,
-                final_score=trust_score.final_score,
-                pattern_hits=trust_score.pattern_hits,
-                explanation=trust_score.explanation,
-                timestamp=datetime.utcnow()
-            )
-            db.add(alert)
-
-        # Always log to message log
-        msg_log = MessageLog(
-            session_id=request.session_id,
-            source_agent=request.source_agent,
-            target_agent=request.target_agent,
-            message_hash=trust_score.message_hash,
-            raw_score=trust_score.raw_score,
-            final_score=trust_score.final_score,
-            session_penalty=trust_score.session_penalty,
-            decision=trust_score.decision,
-            explanation=trust_score.explanation,
-            timestamp=datetime.utcnow()
-        )
-        db.add(msg_log)
-        await db.commit()
-
-        # Broadcast to WebSocket clients (live dashboard)
-        await manager.broadcast({
-            "type": "scan_result",
-            "data": trust_score.dict()
-        })
-
-        return ScanResponse(
-            success=True,
-            trust_score=trust_score,
-            blocked=trust_score.decision == TrustDecision.BLOCK,
-            warned=trust_score.decision == TrustDecision.WARN,
-            message=trust_score.explanation
-        )
-
-    except Exception as e:
-        logger.error(f"Scan error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        verdict = (await run_in_threadpool(shield.inspect, req.model_dump())).to_dict()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("inspection failed")
+        if shield.cfg.fail_mode == "open":
+            return {"tier": "PASS", "delivered": True, "error": str(exc), "fail_mode": "open"}
+        raise HTTPException(503, f"inspection failed; fail-closed: {exc}") from exc
+    return await _record(db, verdict)
 
 
-# ── Run Full Pipeline ──────────────────────────────────────────────────────
-
-@router.post("/pipeline/run", response_model=PipelineRunResponse)
-async def run_agent_pipeline(
-    request: PipelineRunRequest,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Run the full multi-agent pipeline with MAPIS monitoring.
-    Inject a task (or an attack payload) and see MAPIS in action.
-    """
-    session_id = request.session_id or str(uuid.uuid4())
-
-    result = run_pipeline(
-        task=request.task,
-        session_id=session_id
-    )
-
-    # Persist all events to DB
-    for event in result.get("events", []):
-        if event.get("decision") in ["BLOCK", "WARN"]:
-            alert = AlertLog(
-                session_id=session_id,
-                source_agent=event.get("source_agent", "unknown"),
-                target_agent=event.get("target_agent", "unknown"),
-                decision=event.get("decision"),
-                final_score=event.get("final_score", 0),
-                pattern_hits=event.get("pattern_hits", []),
-                explanation=event.get("explanation", ""),
-                timestamp=datetime.utcnow()
-            )
-            db.add(alert)
-
-    await db.commit()
-
-    # Broadcast to dashboard
-    await manager.broadcast({
-        "type": "pipeline_result",
-        "data": result
-    })
-
-    return PipelineRunResponse(**result)
+@router.post("/pipeline/run")
+async def pipeline(req: PipelineRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    shield = request.app.state.shield
+    env = make_environment(req.scenario, req.web, req.files)
+    result = await run_in_threadpool(run_pipeline, shield, env, req.task, "me@corp.com", req.session_id)
+    for verdict in result["events"]:
+        await _record(db, verdict)
+    return result
 
 
-# ── Alerts ─────────────────────────────────────────────────────────────────
-
-@router.get("/alerts", response_model=list[AlertResponse])
-async def get_alerts(
-    limit: int = 50,
-    session_id: str = None,
-    db: AsyncSession = Depends(get_db)
-):
-    """Get recent alerts (BLOCK and WARN events)."""
-    query = select(AlertLog).order_by(AlertLog.timestamp.desc()).limit(limit)
+@router.get("/events")
+async def events(limit: int = 100, session_id: str | None = None, min_tier: Tier = Tier.PASS, db: AsyncSession = Depends(get_db)):
+    query = select(EventLog).order_by(EventLog.id.desc()).limit(limit)
     if session_id:
-        query = query.where(AlertLog.session_id == session_id)
-
-    result = await db.execute(query)
-    alerts = result.scalars().all()
-
-    return [
-        AlertResponse(
-            id=a.id,
-            session_id=a.session_id,
-            source_agent=a.source_agent,
-            target_agent=a.target_agent,
-            decision=a.decision,
-            final_score=a.final_score,
-            pattern_hits=a.pattern_hits or [],
-            explanation=a.explanation,
-            timestamp=a.timestamp.isoformat() if a.timestamp else ""
-        )
-        for a in alerts
-    ]
+        query = query.where(EventLog.session_id == session_id)
+    tiers = [t.value for t in Tier if t.severity >= min_tier.severity]
+    rows = (await db.execute(query.where(EventLog.tier.in_(tiers)))).scalars().all()
+    return [r.to_dict() for r in rows]
 
 
-@router.delete("/alerts/{alert_id}")
-async def delete_alert(alert_id: int, db: AsyncSession = Depends(get_db)):
-    """Delete a specific alert."""
-    result = await db.execute(select(AlertLog).where(AlertLog.id == alert_id))
-    alert = result.scalar_one_or_none()
-    if not alert:
-        raise HTTPException(status_code=404, detail="Alert not found")
-    await db.delete(alert)
+@router.post("/quarantine/{event_id}/{action}")
+async def review(event_id: str, action: str, db: AsyncSession = Depends(get_db)):
+    if action not in ("release", "reject"):
+        raise HTTPException(400, "action must be release or reject")
+    row = (await db.execute(select(EventLog).where(EventLog.event_id == event_id))).scalar_one_or_none()
+    if not row or row.tier != Tier.QUARANTINE.value:
+        raise HTTPException(404, "no such quarantined event")
+    row.status = "released" if action == "release" else "rejected"
     await db.commit()
-    return {"message": "Alert deleted"}
+    await hub.send({"type": "review", "data": row.to_dict()})
+    return row.to_dict()
 
 
-# ── Sessions ───────────────────────────────────────────────────────────────
-
-@router.get("/sessions/{session_id}", response_model=SessionSummaryResponse)
-async def get_session(session_id: str):
-    """Get session history and statistics."""
-    summary = trust_scorer.get_session_summary(session_id)
-    if "error" in summary:
-        raise HTTPException(status_code=404, detail=summary["error"])
-    return summary
+@router.get("/stats")
+async def stats(db: AsyncSession = Depends(get_db)):
+    counts = await tier_counts(db)
+    total = sum(counts.values())
+    return {"total": total, "tiers": {t.value: counts.get(t.value, 0) for t in Tier},
+            "intercept_rate": round(100 * (total - counts.get("PASS", 0)) / total, 2) if total else 0.0}
 
 
-@router.delete("/sessions/{session_id}")
-async def clear_session(session_id: str):
-    """Clear a session's in-memory state."""
-    trust_scorer.clear_session(session_id)
-    return {"message": f"Session {session_id} cleared"}
+@router.get("/sessions/{sid}/trace")
+async def trace(sid: str, db: AsyncSession = Depends(get_db)):
+    """Forensic report: every non-PASS event of the session with its propagation path."""
+    rows = (await db.execute(select(EventLog).where(EventLog.session_id == sid, EventLog.tier != "PASS").order_by(EventLog.id))).scalars().all()
+    if not rows:
+        raise HTTPException(404, "no flagged events for this session")
+    return {"session_id": sid, "events": [r.to_dict() for r in rows]}
 
 
-# ── Stats / Dashboard ──────────────────────────────────────────────────────
-
-@router.get("/stats", response_model=StatsResponse)
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    """Get overall system statistics for the dashboard."""
-    total_messages = await db.scalar(select(func.count(MessageLog.id)))
-    total_blocked  = await db.scalar(select(func.count(AlertLog.id)).where(AlertLog.decision == "BLOCK"))
-    total_warned   = await db.scalar(select(func.count(AlertLog.id)).where(AlertLog.decision == "WARN"))
-    total_sessions = await db.scalar(select(func.count(func.distinct(MessageLog.session_id))))
-
-    total_messages = total_messages or 0
-    total_blocked  = total_blocked  or 0
-    total_warned   = total_warned   or 0
-    total_sessions = total_sessions or 0
-    total_allowed  = total_messages - total_blocked - total_warned
-    block_rate     = (total_blocked / total_messages * 100) if total_messages > 0 else 0.0
-
-    return StatsResponse(
-        total_sessions=total_sessions,
-        total_messages=total_messages,
-        total_blocked=total_blocked,
-        total_warned=total_warned,
-        total_allowed=max(0, total_allowed),
-        block_rate=round(block_rate, 2),
-        top_attack_types=[]  # populated in future version
-    )
+@router.delete("/sessions/{sid}")
+async def reset_session(sid: str, request: Request):
+    request.app.state.shield.reset(sid)
+    return {"reset": sid}
 
 
-# ── WebSocket (Live Dashboard) ─────────────────────────────────────────────
+@router.post("/sessions/{sid}/channels/release")
+async def release(sid: str, source: str, target: str, request: Request):
+    request.app.state.shield.release_channel(sid, f"{source}->{target}")
+    return {"released": f"{source}->{target}"}
+
 
 @router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """WebSocket endpoint for live dashboard updates."""
-    await manager.connect(websocket)
-    logger.info("WebSocket client connected")
+async def ws(websocket: WebSocket):
+    await websocket.accept()
+    hub.clients.append(websocket)
     try:
         while True:
-            data = await websocket.receive_text()
-            # Echo back any ping
-            await websocket.send_json({"type": "pong", "data": data})
+            await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
-        logger.info("WebSocket client disconnected")
+        if websocket in hub.clients:
+            hub.clients.remove(websocket)
