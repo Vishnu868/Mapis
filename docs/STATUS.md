@@ -8,12 +8,28 @@
 - FastAPI tap, SQLite forensic log, WebSocket push, React dashboard (timeline, alerts, traces, quarantine review).
 - Training / calibration (temperature) / evaluation code; train/serve text parity is unit-tested.
 
-## NOT yet measured (needs the laptop)
-- Any DeBERTa result. No completed training exists (only an abandoned epoch-1 checkpoint on an old CPU laptop). The First Review slide figures
-  (89.97 % acc, 87.5 % recall, 4.35 % FPR, TP 231 / FN 33 / FP 5 / TN 110) are provisional placeholders and must be removed from the deck.
-- The only real quantitative result is the old heuristic baseline on MAPIS-Bench v1 test (282 sessions): recall 10.55 %, precision 96.43 %, FPR 3.85 %.
-- Latency of the full shield with the transformer; thresholds tuned on validation.
-- Llama Guard / NeMo baselines (adapters written, never run).
+## Measured results (RTX 3050, commit edd7584; DeBERTa-v3-small, 2 epochs, best epoch by validation F1 at FPR <= 5 %)
+Event-level (long events are scored chunk-wise, trust = min over chunks), threshold trust < 0.5, 95 % Wilson intervals.
+
+| Held-out split | Events | Recall | FPR | TF-IDF+LogReg baseline (recall / FPR) | Stateless DeBERTa (recall / FPR) |
+|---|---|---|---|---|---|
+| `test` (unseen sessions) | 217 mal / 251 safe | 100 % [98.3-100] | 1.6 % [0.6-4.0] | 99.5 % / 0 % | 100 % / 0 % |
+| `test_ood` (unseen attack templates) | 285 / 244 | 100 % [98.7-100] | 0.8 % [0.2-2.9] | 100 % / 0 % | 100 % / 2.9 % |
+| `test_bipia` (a different dataset, never trained on) | 600 / 400 | 95.0 % [93.0-96.5] | 0.5 % [0.1-1.8] | 81.0 % / 12.0 % | 92.7 % / 1.0 % |
+
+- The only split that separates models is BIPIA: DeBERTa beats a bag-of-words baseline by +14 points recall and -11.5 points FPR on a dataset it never saw. On AgentDojo / InjecAgent every model scores ~100 %.
+- Stateful vs stateless on BIPIA: +2.3 points recall (570 vs 556 of 600); the intervals touch, so call it "a small gain", not a proven one.
+- Weak spots (BIPIA, per attack category): injections that look like harmless requests are missed most - Sentiment Analysis 74 %, Conversational Agent 76 %, Research Assistance 80 %, Task Automation 85 %.
+  The model is confidently wrong on them (trust ~0.99): an embedded "What movies are playing this weekend?" has no malicious content, only irrelevance to the user's task.
+- Classifier latency on the 3050: 55 ms per event (single), 46 ms per event batched - inside the 200 ms budget.
+- Session-level benchmark (test sessions): MAPIS recall 96.6 %, FPR 0.8 % overall; MAPIS-Bench v1 benign 0/26 flagged; decomposed attacks 100 % with provenance vs 0 % without it and 0 % for the stateless model.
+- Temperature calibration: 1.285 (stateful), 1.409 (stateless).
+
+## NOT yet measured / not done
+- Llama Guard and NeMo Guardrails (adapters written, never run; needs gated weights and an OpenAI key).
+- Fusion weights and tier thresholds are defaults; no tuning beyond the classifier's 0.5 boundary.
+- Full-shield latency including Redis, and the dashboard against the trained model.
+- AutoGen (LangGraph only).
 
 ## Dataset audit (done against the original sources where available)
 - InjecAgent: 544 attack sessions match `test_cases_ds_base.json` exactly (user instruction, tool response, attacker instruction; 32 distinct instructions). Only the data-stealing (ds) cases are used; the 510 direct-harm (dh) cases are not.
@@ -45,6 +61,8 @@
   minimal-pair "clean twins" as hard negatives (synthetic neutral filler, disjoint per split), and a template-held-out `test_ood` split. Role-only now scores 0 % recall.
 - Even so, on v2 a TF-IDF + logistic regression scores ~98 % (test) and ~100 % (test_ood): injected instructions are blatantly imperative in these benchmarks. Single-event
   accuracy cannot demonstrate an advantage; the decomposed multi-hop benchmark is where the stateful claim has to be shown.
+- A false-positive audit found three kinds of artefact, all fixed: a regex cue matching the word 'email' next to an address; a 27k-character benign listing (61 chunks, min-pooling gives many chances to misfire);
+  and the model memorising the document text that precedes AgentDojo injections (fixed with nearest-negative and shifted-window training rows and by removing the chunk-position header).
 - Provenance can false-positive when a legitimate destination comes from a tool result (e.g. "pay the bill in the file").
   Sources the user explicitly named in the task (e.g. the file in 'pay the bill in bill.txt') are trusted origins; anything else lands in QUARANTINE
   for a human. The remaining false-positive cost is measured on the benign sessions in the benchmark.
