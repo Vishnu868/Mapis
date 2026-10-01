@@ -1,0 +1,45 @@
+{
+  "total_examples": 12977,
+  "labels": {
+    "malicious": 1677,
+    "safe": 905,
+    "unlabeled": 10395
+  },
+  "splits": {
+    "test": 1784,
+    "train": 9123,
+    "validation": 2070
+  },
+  "source_dataset": {
+    "AgentDojo": 11311,
+    "InjecAgent": 1666
+  },
+  "native_or_derived": {
+    "chronological_native_trajectory": 11311,
+    "cleaned": 34,
+    "derived": 1632
+  },
+  "label_granularity": {
+    "event": 5995,
+    "session": 6982
+  },
+  "attack_class": {
+    "None": 1423,
+    "code_tool_manipulation": 51,
+    "data_exfiltration": 1581,
+    "financial_manipulation": 9296,
+    "instruction_override": 483,
+    "physical_safety_harm": 143
+  },
+  "label_source": {
+    "attack_session_label_not_copied_to_hop": 6982,
+    "benign_injecagent_placeholder_excluded": 17,
+    "benign_injecagent_user_instruction_policy": 17,
+    "derived_injecagent_injection_bearing_tool_response": 544,
+    "derived_instruction_extraction_not_runtime_event": 544,
+    "empty_benign_event_excluded": 43,
+    "native_agentdojo_embedded_tool_instruction": 1133,
+    "native_benign_trajectory_text_policy": 888,
+    "null_assistant_tool_call_excluded": 2809
+  }
+}
