@@ -1,0 +1,73 @@
+{
+  "total_examples": 22396,
+  "chunk_labels": {
+    "malicious": 3701,
+    "safe": 5142,
+    "unlabeled": 13553
+  },
+  "splits_chunks": {
+    "test": 2105,
+    "test_bipia": 2711,
+    "test_ood": 2144,
+    "train": 12962,
+    "validation": 2474
+  },
+  "events_supervised": {
+    "malicious": 3027,
+    "safe": 3066
+  },
+  "events_supervised_by_split_and_label": {
+    "test/malicious": 217,
+    "test/safe": 251,
+    "test_bipia/malicious": 600,
+    "test_bipia/safe": 400,
+    "test_ood/malicious": 285,
+    "test_ood/safe": 244,
+    "train/malicious": 1628,
+    "train/safe": 1972,
+    "validation/malicious": 297,
+    "validation/safe": 199
+  },
+  "source_dataset": {
+    "AgentDojo": 13779,
+    "BIPIA": 6407,
+    "InjecAgent": 2210
+  },
+  "native_or_derived": {
+    "chronological_native_trajectory": 13779,
+    "cleaned": 34,
+    "derived": 2176,
+    "minimal_pair_construction": 6407
+  },
+  "attack_class_events": {
+    "None": 20,
+    "code_tool_manipulation": 583,
+    "data_exfiltration": 1195,
+    "financial_manipulation": 68,
+    "instruction_override": 1141,
+    "physical_safety_harm": 20
+  },
+  "label_source": {
+    "attack_session_label_not_copied_to_hop:chunk_not_selected": 7615,
+    "benign_injecagent_placeholder_excluded:chunk_not_selected": 17,
+    "benign_injecagent_user_instruction_policy": 17,
+    "bipia_clean_context_policy": 1333,
+    "bipia_clean_context_policy:chunk_not_selected": 279,
+    "bipia_poisoned_context": 1457,
+    "bipia_poisoned_context:chunk_not_selected": 772,
+    "bipia_poisoned_context:chunk_partially_overlaps_injection": 74,
+    "chunk_of_injected_event_without_injection": 1503,
+    "derived_injecagent_clean_twin_synthetic_filler": 544,
+    "derived_injecagent_injection_bearing_tool_response": 544,
+    "derived_instruction_extraction_not_runtime_event:chunk_not_selected": 544,
+    "empty_benign_event_excluded:chunk_not_selected": 43,
+    "native_agentdojo_embedded_tool_instruction": 1700,
+    "native_agentdojo_embedded_tool_instruction:chunk_not_selected": 281,
+    "native_agentdojo_embedded_tool_instruction:chunk_partially_overlaps_injection": 589,
+    "native_agentdojo_pre_injection_tool_output": 719,
+    "native_agentdojo_pre_injection_tool_output:chunk_not_selected": 2,
+    "native_benign_trajectory_text_policy": 1026,
+    "native_benign_trajectory_text_policy:chunk_not_selected": 528,
+    "null_assistant_tool_call_excluded:chunk_not_selected": 2809
+  }
+}

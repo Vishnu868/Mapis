@@ -1,7 +1,13 @@
-"""Event window rendering.
+"""Event rendering shared by training and runtime, so the classifier sees identical text in both places.
 
-Training (scripts/prepare_phase4_training_data.py) and runtime inference both
-import this module, so the classifier sees byte-identical text in both places.
+Layout (the scored event comes FIRST so a tokenizer cut can only ever trim old context):
+
+    MAPIS CURRENT EVENT (part i/n)      <- one chunk of the event; long events are split into overlapping chunks
+    ...
+    MAPIS PRECEDING CONTEXT             <- first user message + the last few hops, abbreviated
+
+An event's trust is the MINIMUM over its chunks, so an injection hidden anywhere in a long email, table or
+tool output is still seen.
 """
 
 from __future__ import annotations
@@ -10,10 +16,19 @@ import json
 from typing import Any
 
 UNTRUSTED_ROLES = {"tool", "tool_response", "memory_read", "memory_write"}
+CHUNK_CHARS = 900        # current-event characters per chunk (~250-300 tokens)
+CHUNK_STRIDE = 450       # overlap of 450 chars: any injection up to 450 chars lies fully inside some chunk
+CONTEXT_CHARS = 150      # per-hop budget for abbreviated context
+CONTEXT_HOPS = 4
+CALL_CHARS = 700
 
 
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + "…"
 
 
 def normalize_hop(message: dict[str, Any]) -> dict[str, Any]:
@@ -37,32 +52,64 @@ def normalize_hop(message: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def render_hop(hop: dict[str, Any]) -> str:
+def render_hop(hop: dict[str, Any], limit: int | None = None) -> str:
+    """limit=None renders everything (the current chunk); a number abbreviates (context hops)."""
     fields = [
         f"[HOP {hop['hop']}] role={hop['role']} source={hop['source']} target={hop['target']}",
         f"content_state={hop['content_state']}",
     ]
     if hop["content"] is not None:
-        fields.append(f"content={hop['content']}")
+        fields.append(f"content={hop['content'] if limit is None else _clip(hop['content'], limit)}")
     if hop["tool_name"] is not None:
         fields.append(f"tool_name={hop['tool_name']}")
     for key in ("tool_call", "tool_calls", "tool_response"):
-        if hop[key] is not None:
-            fields.append(f"{key}={_json(hop[key])}")
+        value = hop[key]
+        if value is None or (key == "tool_response" and value == hop["content"]):  # mirrored copy: don't pay for it twice
+            continue
+        fields.append(f"{key}={_clip(_json(value), limit or CALL_CHARS)}")
     return "\n".join(fields)
 
 
-def rolling_context(hops: list[dict[str, Any]], current_index: int, max_context_hops: int) -> list[dict[str, Any]]:
-    """Preceding hops only (never the current or a future one), keeping system hops."""
+def rolling_context(hops: list[dict[str, Any]], current_index: int, max_context_hops: int = CONTEXT_HOPS) -> list[dict[str, Any]]:
+    """Preceding hops only (never the current or a future one): the first user message (the goal) + the last few hops."""
     prior = hops[:current_index]
-    selected = {h["hop"]: h for h in [h for h in prior if h["role"] == "system"] + prior[-max_context_hops:]}
+    goal = next((h for h in prior if h["role"] == "user"), None)
+    selected = {h["hop"]: h for h in ([goal] if goal else []) + [h for h in prior[-max_context_hops:] if h["role"] != "system"]}
     return [selected[k] for k in sorted(selected)]
 
 
-def build_text(context: list[dict[str, Any]], current: dict[str, Any]) -> str:
-    return "\n\n".join(
-        ["MAPIS CAUSAL EVENT WINDOW"] + [render_hop(h) for h in context] + ["CURRENT SCORING EVENT", render_hop(current)]
-    )
+def chunk_spans(length: int, size: int = CHUNK_CHARS, stride: int = CHUNK_STRIDE) -> list[tuple[int, int]]:
+    if length <= size:
+        return [(0, length)]
+    starts = list(range(0, length - size, stride)) + [length - size]
+    return [(s, s + size) for s in starts]
+
+
+def event_text(hop: dict[str, Any]) -> str:
+    """The part of an event that gets chunked: its content (or tool response when there is no content)."""
+    return hop["content"] if isinstance(hop["content"], str) else (hop["tool_response"] if isinstance(hop["tool_response"], str) else "")
+
+
+def chunk_hop(hop: dict[str, Any], start: int, end: int, whole: bool) -> dict[str, Any]:
+    if whole:
+        return hop
+    piece = event_text(hop)[start:end]
+    return {**hop, "content": piece, "content_state": "text", "tool_response": None}
+
+
+def build_text(context: list[dict[str, Any]], current: dict[str, Any], part: tuple[int, int] = (1, 1)) -> str:
+    head = "MAPIS CURRENT EVENT" + (f" (part {part[0]}/{part[1]})" if part[1] > 1 else "")
+    parts = [head, render_hop(current)]
+    if context:
+        parts += ["MAPIS PRECEDING CONTEXT", *[render_hop(h, CONTEXT_CHARS) for h in context]]
+    return "\n\n".join(parts)
+
+
+def build_texts(context: list[dict[str, Any]], hop: dict[str, Any]) -> list[str]:
+    """One text per chunk of the current event (usually one)."""
+    spans = chunk_spans(len(event_text(hop)))
+    whole = len(spans) == 1
+    return [build_text(context, chunk_hop(hop, s, e, whole), (i, len(spans))) for i, (s, e) in enumerate(spans, 1)]
 
 
 def action_text(hop: dict[str, Any]) -> str:

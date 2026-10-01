@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     flag_at: float = 0.50
     quarantine_at: float = 0.25
 
-    window_hops: int = 6          # causal context hops given to the classifier
+    window_hops: int = 4          # causal context hops given to the classifier (plus the user's goal)
     session_ttl: int = 3600       # seconds of inactivity before a session expires
     sensitivity_step: float = 0.15  # risk boost per FLAG in the session
     sensitivity_cap: float = 0.60

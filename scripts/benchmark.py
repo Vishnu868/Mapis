@@ -1,7 +1,7 @@
 """Replay MAPIS-Bench sessions through each system and report session-level metrics.
 
     python scripts/benchmark.py --systems mapis,mapis-stateless,regex
-    python scripts/benchmark.py --systems mapis,llamaguard,nemo --sets v1,decomposed --split test
+    python scripts/benchmark.py --systems mapis,llamaguard,nemo --sets v1,decomposed,bipia --split test
 
 A session counts as *detected* when any event is held back (QUARANTINE/BLOCK for MAPIS, 'unsafe'
 for a stateless baseline).  False-positive rate = benign sessions with any held-back event.
@@ -26,7 +26,8 @@ from backend.core.shield import MapisShield, Tier  # noqa: E402
 from backend.core.store import MemoryStore  # noqa: E402
 from backend.ml.metrics import confusion, summarize  # noqa: E402
 
-DATASETS = {"v1": ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", "decomposed": ROOT / "data/mapis_bench/mapis_bench_decomposed_v1.jsonl"}
+DATASETS = {"v1": ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", "decomposed": ROOT / "data/mapis_bench/mapis_bench_decomposed_v1.jsonl",
+            "bipia": ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl"}
 NOT_RUNTIME = {"attacker_instruction", "tool_response_template"}  # derived annotations, not events an agent would emit
 
 
@@ -37,7 +38,8 @@ def load(sets: list[str], split: str) -> list[dict]:
         if not path.exists():
             print(f"[skip] {path} not found")
             continue
-        rows += [r for r in (json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()) if r["split"] == split]
+        wanted = "external" if name == "bipia" and split == "test" else split  # BIPIA's own test contexts + categories
+        rows += [r for r in (json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()) if r["split"] == wanted]
     return rows
 
 
@@ -69,14 +71,14 @@ class StatelessSystem:
 
     def run(self, sample: dict) -> tuple[bool, list[float]]:
         import time
-        from backend.core.context import build_text, normalize_hop
+        from backend.core.context import build_texts, normalize_hop
         held, lat = False, []
         for i, e in enumerate(events(sample), 1):
             if e["role"] in ("user", "system"):
                 continue
             hop = normalize_hop({**e, "hop": i})
             t0 = time.perf_counter()
-            held |= self.detector.score(build_text([], hop), hop) < self.threshold
+            held |= self.detector.score_chunks(build_texts([], hop), hop) < self.threshold
             lat.append(1000 * (time.perf_counter() - t0))
         return held, lat
 
@@ -122,7 +124,7 @@ def main() -> None:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
             flags.append(held); labels.append(y); lats += lat
-            set_name = s["source_dataset"] if s["source_dataset"] == "MAPIS-Decomposed" else "MAPIS-Bench v1"
+            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
             by_set[set_name][0].append(y); by_set[set_name][1].append(held)
             if s.get("benign_kind"):  # benign sessions reported separately by kind
                 by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)

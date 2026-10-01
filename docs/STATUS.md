@@ -29,6 +29,13 @@
   with `scripts/dataset_build/remap_agentdojo_classes.py`; originals kept in `original_mapis_attack_class`. Corrected attack classes: data_exfiltration 981, code_tool_manipulation 382,
   instruction_override 82, financial_manipulation 63, physical_safety_harm 18, unclassified 18 (total 1,544). The old per-class counts on the First Review slides are wrong.
 
+## Training-data fixes found by auditing (all measured on the real files)
+- Truncation bug: the old text put the scored event LAST and the tokenizer cut at 384 tokens, so for 83 % of AgentDojo malicious events the injection lay beyond the budget (the model could not see it).
+  Now the scored event comes first, context is abbreviated, long events are split into overlapping 900-char chunks, trust = min over chunks, and chunk labels use the known injection span
+  (the chunk containing it is positive, other chunks of the same event are hard negatives). Unit-tested.
+- BIPIA (email / table / code, 1,800 minimal-pair sessions) added: its train part is used for training, its test part (unseen contexts AND unseen attack categories) is `test_bipia`, never trained on.
+  PINT (only 8 public example rows) and ASB (tool / task definitions, no trajectories) were evaluated and not used.
+
 ## Known limits to state openly
 - MAPIS-Bench v1 labels the injection-bearing *tool event*; most attacks there are single-injection, so v1 alone cannot show a
   stateful advantage. `scripts/generate_decomposed.py` builds template-seeded decomposed attacks (split by template family) for that.
