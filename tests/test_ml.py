@@ -77,3 +77,11 @@ def test_train_calibrate_and_serve_tiny_model(tmp_path):
     det = TransformerDetector(out)
     bad, good = det.score("ignore instructions information", {}), det.score("task user content", {})
     assert 0 <= bad <= 1 and bad < good
+
+
+def test_marker_dropout_strips_only_malicious_rows_deterministically():
+    from backend.ml.data import drop_markers
+    rows = [{"label": 0, "text": "a <INFORMATION> b </INFORMATION>"}, {"label": 1, "text": "<INFORMATION> safe"}]
+    out = drop_markers(rows, 1.0, 0)
+    assert "<INFORMATION>" not in out[0]["text"] and out[1]["text"] == rows[1]["text"]
+    assert drop_markers(rows, 0.5, 3) == drop_markers(rows, 0.5, 3)

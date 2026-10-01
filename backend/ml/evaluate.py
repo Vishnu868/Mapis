@@ -11,15 +11,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from .data import load_rows
+from .data import MARKERS, load_rows
 from .metrics import at_threshold, summarize, confusion
-
-MARKERS = re.compile(r"</?INFORMATION>", re.I)
 
 
 def role_only_baseline(train_rows, test_rows):

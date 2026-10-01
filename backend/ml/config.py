@@ -20,6 +20,7 @@ class TrainingConfig:
     seed: int = 42
     mixed_precision: bool = True
     use_context: bool = True          # False trains the stateless ablation (current event only)
+    marker_dropout: float = 0.5       # share of malicious rows whose <INFORMATION> tags are removed during training
     max_fpr: float = 0.05             # best epoch = highest val F1 among epochs with FPR <= this
     training_data: str = "data/training/mapis_phase4_events_v1.jsonl"
     output_dir: str = "artifacts/mapis_detector"
