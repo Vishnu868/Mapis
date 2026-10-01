@@ -69,7 +69,7 @@ def train(cfg: TrainingConfig) -> dict:
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg.model_name, num_labels=2, id2label={0: "MALICIOUS", 1: "SAFE"}, label2id={"MALICIOUS": 0, "SAFE": 1},
-        use_safetensors=True).to(device)  # safetensors loads on any torch version (the .bin path needs torch >= 2.6)
+        use_safetensors=True).float().to(device)  # safetensors loads on any torch version; .float(): new transformers loads fp16 weights, mixed precision needs fp32 masters
 
     def collate(rows):
         enc = tokenizer([r["text"] for r in rows], padding=True, truncation=True, max_length=cfg.max_length, return_tensors="pt")

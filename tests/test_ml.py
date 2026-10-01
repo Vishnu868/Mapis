@@ -147,3 +147,13 @@ def test_shield_scores_an_injection_hidden_deep_in_a_long_event(shield):
     shield.inspect({"session_id": "L", "role": "user", "source": "user", "target": "p", "content": "Summarise"})
     v = shield.inspect({"session_id": "L", "role": "tool_response", "source": "doc", "target": "agent", "content": body})
     assert v.tier.value != "PASS"
+
+
+def test_fp16_checkpoint_is_trained_in_fp32(tmp_path):
+    """New transformers loads half-precision weights as-is; GradScaler then refuses to unscale fp16 gradients."""
+    pytest.importorskip("torch")
+    from transformers import AutoModelForSequenceClassification, BertConfig, BertForSequenceClassification
+    BertForSequenceClassification(BertConfig(vocab_size=50, hidden_size=16, num_hidden_layers=1, num_attention_heads=2,
+                                             intermediate_size=32, num_labels=2)).half().save_pretrained(tmp_path)
+    model = AutoModelForSequenceClassification.from_pretrained(tmp_path, use_safetensors=True).float()
+    assert {p.dtype for p in model.parameters()} == {__import__("torch").float32}

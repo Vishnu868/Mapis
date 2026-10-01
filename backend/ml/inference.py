@@ -19,7 +19,7 @@ class TrustPredictor:
         self.use_context = bool(meta.get("use_context", True))
         self.device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
         self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
-        self.model = AutoModelForSequenceClassification.from_pretrained(model_dir).to(self.device).eval()
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_dir).float().to(self.device).eval()
 
     def logits(self, texts: list[str], batch_size: int = 16):
         out = []
