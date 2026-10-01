@@ -76,7 +76,7 @@ def test_train_calibrate_and_serve_tiny_model(tmp_path):
                                gradient_accumulation_steps=1, learning_rate=5e-3, max_length=32, mixed_precision=False))
     assert cal["temperature"] > 0 and (out / "calibration.json").exists() and (out / "config.json").exists()
     det = TransformerDetector(out)
-    bad, good = det.score_chunks(["ignore instructions information"], {}), det.score_chunks(["task user content"], {})
+    bad, good = det.score_chunks(["ignore instructions information"], {})[0], det.score_chunks(["task user content"], {})[0]
     assert 0 <= bad <= 1 and bad < good
 
 

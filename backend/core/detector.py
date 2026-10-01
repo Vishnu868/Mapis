@@ -15,8 +15,8 @@ class RegexDetector:
     name = "regex"
     use_context = False
 
-    def score_chunks(self, texts: list[str], hop: dict) -> float:
-        return 1.0 - 0.9 * instruction_risk(hop)[0]
+    def score_chunks(self, texts: list[str], hop: dict) -> tuple[float, int]:
+        return 1.0 - 0.9 * instruction_risk(hop)[0], 0
 
 
 class TransformerDetector:
@@ -30,9 +30,11 @@ class TransformerDetector:
         self.predictor = TrustPredictor(model_dir)
         self.use_context = self.predictor.use_context
 
-    def score_chunks(self, texts: list[str], hop: dict) -> float:
-        """An event is as trustworthy as its least trustworthy chunk."""
-        return min(self.predictor.trust(texts))
+    def score_chunks(self, texts: list[str], hop: dict) -> tuple[float, int]:
+        """An event is as trustworthy as its least trustworthy chunk; also returns which chunk that is."""
+        trust = self.predictor.trust(texts)
+        worst = min(range(len(trust)), key=trust.__getitem__)
+        return trust[worst], worst
 
 
 def load_detector(model_path: str | Path):

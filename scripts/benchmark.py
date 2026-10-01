@@ -78,7 +78,7 @@ class StatelessSystem:
                 continue
             hop = normalize_hop({**e, "hop": i})
             t0 = time.perf_counter()
-            held |= self.detector.score_chunks(build_texts([], hop), hop) < self.threshold
+            held |= self.detector.score_chunks(build_texts([], hop), hop)[0] < self.threshold
             lat.append(1000 * (time.perf_counter() - t0))
         return held, lat
 
