@@ -13,7 +13,7 @@ class TrainingConfig:
     eval_batch_size: int = 16
     gradient_accumulation_steps: int = 4
     learning_rate: float = 2e-5
-    epochs: int = 3
+    epochs: int = 2                   # both earlier runs peaked at epoch 2
     weight_decay: float = 0.01
     warmup_ratio: float = 0.1
     max_grad_norm: float = 1.0

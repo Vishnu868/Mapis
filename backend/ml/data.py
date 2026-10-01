@@ -13,7 +13,7 @@ LABELS = {"malicious": 0, "safe": 1}  # class 1 = SAFE, so P(class 1) is the tru
 
 
 def _text(ex: dict, use_context: bool) -> str:
-    text = ex["text"] if use_context else build_text([], ex["current_hop"], (ex["chunk_index"], ex["n_chunks"]))
+    text = ex["text"] if use_context else build_text([], ex["current_hop"])
     return MARKERS.sub("", text)  # no-op for the committed pipeline; guards against hand-made files
 
 
@@ -37,7 +37,7 @@ def load_events(path: str | Path, split: str, use_context: bool = True) -> list[
     with Path(path).open(encoding="utf-8") as handle:
         for line in handle:
             ex = json.loads(line) if line.strip() else None
-            if not ex or ex["split"] != split or ex["event_label"] not in LABELS:
+            if not ex or ex["split"] != split or ex["event_label"] not in LABELS or ex.get("augmented"):
                 continue
             ev = events.setdefault(ex["event_id"], {"id": ex["event_id"], "label": LABELS[ex["event_label"]], "texts": [],
                                                     "attack_class": ex.get("attack_class"), "attack_family": ex.get("attack_family"),
