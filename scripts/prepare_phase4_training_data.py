@@ -27,8 +27,9 @@ from backend.ml.data import MARKERS, attack_family, is_ood  # noqa: E402
 
 SOURCES = [ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl"]
 DEFAULT_OUTPUT = ROOT / "data" / "training" / "mapis_phase4_events_v3.jsonl"
-SAFE_CHUNKS_PER_EVENT = 3     # cap on safe chunks kept per event (the rest are kept only for event-level evaluation)
-NEG_CHUNKS_PER_INJECTED_EVENT = 2
+SAFE_CHUNKS_PER_EVENT = 6     # safe chunks trained per event: first, last and random others (all chunks stay for event-level evaluation)
+NEAR_NEGATIVES = 2            # clean chunks closest to an injection, per injected event
+FAR_NEGATIVES = 1             # plus one random far-away clean chunk
 
 BENIGN_FILLER = [
     "Great product, arrived on time and works as described.", "Meeting moved to Thursday at 3pm, agenda unchanged.",
@@ -131,18 +132,39 @@ def label_event(sample: dict[str, Any], hop: dict[str, Any], spans: dict[int, tu
 
 
 # ── chunk-level expansion ────────────────────────────────────────────────────────────────
+def _shifted_windows(length: int, span: tuple[int, int]) -> list[tuple[int, int, str]]:
+    """Extra windows around a known injection: it sits at the start / middle / end of the window (positives), and the clean
+    text immediately before and after it forms the hardest negatives. This stops the model memorising the document text that
+    happens to precede an injection (AgentDojo always injects at the same spot of the same files)."""
+    a, b = span
+    size, out = CHUNK_CHARS, []
+    if length <= size:
+        return out
+    inj = min(b - a, size)
+    for lead in (0, (size - inj) // 2, size - inj):
+        start = max(0, min(a - lead, length - size))
+        out.append((start, start + size, "positive"))
+    if a >= 120:
+        out.append((max(0, a - size), a, "negative"))        # ends exactly where the injection starts
+    if length - b >= 120:
+        out.append((b, min(length, b + size), "negative"))   # begins exactly where it ends
+    return out
+
+
 def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event_label: str, label_source: str,
            span: tuple[int, int] | None) -> list[dict[str, Any]]:
     hop = hops[index]
     context = rolling_context(hops, index)
-    spans = chunk_spans(len(event_text(hop)))
+    length = len(event_text(hop))
+    spans = chunk_spans(length)
     whole = len(spans) == 1
     event_id = hashlib.sha256(f"phase4-v3|{sample['sample_id']}|{hop['hop']}".encode()).hexdigest()[:20]
 
     labels = ["unlabeled"] * len(spans)
     sources = [f"{label_source}:chunk_not_selected"] * len(spans)
     if event_label == "safe":
-        keep = sorted(range(len(spans)), key=lambda i: _h(event_id, str(i)))[:SAFE_CHUNKS_PER_EVENT]
+        order = sorted(range(len(spans)), key=lambda i: _h(event_id, str(i)))
+        keep = list(dict.fromkeys([0, len(spans) - 1] + order))[:SAFE_CHUNKS_PER_EVENT]
         for i in keep:
             labels[i], sources[i] = "safe", label_source
     elif event_label == "malicious" and span:
@@ -153,27 +175,38 @@ def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event
             if overlap >= need or whole:
                 labels[i], sources[i] = "malicious", label_source
             elif overlap == 0:
-                negatives.append(i)
+                negatives.append((min(abs(s - span[1]), abs(e - span[0])), i))
             else:
                 sources[i] = f"{label_source}:chunk_partially_overlaps_injection"
-        for i in sorted(negatives, key=lambda i: _h(event_id, str(i)))[:NEG_CHUNKS_PER_INJECTED_EVENT]:
+        negatives.sort()
+        far = sorted((i for _, i in negatives[NEAR_NEGATIVES:]), key=lambda i: _h(event_id, str(i)))[:FAR_NEGATIVES]
+        for i in [i for _, i in negatives[:NEAR_NEGATIVES]] + far:
             labels[i], sources[i] = "safe", "chunk_of_injected_event_without_injection"
+
+    def record(i: int, current: dict[str, Any], label: str, source: str, augmented: bool, key: str) -> dict[str, Any]:
+        return {
+            "example_id": hashlib.sha256(f"{event_id}|{key}".encode()).hexdigest()[:24], "event_id": event_id,
+            "chunk_index": i + 1, "n_chunks": len(spans), "event_label": event_label, "augmented": augmented,
+            "source_sample_id": sample["sample_id"], "source_dataset": sample["source_dataset"],
+            "source_record_id": sample["source_record_id"], "split": sample["split"],
+            "label": label, "label_granularity": "chunk", "label_source": source,
+            "attack_class": sample["mapis_attack_class"], "attack_family": attack_family(sample),
+            "native_or_derived": sample["provenance"]["conversion_type"], "provenance": sample["provenance"],
+            "current_hop": current, "context_hops": context, "text": build_text(context, current),
+        }
 
     examples = []
     for i, (s, e) in enumerate(spans):
         if event_label == "unlabeled" and i > 0:
             break  # unlabeled events are retained for forensics only; one row is enough
-        current = chunk_hop(hop, s, e, whole)
-        examples.append({
-            "example_id": hashlib.sha256(f"{event_id}|{i}".encode()).hexdigest()[:24], "event_id": event_id,
-            "chunk_index": i + 1, "n_chunks": len(spans), "event_label": event_label,
-            "source_sample_id": sample["sample_id"], "source_dataset": sample["source_dataset"],
-            "source_record_id": sample["source_record_id"], "split": sample["split"],
-            "label": labels[i], "label_granularity": "chunk", "label_source": sources[i],
-            "attack_class": sample["mapis_attack_class"], "attack_family": attack_family(sample),
-            "native_or_derived": sample["provenance"]["conversion_type"], "provenance": sample["provenance"],
-            "current_hop": current, "context_hops": context, "text": build_text(context, current, (i + 1, len(spans))),
-        })
+        examples.append(record(i, chunk_hop(hop, s, e, whole), labels[i], sources[i], False, str(i)))
+    if event_label == "malicious" and span and not whole:
+        for k, (s, e, kind) in enumerate(_shifted_windows(length, span)):
+            overlap = max(0, min(e, span[1]) - max(s, span[0]))
+            if kind == "positive" and overlap < 0.6 * min(span[1] - span[0], CHUNK_CHARS):
+                continue
+            label, source = ("malicious", label_source + ":shifted_window") if kind == "positive" else ("safe", "clean_text_adjacent_to_injection")
+            examples.append(record(min(s // max(1, CHUNK_CHARS // 2), len(spans) - 1), chunk_hop(hop, s, e, False), label, source, True, f"aug{k}"))
     return examples
 
 

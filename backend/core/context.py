@@ -2,7 +2,7 @@
 
 Layout (the scored event comes FIRST so a tokenizer cut can only ever trim old context):
 
-    MAPIS CURRENT EVENT (part i/n)      <- one chunk of the event; long events are split into overlapping chunks
+    MAPIS CURRENT EVENT                 <- one chunk of the event; long events are split into overlapping chunks
     ...
     MAPIS PRECEDING CONTEXT             <- first user message + the last few hops, abbreviated
 
@@ -97,9 +97,9 @@ def chunk_hop(hop: dict[str, Any], start: int, end: int, whole: bool) -> dict[st
     return {**hop, "content": piece, "content_state": "text", "tool_response": None}
 
 
-def build_text(context: list[dict[str, Any]], current: dict[str, Any], part: tuple[int, int] = (1, 1)) -> str:
-    head = "MAPIS CURRENT EVENT" + (f" (part {part[0]}/{part[1]})" if part[1] > 1 else "")
-    parts = [head, render_hop(current)]
+def build_text(context: list[dict[str, Any]], current: dict[str, Any]) -> str:
+    """No chunk index/count in the text: they would leak document length and position to the classifier."""
+    parts = ["MAPIS CURRENT EVENT", render_hop(current)]
     if context:
         parts += ["MAPIS PRECEDING CONTEXT", *[render_hop(h, CONTEXT_CHARS) for h in context]]
     return "\n\n".join(parts)
@@ -109,7 +109,7 @@ def build_texts(context: list[dict[str, Any]], hop: dict[str, Any]) -> list[str]
     """One text per chunk of the current event (usually one)."""
     spans = chunk_spans(len(event_text(hop)))
     whole = len(spans) == 1
-    return [build_text(context, chunk_hop(hop, s, e, whole), (i, len(spans))) for i, (s, e) in enumerate(spans, 1)]
+    return [build_text(context, chunk_hop(hop, s, e, whole)) for s, e in spans]
 
 
 def action_text(hop: dict[str, Any]) -> str:

@@ -55,7 +55,7 @@ def _cosine(a: Counter, b: Counter) -> float:
 def drift_risk(goal: str | None, hop: dict[str, Any]) -> float:
     """Lexical cosine distance between the user's goal and what the agent is about to do."""
     act = action_text(hop)
-    if not goal or not act:
+    if not goal or not act or hop["role"] != "assistant":  # tool outputs are data, not actions
         return 0.0
     sim = _cosine(Counter(_TOKEN.findall(goal.lower())), Counter(_TOKEN.findall(act.lower())))
     return max(0.0, min(1.0, (0.35 - sim) / 0.35))

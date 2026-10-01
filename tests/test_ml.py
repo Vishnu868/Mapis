@@ -134,12 +134,17 @@ def test_long_events_are_chunked_and_the_injection_chunk_is_positive():
               "messages": [{"hop": 1, "role": "user", "source": "user", "target": "agent", "content": "Summarise the email"},
                            {"hop": 2, "role": "tool_response", "source": "email_tool", "target": "agent", "content": body, "tool_response": body}]}
     ex = [e for e in build_examples([sample]) if e["event_label"] == "malicious"]
-    assert len(ex) > 3 and all(e["n_chunks"] == len(ex) for e in ex if e["chunk_index"] == 1)
+    regular = [e for e in ex if not e["augmented"]]
+    assert len(regular) > 3 and all(e["n_chunks"] == len(regular) for e in regular)
     positives = [e for e in ex if e["label"] == "malicious"]
     assert positives and all(inj[:20] in e["current_hop"]["content"] or inj[-20:] in e["current_hop"]["content"] for e in positives)
     assert all(len(e["current_hop"]["content"]) <= CHUNK_CHARS for e in ex)
+    near = [e for e in ex if e["label_source"] == "clean_text_adjacent_to_injection"]
+    assert near and all(inj[:15] not in e["current_hop"]["content"] for e in near)   # adjacent negatives never contain the injection
+    shifted = [e for e in ex if e["label_source"].endswith("shifted_window")]
+    assert shifted and all(inj in e["current_hop"]["content"] for e in shifted)       # shifted positives contain all of it
     assert any(e["label"] == "safe" for e in ex)            # other chunks of the same event are hard negatives
-    assert all(e["text"].startswith("MAPIS CURRENT EVENT") for e in ex)  # the scored event is first: truncation can only trim context
+    assert all(e["text"].startswith("MAPIS CURRENT EVENT") and "part " not in e["text"].split("\n")[0] for e in ex)  # the scored event is first: truncation can only trim context
 
 
 def test_shield_scores_an_injection_hidden_deep_in_a_long_event(shield):
