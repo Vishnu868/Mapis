@@ -1,95 +1,159 @@
-"""Explicit training entry point; importing or testing this module never trains."""
+"""Fine-tune the detector.  Train + validation only; the test split is never read here.
+
+    python -m backend.ml.train --run                 # stateful model (causal window)
+    python -m backend.ml.train --run --no-context \
+        --output-dir artifacts/mapis_stateless       # stateless ablation for the comparison
+
+After the last epoch it saves the best epoch (by validation F1 subject to FPR <= 5%),
+fits a temperature on validation logits and writes calibration.json next to the model.
+"""
 
 from __future__ import annotations
 
 import argparse
-import random
-from pathlib import Path
+import dataclasses
 import json
-
-import numpy as np
-import torch
-from torch.utils.data import DataLoader
+import random
+import time
+from pathlib import Path
 
 from .config import TrainingConfig
-from .dataset import labelled_rows, load_examples
-from .model import load_model_and_tokenizer
+from .data import load_rows
+from .metrics import at_threshold, confusion, summarize
 
 
-def set_seed(seed: int) -> None:
+def seed_everything(seed: int) -> None:
+    import numpy as np
+    import torch
+
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    torch.cuda.manual_seed_all(seed)
 
 
-def train(config: TrainingConfig) -> None:
-    """Run only when invoked as a deliberate CLI command, never automatically."""
-    set_seed(config.seed)
-    train_rows = labelled_rows(load_examples(config.training_data, "train"))
-    validation_rows = labelled_rows(load_examples(config.training_data, "validation"))
-    if not train_rows or not validation_rows:
-        raise ValueError("Prepared supervised train and validation examples are required")
+def fit_temperature(logits, labels) -> float:
+    """Single-parameter temperature scaling by minimising validation NLL."""
+    import torch
 
-    model, tokenizer = load_model_and_tokenizer(config)
+    labels = torch.tensor(labels)
+    log_t = torch.zeros(1, requires_grad=True)
+    opt = torch.optim.LBFGS([log_t], lr=0.1, max_iter=100)
+
+    def closure():
+        opt.zero_grad()
+        loss = torch.nn.functional.cross_entropy(logits / log_t.exp(), labels)
+        loss.backward()
+        return loss
+
+    opt.step(closure)
+    return float(log_t.detach().exp().clamp(0.05, 20.0))
+
+
+def train(cfg: TrainingConfig) -> dict:
+    import torch
+    from torch.utils.data import DataLoader
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer, get_linear_schedule_with_warmup
+
+    seed_everything(cfg.seed)
+    train_rows = load_rows(cfg.training_data, "train", cfg.use_context)
+    val_rows = load_rows(cfg.training_data, "validation", cfg.use_context)
+    if not train_rows or not val_rows:
+        raise SystemExit(f"No supervised train/validation rows found in {cfg.training_data}")
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.to(device)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate, weight_decay=config.weight_decay)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(
+        cfg.model_name, num_labels=2, id2label={0: "MALICIOUS", 1: "SAFE"}, label2id={"MALICIOUS": 0, "SAFE": 1}).to(device)
 
     def collate(rows):
-        encoded = tokenizer([row["text"] for row in rows], padding=True, truncation=True,
-                            max_length=config.max_length, return_tensors="pt")
-        encoded["labels"] = torch.tensor([row["label"] for row in rows])
-        return {key: value.to(device) for key, value in encoded.items()}
+        enc = tokenizer([r["text"] for r in rows], padding=True, truncation=True, max_length=cfg.max_length, return_tensors="pt")
+        enc["labels"] = torch.tensor([r["label"] for r in rows])
+        return enc
 
-    loader = DataLoader(train_rows, batch_size=config.train_batch_size, shuffle=True, collate_fn=collate)
-    scaler = torch.amp.GradScaler("cuda", enabled=config.use_mixed_precision and device.type == "cuda")
-    output_dir = Path(config.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    config.save(output_dir / "training_config.json")
+    loader = DataLoader(train_rows, batch_size=cfg.train_batch_size, shuffle=True, collate_fn=collate)
+    steps = cfg.epochs * -(-len(loader) // cfg.gradient_accumulation_steps)
+    no_decay = ("bias", "LayerNorm.weight")
+    params = [{"params": [p for n, p in model.named_parameters() if not any(k in n for k in no_decay)], "weight_decay": cfg.weight_decay},
+              {"params": [p for n, p in model.named_parameters() if any(k in n for k in no_decay)], "weight_decay": 0.0}]
+    optimizer = torch.optim.AdamW(params, lr=cfg.learning_rate)
+    scheduler = get_linear_schedule_with_warmup(optimizer, int(cfg.warmup_ratio * steps), steps)
+    amp = cfg.mixed_precision and device.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=amp)
 
-    def evaluate(rows):
+    # Mild class weights: safe examples are the minority.
+    counts = [sum(r["label"] == c for r in train_rows) for c in (0, 1)]
+    weights = torch.tensor([len(train_rows) / (2 * max(n, 1)) for n in counts], device=device)
+
+    out = Path(cfg.output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    cfg.save(out / "training_config.json")
+
+    def validate():
         model.eval()
-        correct = total = 0
-        with torch.no_grad():
-            for start in range(0, len(rows), config.eval_batch_size):
-                batch = collate(rows[start:start + config.eval_batch_size])
-                predicted = model(**batch).logits.argmax(dim=-1)
-                correct += int((predicted == batch["labels"]).sum().item())
-                total += len(batch["labels"])
+        logits = []
+        with torch.inference_mode():
+            for i in range(0, len(val_rows), cfg.eval_batch_size):
+                batch = {k: v.to(device) for k, v in collate(val_rows[i:i + cfg.eval_batch_size]).items() if k != "labels"}
+                logits.append(model(**batch).logits.float().cpu())
         model.train()
-        return {"accuracy": correct / total if total else 0.0, "examples": total}
+        logits = torch.cat(logits)
+        trust = torch.softmax(logits, -1)[:, 1].tolist()
+        labels = [r["label"] for r in val_rows]
+        return logits, labels, summarize(confusion(labels, [t < 0.5 for t in trust]))
 
+    history, best = [], (-1.0, None)
     model.train()
-    history = []
-    for epoch in range(1, config.epochs + 1):
+    start = time.time()
+    for epoch in range(1, cfg.epochs + 1):
         optimizer.zero_grad(set_to_none=True)
-        for step, batch in enumerate(loader, start=1):
-            with torch.autocast(device_type=device.type, enabled=scaler.is_enabled()):
-                loss = model(**batch).loss / config.gradient_accumulation_steps
+        running = 0.0
+        for step, batch in enumerate(loader, 1):
+            labels = batch.pop("labels").to(device)
+            batch = {k: v.to(device) for k, v in batch.items()}
+            with torch.autocast(device_type=device.type, enabled=amp):
+                logits = model(**batch).logits
+            loss = torch.nn.functional.cross_entropy(logits.float(), labels, weight=weights) / cfg.gradient_accumulation_steps
             scaler.scale(loss).backward()
-            if step % config.gradient_accumulation_steps == 0 or step == len(loader):
+            running += loss.item() * cfg.gradient_accumulation_steps
+            if step % cfg.gradient_accumulation_steps == 0 or step == len(loader):
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.max_grad_norm)
                 scaler.step(optimizer)
                 scaler.update()
+                scheduler.step()
                 optimizer.zero_grad(set_to_none=True)
-        validation = evaluate(validation_rows)
-        history.append({"epoch": epoch, "validation": validation})
-        if config.checkpoint_every_epoch:
-            checkpoint = output_dir / f"checkpoint-epoch-{epoch}"
-            model.save_pretrained(checkpoint)
-            tokenizer.save_pretrained(checkpoint)
-    (output_dir / "validation_history.json").write_text(json.dumps(history, indent=2) + "\n", encoding="utf-8")
-    # The held-out test split is never loaded here.
-    print(f"Training completed on {len(train_rows)} train examples; validation: {history[-1]['validation']}")
+        val_logits, val_labels, metrics = validate()
+        history.append({"epoch": epoch, "train_loss": running / len(loader), "validation": metrics})
+        print(f"epoch {epoch}: loss {running / len(loader):.4f} | val F1 {metrics['f1']:.4f} recall {metrics['recall']:.4f} FPR {metrics['fpr']:.4f}")
+        score = metrics["f1"] if metrics["fpr"] <= cfg.max_fpr else metrics["f1"] - 1.0  # prefer epochs inside the FPR budget
+        if score > best[0]:
+            best = (score, epoch)
+            model.save_pretrained(out)
+            tokenizer.save_pretrained(out)
+            best_logits, best_labels = val_logits, val_labels
+
+    temperature = fit_temperature(best_logits, best_labels)
+    trust = torch.softmax(best_logits / temperature, -1)[:, 1].tolist()
+    calibration = {"temperature": temperature, "max_length": cfg.max_length, "use_context": cfg.use_context,
+                   "best_epoch": best[1], "validation_at_0.5": at_threshold(best_labels, trust, 0.5)}
+    (out / "calibration.json").write_text(json.dumps(calibration, indent=2) + "\n")
+    (out / "history.json").write_text(json.dumps(history, indent=2) + "\n")
+    print(f"saved epoch {best[1]} to {out} (temperature {temperature:.3f}, {time.time() - start:.0f}s)")
+    return calibration
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Deliberate Phase 4 MAPIS training entry point")
-    parser.add_argument("--run", action="store_true", help="required acknowledgement before training")
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--run", action="store_true", help="required acknowledgement before training starts")
+    ap.add_argument("--no-context", action="store_true", help="train the stateless ablation")
+    ap.add_argument("--output-dir")
+    ap.add_argument("--data")
+    ap.add_argument("--model-name")
+    ap.add_argument("--epochs", type=int)
+    args = ap.parse_args()
     if not args.run:
-        raise SystemExit("No training started. Re-run with --run after reviewing the configuration.")
-    train(TrainingConfig())
+        raise SystemExit("Nothing started. Re-run with --run.")
+    over = {k: v for k, v in {"output_dir": args.output_dir, "training_data": args.data, "model_name": args.model_name,
+                              "epochs": args.epochs, "use_context": False if args.no_context else None}.items() if v is not None}
+    train(dataclasses.replace(TrainingConfig(), **over))
