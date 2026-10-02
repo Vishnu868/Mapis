@@ -14,6 +14,7 @@ import argparse
 import json
 import statistics
 import sys
+import time
 import uuid
 from collections import defaultdict
 from pathlib import Path
@@ -70,7 +71,6 @@ class StatelessSystem:
         self.name, self.detector, self.threshold = detector.name, detector, threshold
 
     def run(self, sample: dict) -> tuple[bool, list[float]]:
-        import time
         from backend.core.context import build_texts, normalize_hop
         held, lat = False, []
         for i, e in enumerate(events(sample), 1):
@@ -125,6 +125,7 @@ def main() -> None:
     for name in args.systems.split(","):
         system = build(name, args.model, args.stateless_model)
         flags, labels, lats, by_set, by_class = [], [], [], defaultdict(lambda: ([], [])), defaultdict(list)
+        by_vector, by_depth, cpu0 = defaultdict(list), defaultdict(list), time.process_time()
         for s in samples:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
@@ -135,15 +136,23 @@ def main() -> None:
                 by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)
             if s["is_attack"]:
                 by_class[s["mapis_attack_class"]].append(held)
+                if s["provenance"].get("attack_vector"):  # MAPIS-MultiHop: the abstract's five attack mechanisms, and pipeline depth
+                    by_vector[s["provenance"]["attack_vector"]].append(held)
+                    by_depth[str(s["provenance"]["depth"])].append(held)
         report[system.name] = {
             "overall": summarize(confusion(labels, flags)),
             "by_set": {k: summarize(confusion(*v)) for k, v in by_set.items()},
             "recall_by_attack_class": {str(k): {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in by_class.items()},
+            "recall_by_attack_vector": {k: {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in by_vector.items()},
+            "recall_by_extra_hops": {k: {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in sorted(by_depth.items())},
+            "cpu_ms_per_event_incl_detector": round(1000 * (time.process_time() - cpu0) / max(1, len(lats)), 2),
             "latency_ms_per_event": {"mean": round(statistics.fmean(lats), 2), "p95": round(sorted(lats)[int(0.95 * len(lats))], 2)} if lats else None,
         }
         o = report[system.name]["overall"]
         ci = lambda m, key: f"[{m[key + '_ci95'][0]:.2f}-{m[key + '_ci95'][1]:.2f}]"  # noqa: E731
         print(f"{system.name:22s} recall {o['recall']:.3f} {ci(o, 'recall')}  FPR {o['fpr']:.3f} {ci(o, 'fpr')}  F1 {o['f1']:.3f}  acc {o['accuracy']:.3f}")
+        for k, v in report[system.name]["recall_by_attack_vector"].items():
+            print(f"   vector {k:37s} recall {v['recall']:.3f}  (n={v['n']})")
         for k, v in report[system.name]["by_set"].items():
             print(f"   {k:44s} recall {v['recall']:.3f}  FPR {v['fpr']:.3f} {ci(v, 'fpr')}  (n={v['n']})")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
