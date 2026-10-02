@@ -25,8 +25,18 @@ Event-level (long events are scored chunk-wise, trust = min over chunks), thresh
 - Session-level benchmark (test sessions): MAPIS recall 96.6 %, FPR 0.8 % overall; MAPIS-Bench v1 benign 0/26 flagged; decomposed attacks 100 % with provenance vs 0 % without it and 0 % for the stateless model.
 - Temperature calibration: 1.285 (stateful), 1.409 (stateless).
 
+## Comparison with a general safety guardrail (Llama Guard 3-1B, same events, session level, 95 % intervals)
+| System | Recall | FPR | v1 benign FPR | Decomposed FPR | BIPIA recall / FPR |
+|---|---|---|---|---|---|
+| MAPIS (stateful DeBERTa + signals) | 96.6 % | 0.8 % | 0 % (0/26) | 0 % | 95.0 % / 1.0 % |
+| Llama Guard 3-1B (stateless) | 80.0 % | 71.2 % [65-76] | 88.5 % | 100 % (flags every session) | 72.5 % / 65.5 % |
+
+Read with care: Llama Guard is a *content-safety* classifier (violence, privacy, crime...), not a prompt-injection detector, so applying it to injection detection is a category mismatch.
+It flags ordinary agent traffic that mentions emails, accounts or payments, and a session is "held" when ANY event is flagged, which compounds per-event noise over long sessions.
+A fairer baseline is Meta's dedicated Llama Prompt Guard 2 (adapter added: `--systems promptguard`, not yet run). NeMo Guardrails is not run (needs an LLM key).
+
 ## NOT yet measured / not done
-- Llama Guard and NeMo Guardrails (adapters written, never run; needs gated weights and an OpenAI key).
+- Llama Prompt Guard 2 and NeMo Guardrails (adapters written; Prompt Guard needs gated access, NeMo needs an LLM key).
 - Fusion weights and tier thresholds are defaults; no tuning beyond the classifier's 0.5 boundary.
 - Full-shield latency including Redis, and the dashboard against the trained model.
 - AutoGen (LangGraph only).
