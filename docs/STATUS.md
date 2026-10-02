@@ -4,11 +4,13 @@
 - Four-tier response PASS / FLAG / QUARANTINE / BLOCK on the 0=malicious scale, channel suspension, quarantine review API.
 - Session store: Redis with in-memory fallback; bounded window; goal vector text never overwritten by agent output.
 - Four stateful signals + noisy-OR fusion + session sensitivity; forensic propagation trace (origin → relay → action).
-- 5-agent LangGraph testbed over a simulated environment (web / files / memory / email); tap on every hop incl. memory writes/reads and tool calls.
+- 5-agent testbed over a simulated environment (web / files / memory / email) on BOTH LangGraph (`backend/agents/graph.py`) and AutoGen 0.2 (`backend/agents/autogen_testbed.py`, tap via `process_message_before_send`); tap on every hop incl. memory writes/reads and tool calls; `POST /pipeline/run {"framework": "autogen"}`.
+- Stateful classifier input (v4): `backend/core/session.py` turns the Redis session state into SESSION SIGNALS (drift, instruction cues, authority claims, cross-hop item reuse, user-supplied items, behaviour) + abbreviated history; the live shield and the dataset builder call the same code (parity is unit-tested), so the transformer is trained on the evidence it sees at runtime.
+- MAPIS-MultiHop benchmark (`scripts/generate_multihop.py`, 1,404 sessions, 5 attack classes): attacks assembled from declarative fragments across untrusted hops (no imperative command in any single message), with authorized / resisted / designated benign twins; split by family and phrasing pool.
 - FastAPI tap, SQLite forensic log, WebSocket push, React dashboard (timeline, alerts, traces, quarantine review).
 - Training / calibration (temperature) / evaluation code; train/serve text parity is unit-tested.
 
-## Measured results (RTX 3050, commit edd7584; DeBERTa-v3-small, 2 epochs, best epoch by validation F1 at FPR <= 5 %)
+## Earlier measurement, v3 model without session signals (RTX 3050, commit edd7584; the v4 retrain replaces these numbers); DeBERTa-v3-small, 2 epochs, best epoch by validation F1 at FPR <= 5 %)
 Event-level (long events are scored chunk-wise, trust = min over chunks), threshold trust < 0.5, 95 % Wilson intervals.
 
 | Held-out split | Events | Recall | FPR | TF-IDF+LogReg baseline (recall / FPR) | Stateless DeBERTa (recall / FPR) |
@@ -39,7 +41,7 @@ A fairer baseline is Meta's dedicated Llama Prompt Guard 2 (adapter added: `--sy
 - Llama Prompt Guard 2 and NeMo Guardrails (adapters written; Prompt Guard needs gated access, NeMo needs an LLM key).
 - Fusion weights and tier thresholds are defaults; no tuning beyond the classifier's 0.5 boundary.
 - Full-shield latency including Redis, and the dashboard against the trained model.
-- AutoGen (LangGraph only).
+- v4 retrain (stateful with session signals vs stateless) and the MAPIS-MultiHop numbers: produced by `scripts/run_pipeline.ps1` on the GPU laptop.
 
 ## Dataset audit (done against the original sources where available)
 - InjecAgent: 544 attack sessions match `test_cases_ds_base.json` exactly (user instruction, tool response, attacker instruction; 32 distinct instructions). Only the data-stealing (ds) cases are used; the 510 direct-harm (dh) cases are not.
