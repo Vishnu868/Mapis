@@ -28,6 +28,11 @@ Llama Guard and NeMo across attack types and pipeline depths. MAPIS-MultiHop tag
    folder `mapis_results`. The cloud sandbox cannot reach huggingface.co.
 6. Work on branch `claude/inspiring-hopper-4gqkjy` (PR #1). The deck will be finished at the end in Canva (connector to be added later).
 
+7. Whenever asking the owner to upload to Drive `mapis_results`, list the exact files every time:
+   results\benchmark.json, results\benchmark_llamaguard.json, results\evaluate.json (if present), results\logs\ (whole folder),
+   artifacts\mapis_detector\{calibration.json, history.json, training_config.json}, artifacts\mapis_stateless\{calibration.json, history.json}.
+   Never the model weights (*.safetensors).
+
 ## Repo map
 backend/core (shield, features, context, store, detector) · backend/ml (train / evaluate) · backend/agents (testbed + LangGraph tap) ·
 scripts/ (prepare_phase4_training_data.py, benchmark.py, generate_decomposed.py, dataset_build/) · docs/STATUS.md (measured results) · docs/TRAINING.md (GPU commands).
