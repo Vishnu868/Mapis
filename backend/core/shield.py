@@ -12,7 +12,8 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum
 
 from . import features as F
-from .context import build_texts, chunk_spans, event_text, normalize_hop, rolling_context
+from . import session as S
+from .context import chunk_spans, event_text, normalize_hop
 from .detector import load_detector
 from .store import make_store
 
@@ -86,15 +87,15 @@ class MapisShield:
         model_trust, feats, reasons, trace, name, extra = None, {}, [], [], "n/a", {}
         if hop["role"] in TRUSTED_ROLES:  # user input is the trust anchor; direct jailbreaks are out of scope
             trust = 1.0
-            state["goal"] = state["goal"] or (hop["content"] or "")[:2000]
         elif channel in state["suspended"]:
             trust, reasons = 0.0, [f"channel {channel} is suspended after an earlier BLOCK"]
         else:
-            context = rolling_context(window + [hop], len(window), self.cfg.window_hops) if self.detector.use_context else []
-            model_trust, worst = self.detector.score_chunks(build_texts(context, hop), hop)
+            texts, signals = S.prepare(state, window, hop, self.detector.use_context, self.cfg.window_hops)
+            model_trust, worst = self.detector.score_chunks(texts, hop)
             spans = chunk_spans(len(event_text(hop)))
             a, b = spans[min(worst, len(spans) - 1)]
-            extra = {"worst_chunk": {"index": worst + 1, "of": len(spans), "chars": [a, b], "snippet": event_text(hop)[a:b][:300]}}
+            extra = {"worst_chunk": {"index": worst + 1, "of": len(spans), "chars": [a, b], "snippet": event_text(hop)[a:b][:300]},
+                     "signals": signals}
             name = self.detector.name
             trust, feats, reasons, trace = self._fuse(model_trust, hop, state, window)
 
@@ -106,9 +107,7 @@ class MapisShield:
         if tier is not Tier.PASS and not trace:
             trace = [self._trace_row(hop, "origin")]
 
-        designated = hop["role"] in F.UNTRUSTED_FOR_TAINT and F.user_designated(window, state["goal"])
-        F.register_indicators(hop, state, 1.0 - trust, trusted_source=designated)
-        F.update_baselines(hop, state)
+        S.commit(state, window, hop, 1.0 - trust)
         self.store.push(sid, hop)
         self.store.save(sid, state)
 

@@ -54,7 +54,7 @@ def event_trust(predictor, events) -> list[float]:
     return out
 
 
-SPLITS = ("test", "test_ood", "test_bipia")  # unseen sessions | unseen attack templates | unseen dataset (BIPIA test)
+SPLITS = ("test", "test_ood", "test_bipia", "test_multihop")  # unseen sessions | unseen attack templates | unseen dataset (BIPIA test)
 
 
 def evaluate(model_dir: str, data: str, stateless_dir: str | None = None, threshold: float = 0.5) -> dict:
@@ -99,7 +99,7 @@ def evaluate(model_dir: str, data: str, stateless_dir: str | None = None, thresh
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="artifacts/mapis_detector")
-    ap.add_argument("--data", default="data/training/mapis_phase4_events_v3.jsonl")
+    ap.add_argument("--data", default="data/training/mapis_phase4_events_v4.jsonl")
     ap.add_argument("--stateless")
     ap.add_argument("--threshold", type=float, default=0.5)
     ap.add_argument("--out", default="results/phase4_test_metrics.json")

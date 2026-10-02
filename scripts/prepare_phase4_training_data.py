@@ -1,11 +1,16 @@
-"""Build the auditable, causal, CHUNKED event dataset (Phase 4, v3) from MAPIS-Bench.
+"""Build the auditable, causal, CHUNKED, SESSION-STATE-AWARE event dataset (Phase 4, v4) from MAPIS-Bench.
 
 One example per (event, chunk). Long events are split into overlapping chunks so the classifier sees the whole
 event; the injection span is known for every attack, so the chunk that contains it is the positive and the other
 chunks of the same event are hard negatives. The event label is kept (`event_label`) for event-level evaluation
 (an event's trust = min over its chunks).
 
-Sources: MAPIS-Bench v1 (AgentDojo + InjecAgent) and, when present, MAPIS-Bench BIPIA (minimal pairs).
+Every session is replayed through the SAME session tracker the live shield uses (backend/core/session.py), so the text of
+each example carries the session signals (drift, instruction cues, authority claims, cross-hop reuse, behaviour) and the
+abbreviated history exactly as at runtime. The stateless ablation trains on the current event alone.
+
+Sources: MAPIS-Bench v1 (AgentDojo + InjecAgent), MAPIS-Bench BIPIA (minimal pairs) and MAPIS-MultiHop (scripted
+multi-hop sessions with per-event labels).
 Splits: train / validation / test as in the benchmark; template-held-out `test_ood`; BIPIA's own test -> `test_bipia`.
 """
 
@@ -21,12 +26,15 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from backend.core.context import (CHUNK_CHARS, build_text, chunk_hop, chunk_spans, event_text, normalize_hop,  # noqa: E402
-                                  rolling_context)
+from backend.core import session as S  # noqa: E402
+from backend.core.context import (CHUNK_CHARS, build_text, chunk_hop, chunk_spans, event_text, history_context,  # noqa: E402
+                                  normalize_hop)
+from backend.core.store import new_state  # noqa: E402
 from backend.ml.data import MARKERS, attack_family, is_ood  # noqa: E402
 
-SOURCES = [ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl"]
-DEFAULT_OUTPUT = ROOT / "data" / "training" / "mapis_phase4_events_v3.jsonl"
+SOURCES = [ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl",
+           ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl"]
+DEFAULT_OUTPUT = ROOT / "data" / "training" / "mapis_phase4_events_v4.jsonl"
 SAFE_CHUNKS_PER_EVENT = 6     # safe chunks trained per event: first, last and random others (all chunks stay for event-level evaluation)
 NEAR_NEGATIVES = 2            # clean chunks closest to an injection, per injected event
 FAR_NEGATIVES = 1             # plus one random far-away clean chunk
@@ -54,7 +62,8 @@ BENIGN_FILLER = [
     "The app is easy to use and syncs without problems.", "Looking forward to seeing everyone at the offsite.",
 ]
 FILLER_POOL_BY_SPLIT = {"train": range(0, 24), "validation": range(24, 32), "test": range(32, len(BENIGN_FILLER)),
-                        "test_ood": range(32, len(BENIGN_FILLER)), "test_bipia": range(32, len(BENIGN_FILLER))}
+                        "test_ood": range(32, len(BENIGN_FILLER)), "test_bipia": range(32, len(BENIGN_FILLER)),
+                        "test_multihop": range(32, len(BENIGN_FILLER))}
 
 
 def _h(*parts: str) -> int:
@@ -152,13 +161,14 @@ def _shifted_windows(length: int, span: tuple[int, int]) -> list[tuple[int, int,
 
 
 def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event_label: str, label_source: str,
-           span: tuple[int, int] | None) -> list[dict[str, Any]]:
+           span: tuple[int, int] | None, state: dict[str, Any]) -> list[dict[str, Any]]:
     hop = hops[index]
-    context = rolling_context(hops, index)
+    context = history_context(hops[:index])
+    signals = S.compute_signals(state, hop)  # whole-event signals, shared by every chunk (as at runtime)
     length = len(event_text(hop))
     spans = chunk_spans(length)
     whole = len(spans) == 1
-    event_id = hashlib.sha256(f"phase4-v3|{sample['sample_id']}|{hop['hop']}".encode()).hexdigest()[:20]
+    event_id = hashlib.sha256(f"phase4-v4|{sample['sample_id']}|{hop['hop']}".encode()).hexdigest()[:20]
 
     labels = ["unlabeled"] * len(spans)
     sources = [f"{label_source}:chunk_not_selected"] * len(spans)
@@ -167,6 +177,8 @@ def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event
         keep = list(dict.fromkeys([0, len(spans) - 1] + order))[:SAFE_CHUNKS_PER_EVENT]
         for i in keep:
             labels[i], sources[i] = "safe", label_source
+    elif event_label == "malicious" and span is None:  # scripted multi-hop events: the whole (short) event is the malicious unit
+        labels, sources = ["malicious"] * len(spans), [label_source] * len(spans)
     elif event_label == "malicious" and span:
         need = 0.6 * min(span[1] - span[0], CHUNK_CHARS)
         negatives = []
@@ -192,7 +204,7 @@ def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event
             "label": label, "label_granularity": "chunk", "label_source": source,
             "attack_class": sample["mapis_attack_class"], "attack_family": attack_family(sample),
             "native_or_derived": sample["provenance"]["conversion_type"], "provenance": sample["provenance"],
-            "current_hop": current, "context_hops": context, "text": build_text(context, current),
+            "current_hop": current, "context_hops": context, "signals": signals, "text": build_text(context, current, signals),
         }
 
     examples = []
@@ -210,7 +222,8 @@ def expand(sample: dict[str, Any], hops: list[dict[str, Any]], index: int, event
     return examples
 
 
-def clean_twins(sample: dict[str, Any], hops: list[dict[str, Any]], spans: dict[int, tuple[int, int]]) -> list[dict[str, Any]]:
+def clean_twins(sample: dict[str, Any], hops: list[dict[str, Any]], spans: dict[int, tuple[int, int]],
+                states: dict[int, dict[str, Any]]) -> list[dict[str, Any]]:
     """InjecAgent minimal pairs: the same tool response with the attacker instruction replaced by neutral text.
 
     Only the injected sentence differs, so a classifier cannot separate pair members by role, template, tool or
@@ -228,7 +241,7 @@ def clean_twins(sample: dict[str, Any], hops: list[dict[str, Any]], spans: dict[
         if isinstance(value, str) and value[a:b] == hops[index]["content"][a:b]:
             twin_hops[index][key] = value[:a] + filler + value[b:]
     twin_sample = {**sample, "sample_id": sample["sample_id"] + "|clean_twin", "mapis_attack_class": None, "is_attack": False}
-    twin = expand({**twin_sample, "sample_id": sample["sample_id"]}, twin_hops, index, "safe", "derived_injecagent_clean_twin_synthetic_filler", None)
+    twin = expand({**twin_sample, "sample_id": sample["sample_id"]}, twin_hops, index, "safe", "derived_injecagent_clean_twin_synthetic_filler", None, states[index])
     for e in twin:  # distinct ids from the attacked event of the same session
         e["event_id"] = e["event_id"][:-4] + "twin"
         e["example_id"] = hashlib.sha256((e["example_id"] + "twin").encode()).hexdigest()[:24]
@@ -236,16 +249,31 @@ def clean_twins(sample: dict[str, Any], hops: list[dict[str, Any]], spans: dict[
     return twin
 
 
+def event_labels(sample: dict[str, Any], hops: list[dict[str, Any]], spans: dict[int, tuple[int, int]]) -> list[tuple[str, str]]:
+    if "event_labels" in sample:  # scripted multi-hop sessions carry their own per-event labels
+        return [(sample["event_labels"][str(h["hop"])], "multihop_scripted_event_label") for h in hops]
+    return [label_event(sample, h, spans) for h in hops]
+
+
 def build_examples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
     examples: list[dict[str, Any]] = []
     for sample in samples:
-        split = "test_ood" if is_ood(sample) else "test_bipia" if sample["split"] == "external" else sample["split"]
+        if sample["source_dataset"] == "MAPIS-MultiHop":
+            split = "test_multihop" if sample["split"] == "test" else sample["split"]
+        else:
+            split = "test_ood" if is_ood(sample) else "test_bipia" if sample["split"] == "external" else sample["split"]
         sample, spans = clean_sample({**sample, "split": split})
         hops = [normalize_hop(m) for m in sample["messages"]]
-        examples.extend(clean_twins(sample, hops, spans))
+        labelled = event_labels(sample, hops, spans)
+        # replay the session through the runtime tracker; keep the state each event was scored under
+        state, states = new_state(), {}
         for index, hop in enumerate(hops):
-            label, source = label_event(sample, hop, spans)
-            examples.extend(expand(sample, hops, index, label, source, spans.get(hop["hop"])))
+            states[index] = json.loads(json.dumps(state))
+            S.commit(state, hops[:index], hop, 1.0 if labelled[index][0] == "malicious" else 0.0)
+        examples.extend(clean_twins(sample, hops, spans, states))
+        for index, hop in enumerate(hops):
+            label, source = labelled[index]
+            examples.extend(expand(sample, hops, index, label, source, spans.get(hop["hop"]), states[index]))
     return examples
 
 

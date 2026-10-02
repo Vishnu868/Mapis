@@ -21,6 +21,8 @@ def new_state() -> dict[str, Any]:
         "suspended": [],       # "source->target" channels shut by a BLOCK
         "tools": {},           # agent -> tool names seen (behavioural baseline)
         "lens": {},            # agent -> [count, mean content length]
+        "cues": 0,             # untrusted events so far that contained instruction-like text
+        "claims": 0,           # authority / pre-approval claims made by untrusted events so far
     }
 
 

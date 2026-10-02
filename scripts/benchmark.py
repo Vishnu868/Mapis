@@ -27,7 +27,7 @@ from backend.core.store import MemoryStore  # noqa: E402
 from backend.ml.metrics import confusion, summarize  # noqa: E402
 
 DATASETS = {"v1": ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", "decomposed": ROOT / "data/mapis_bench/mapis_bench_decomposed_v1.jsonl",
-            "bipia": ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl"}
+            "bipia": ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl", "multihop": ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl"}
 NOT_RUNTIME = {"attacker_instruction", "tool_response_template"}  # derived annotations, not events an agent would emit
 
 
@@ -87,6 +87,8 @@ def build(name: str, model: str, stateless_model: str):
     cfg = Settings(redis_url="", model_path=model)
     if name == "mapis":
         return ShieldSystem("mapis", MapisShield(cfg, MemoryStore()))
+    if name == "mapis-model":  # the learned stateful classifier alone, no rule backstop
+        return ShieldSystem(name, MapisShield(cfg, MemoryStore(), features_enabled=()))
     if name == "mapis-no-provenance":  # ablation: model + instruction cue, no cross-hop provenance
         return ShieldSystem(name, MapisShield(cfg, MemoryStore(), features_enabled=("instruction",)))
     if name == "mapis-stateless":  # same transformer family trained on the current event only
@@ -127,7 +129,7 @@ def main() -> None:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
             flags.append(held); labels.append(y); lats += lat
-            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
+            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "MAPIS-MultiHop": "MAPIS-MultiHop", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
             by_set[set_name][0].append(y); by_set[set_name][1].append(held)
             if s.get("benign_kind"):  # benign sessions reported separately by kind
                 by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)

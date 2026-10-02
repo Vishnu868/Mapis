@@ -42,6 +42,25 @@ def instruction_risk(hop: dict[str, Any]) -> tuple[float, list[str]]:
     return score, hits
 
 
+_AUTHORITY = [re.compile(x, re.I) for x in (
+    r"\b(pre-?approved|already approved|approved by|authori[sz]ed (by|to|for)|signed off|cleared (by|for))\b",
+    r"\b(per|according to|as (agreed|confirmed|noted) (with|by)) (the )?[\w-]+( [\w-]+)? (team|policy|department|admin(istrator)?|manager|office)\b",
+    r"\b(admin(istrator)?|security|compliance)\b[^.\n]{0,40}\b(approved|disabled|waived|allows?|exempt)\b",
+    r"\b(confirmation|review|approval|verification)\b[^.\n]{0,30}\b(not required|disabled|skipped|waived|optional)\b",
+    r"\b(override|bypass|exemption|whitelist(ed)?|allow-?list(ed)?)\b[^.\n]{0,30}\b(code|token|key|enabled|active|granted|applies)\b",
+    r"\b(updated|new|changed|revised) (banking|payment|billing|account|contact|recipient|archive|backup) (details|information|address|account|contact)\b",
+    r"\b(standing|permanent|default) (instruction|rule|policy|procedure)\b",
+)]
+
+
+def authority_claims(hop: dict[str, Any]) -> int:
+    """How many authority / pre-approval / changed-detail claims an untrusted event makes (capped at 3)."""
+    if hop["role"] not in UNTRUSTED_ROLES:
+        return 0
+    text = " ".join(str(hop.get(k) or "") for k in ("content", "tool_response"))
+    return min(3, sum(1 for p in _AUTHORITY if p.search(text)))
+
+
 # ── 2. goal drift ─────────────────────────────────────────────────────────
 _TOKEN = re.compile(r"[a-z0-9]{3,}")
 
@@ -68,7 +87,9 @@ _INDICATOR = re.compile(
 
 
 def indicators(text: str) -> set[str]:
-    return {m.lower().rstrip(".,;:") for m in _INDICATOR.findall(text or "")}
+    """Emails, URLs, account ids and long numbers; a URL also contributes its host, so `https://h/x` taints `https://h/x/setup.sh`."""
+    found = {m.lower().rstrip(".,;:") for m in _INDICATOR.findall(text or "")}
+    return found | {m.split("/")[2] for m in found if m.startswith("http") and m.count("/") >= 2}
 
 
 def hop_indicators(hop: dict[str, Any]) -> set[str]:
