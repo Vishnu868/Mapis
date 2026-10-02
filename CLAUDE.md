@@ -14,6 +14,10 @@ forensic propagation trace (origin -> relay -> action); live dashboard; testbed 
 MAPIS-Bench multi-hop dataset, five attack classes; evaluation vs Llama Guard / NeMo Guardrails (stateless) on identical events.
 Targets: >=90% accuracy, <=5% FPR, <200 ms per message, >=20 points recall gain over stateless detection on MULTI-HOP attacks.
 
+The Project Abstract (owner-supplied HTML) is the plan of record: five attack MECHANISMS (document poisoning, memory injection, tool-output manipulation,
+cross-agent instruction injection, goal hijacking), 5 phases, seven metrics (accuracy, precision, recall, F1, FPR, latency, computational overhead), compared with
+Llama Guard and NeMo across attack types and pipeline depths. MAPIS-MultiHop tags every session with its mechanism (`attack_vector`) and extra-hop depth.
+
 ## Rules the owner set (follow them)
 1. Deliver the core idea for real. Do not water it down, do not substitute side projects, do not spend effort on results that are not the main goal
    (e.g. extra baselines, tuning tangents).
