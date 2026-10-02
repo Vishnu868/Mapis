@@ -42,6 +42,38 @@ class LlamaGuardBaseline:
         return (0.0 if verdict.startswith("unsafe") else 1.0), 0
 
 
+class PromptGuardBaseline:
+    """Meta Llama Prompt Guard 2 (86M): a classifier built specifically for prompt injection / jailbreaks.
+
+    Needs access to meta-llama/Llama-Prompt-Guard-2-86M. It reads one message at a time (stateless) and sees at most 512 tokens,
+    so long events are split into overlapping windows and the worst window decides.
+    """
+
+    name, use_context = "prompt-guard-2", False
+
+    def __init__(self, model_id: str = "meta-llama/Llama-Prompt-Guard-2-86M"):
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+        self.torch = torch
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.tokenizer = AutoTokenizer.from_pretrained(model_id)
+        self.model = AutoModelForSequenceClassification.from_pretrained(model_id).float().to(self.device).eval()
+        labels = {int(i): str(l).lower() for i, l in self.model.config.id2label.items()}
+        self.malicious_index = next((i for i, l in labels.items() if "malicious" in l or "injection" in l), 1)
+
+    def score_chunks(self, texts: list[str], hop: dict) -> tuple[float, int]:
+        from backend.core.context import chunk_spans
+
+        text = _message_text(hop)
+        windows = [text[a:b] for a, b in chunk_spans(len(text))] or [""]
+        enc = self.tokenizer(windows, truncation=True, max_length=512, padding=True, return_tensors="pt").to(self.device)
+        with self.torch.inference_mode():
+            p_malicious = self.torch.softmax(self.model(**enc).logits.float(), dim=-1)[:, self.malicious_index]
+        worst = int(p_malicious.argmax())
+        return float(1.0 - p_malicious[worst]), worst
+
+
 class NemoBaseline:
     """NVIDIA NeMo Guardrails with a self-check input rail (needs `pip install nemoguardrails` and OPENAI_API_KEY)."""
 

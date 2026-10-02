@@ -98,6 +98,9 @@ def build(name: str, model: str, stateless_model: str):
     if name == "llamaguard":
         from backend.baselines import LlamaGuardBaseline
         return StatelessSystem(LlamaGuardBaseline())
+    if name == "promptguard":
+        from backend.baselines import PromptGuardBaseline
+        return StatelessSystem(PromptGuardBaseline())
     if name == "nemo":
         from backend.baselines import NemoBaseline
         return StatelessSystem(NemoBaseline())

@@ -18,7 +18,7 @@ python -m backend.ml.evaluate --model artifacts/mapis_detector --stateless artif
 python scripts/generate_decomposed.py
 python scripts/benchmark.py --systems mapis,mapis-no-provenance,mapis-stateless,regex --sets v1,decomposed,bipia
 # Llama Guard / NeMo (need gated weights / an OpenAI key):
-python scripts/benchmark.py --systems llamaguard,nemo --sets v1,decomposed,bipia
+python scripts/benchmark.py --systems llamaguard,promptguard,nemo --sets v1,decomposed,bipia
 ```
 Outputs land in `artifacts/` (weights, calibration.json, history.json) and `results/` (metrics JSON).
 Send `results/*.json` and `artifacts/mapis_detector/{calibration,history,training_config}.json` back; the weights themselves need not be shared unless you want them committed.
