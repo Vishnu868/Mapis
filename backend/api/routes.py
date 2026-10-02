@@ -35,6 +35,7 @@ class PipelineRequest(BaseModel):
     web: dict[str, str] = {}
     files: dict[str, str] = {}
     session_id: str | None = None
+    framework: str = "langgraph"     # langgraph | autogen
 
 
 class Hub:
@@ -84,7 +85,11 @@ async def inspect(req: InspectRequest, request: Request, db: AsyncSession = Depe
 async def pipeline(req: PipelineRequest, request: Request, db: AsyncSession = Depends(get_db)):
     shield = request.app.state.shield
     env = make_environment(req.scenario, req.web, req.files)
-    result = await run_in_threadpool(run_pipeline, shield, env, req.task, "me@corp.com", req.session_id)
+    if req.framework == "autogen":
+        from backend.agents.autogen_testbed import run_autogen_pipeline as runner
+    else:
+        runner = run_pipeline
+    result = await run_in_threadpool(runner, shield, env, req.task, "me@corp.com", req.session_id)
     for verdict in result["events"]:
         await _record(db, verdict)
     return result
