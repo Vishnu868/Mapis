@@ -12,6 +12,7 @@ function Step($name, $cmd, [bool]$Optional = $false) {
     }
 }
 
+Step "00_code_version"     "git log --oneline -1 && python -c ""from backend.core.context import render_signals; import backend.core.features as F; assert hasattr(F, 'escalation_risk'), 'OLD CODE: run git pull first'; print('code check ok')"""
 Step "0_multihop_set"      "python scripts/generate_multihop.py"
 Step "1_prepare_data"      "python scripts/prepare_phase4_training_data.py"
 Step "2_validate_data"     "python scripts/validate_phase4_training_data.py"
