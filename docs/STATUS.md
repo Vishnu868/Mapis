@@ -10,6 +10,20 @@
 - FastAPI tap, SQLite forensic log, WebSocket push, React dashboard (timeline, alerts, traces, quarantine review).
 - Training / calibration (temperature) / evaluation code; train/serve text parity is unit-tested.
 
+## Run 1 of the state-aware model (v4 data, RTX 3050, session level, 1,364 test sessions, 95 % Wilson intervals in results/benchmark.json)
+| System | Recall | FPR | Accuracy |
+|---|---|---|---|
+| MAPIS (stateful DeBERTa) | 93.3 % | 2.1 % | 94.7 % |
+| Stateless DeBERTa (same data, event only) | 89.2 % | 7.9 % | 90.1 % |
+| Llama Guard 3-1B | 81.4 % | 82.8 % | 61.7 % |
+| Regex | 16.9 % | 0.0 % | 42.4 % |
+
+MAPIS-MultiHop only (65 attack / 169 benign sessions): MAPIS 60.0 % recall / 2.4 % FPR; stateless DeBERTa 40.0 % / 17.8 % (flags 40 % of sessions where the user named the destination); Llama Guard 100 % / 100 % (flags every session); regex 0 % / 0 %.
+Decomposed set: MAPIS 100 %, stateless 0 %. BIPIA (never trained on): MAPIS 93.8 % / 2.5 %. Latency 61 ms per event.
+Failure analysis of run 1: all 26 missed multi-hop attacks were instruction-override (13/13) and physical-safety (13/13); the three classes where an item travels across hops (exfiltration, financial, code) were caught 100 %.
+Cause: nothing travels in those attacks - an untrusted document claims a waiver, then the agent takes an action the user never asked for - and the session signals did not express that, so the model memorised training tool names.
+Fix (run 2, pending): new tool-agnostic session signals `unrequested_action` and `claim_echo`, an escalation term in the cross-hop correlation signal, drift only for state-changing calls, URL host matching, more training families for override / physical.
+
 ## Earlier measurement, v3 model without session signals (RTX 3050, commit edd7584; the v4 retrain replaces these numbers); DeBERTa-v3-small, 2 epochs, best epoch by validation F1 at FPR <= 5 %)
 Event-level (long events are scored chunk-wise, trust = min over chunks), threshold trust < 0.5, 95 % Wilson intervals.
 

@@ -50,7 +50,46 @@ _AUTHORITY = [re.compile(x, re.I) for x in (
     r"\b(override|bypass|exemption|whitelist(ed)?|allow-?list(ed)?)\b[^.\n]{0,30}\b(code|token|key|enabled|active|granted|applies)\b",
     r"\b(updated|new|changed|revised) (banking|payment|billing|account|contact|recipient|archive|backup) (details|information|address|account|contact)\b",
     r"\b(standing|permanent|default) (instruction|rule|policy|procedure)\b",
+    r"\b(approved|authori[sz]ed|permitted)\b[^.\n]{0,30}\b(bypass|disabl|skip|waiv|overrid|turn(ing)? off)",
 )]
+
+
+_MUTATING = re.compile(r"^(send|post|upload|transfer|pay|delete|remove|write|exec|run|install|clone|disable|enable|unlock|lock|set|raise|lower|grant|approve|"
+                       r"release|update|schedule|forward|share|drop|reset|open|close|publish|deploy|execute|modify|change|revoke|cancel)", re.I)
+_CLAIM_STEMS = ("waiv", "skip", "bypass", "disabl", "overrid", "exempt", "preapprov", "pre-approv", "not required", "no need")
+
+
+def is_mutating(hop: dict[str, Any]) -> bool:
+    """An assistant tool call that changes something (verb-first tool names: send_email, unlock_door, approve_refund...)."""
+    return hop["role"] == "assistant" and bool(hop.get("tool_name")) and bool(_MUTATING.match(hop["tool_name"]))
+
+
+_VERB_GROUPS = [set(g.split()) for g in (
+    "send email mail forward share message cc notify", "pay transfer payment wire funds remit", "post upload publish save store back",
+    "run exec execute install setup set deploy build", "update change modify edit keep adjust", "write save", "delete remove drop clean",
+    "clone pull checkout prepare workspace", "schedule plan", "approve grant allow accept process release handle", "close resolve finish",
+    "disable turn stop shut", "unlock open", "raise increase lower set adjust", "reset restart", "revoke cancel")]
+
+
+def unrequested(goal: str | None, hop: dict[str, Any], trusted: list[str] | None = None) -> bool | None:
+    """Does a mutating action use a verb (or a synonym) the user never asked for? None when the event is not a mutating action.
+    An action that only touches items the user supplied (trusted indicators) counts as requested."""
+    if not is_mutating(hop):
+        return None
+    if trusted and hop_indicators(hop) & set(trusted):
+        return False
+    verb = _MUTATING.match(hop["tool_name"]).group(1).lower()
+    words = {verb}.union(*[g for g in _VERB_GROUPS if verb in g])
+    text = (goal or "").lower()
+    return not any(w in text for w in words)
+
+
+def claim_echo(goal: str | None, claims: int, hop: dict[str, Any]) -> int:
+    """Waiver / skip / bypass vocabulary in what the agent is about to do, after untrusted content made authority claims and the USER never used it."""
+    if not claims or not is_mutating(hop):
+        return 0
+    act, g = action_text(hop).lower(), (goal or "").lower()
+    return sum(1 for t in _CLAIM_STEMS if t in act and t not in g)
 
 
 def authority_claims(hop: dict[str, Any]) -> int:
@@ -74,7 +113,7 @@ def _cosine(a: Counter, b: Counter) -> float:
 def drift_risk(goal: str | None, hop: dict[str, Any]) -> float:
     """Lexical cosine distance between the user's goal and what the agent is about to do."""
     act = action_text(hop)
-    if not goal or not act or hop["role"] != "assistant":  # tool outputs are data, not actions
+    if not goal or not act or not is_mutating(hop):  # data and read-only calls cannot hijack anything
         return 0.0
     sim = _cosine(Counter(_TOKEN.findall(goal.lower())), Counter(_TOKEN.findall(act.lower())))
     return max(0.0, min(1.0, (0.35 - sim) / 0.35))
@@ -96,7 +135,7 @@ def hop_indicators(hop: dict[str, Any]) -> set[str]:
     return indicators(" ".join(str(hop.get(k) or "") for k in ("content", "tool_response")) + " " + action_text(hop))
 
 
-_OUTBOUND = re.compile(r"send|mail|post|upload|http|request|transfer|pay|forward|share|delete|write|exec|run", re.I)
+_OUTBOUND = re.compile(r"send|mail|post|upload|http|request|transfer|pay|forward|share|delete|write|exec|run|clone|install|download|fetch|pull|curl|git|shell|payee|schedule", re.I)
 
 
 def provenance_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]:
@@ -113,6 +152,19 @@ def provenance_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]
     outbound = bool(_OUTBOUND.search(hop.get("tool_name") or ""))
     base = 1.0 if any(state["taint"][i]["risk"] >= 0.25 for i in matches) else 0.9 if outbound else 0.5
     return base * (1.0 if is_action else 0.6), matches
+
+
+def escalation_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]:
+    """Cross-hop correlation without a carried item: untrusted content claimed a waiver/approval, then the agent takes a
+    state-changing action the user never asked for, or one that uses the waiver vocabulary the user never used."""
+    if not state.get("claims") or not is_mutating(hop):
+        return 0.0, []
+    echo = claim_echo(state["goal"], state["claims"], hop)
+    if echo:
+        return 0.9, [f"action uses waiver wording ('{echo}' term(s)) after untrusted content claimed an exemption"]
+    if unrequested(state["goal"], hop, state["trusted"]):
+        return 0.75, [f"'{hop['tool_name']}' was never requested by the user, after untrusted content claimed an exemption"]
+    return 0.0, []
 
 
 # ── 4. behavioural anomaly ────────────────────────────────────────────────
