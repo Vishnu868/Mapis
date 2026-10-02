@@ -18,8 +18,8 @@ from typing import Any
 UNTRUSTED_ROLES = {"tool", "tool_response", "memory_read", "memory_write"}
 CHUNK_CHARS = 900        # current-event characters per chunk (~250-300 tokens)
 CHUNK_STRIDE = 450       # overlap of 450 chars: any injection up to 450 chars lies fully inside some chunk
-CONTEXT_CHARS = 150      # per-hop budget for abbreviated context
-CONTEXT_HOPS = 4
+CONTEXT_CHARS = 110      # per-hop budget for abbreviated history
+CONTEXT_HOPS = 4         # most recent hops kept in the history block (plus the goal and a few older untrusted hops)
 CALL_CHARS = 700
 
 
@@ -70,12 +70,27 @@ def render_hop(hop: dict[str, Any], limit: int | None = None) -> str:
     return "\n".join(fields)
 
 
-def rolling_context(hops: list[dict[str, Any]], current_index: int, max_context_hops: int = CONTEXT_HOPS) -> list[dict[str, Any]]:
-    """Preceding hops only (never the current or a future one): the first user message (the goal) + the last few hops."""
-    prior = hops[:current_index]
+def history_context(prior: list[dict[str, Any]], window_hops: int = CONTEXT_HOPS, extra_untrusted: int = 3) -> list[dict[str, Any]]:
+    """What the classifier may remember: the user's goal, the last few hops, and older *untrusted* hops (where fragments hide)."""
     goal = next((h for h in prior if h["role"] == "user"), None)
-    selected = {h["hop"]: h for h in ([goal] if goal else []) + [h for h in prior[-max_context_hops:] if h["role"] != "system"]}
-    return [selected[k] for k in sorted(selected)]
+    recent = [h for h in prior[-window_hops:] if h["role"] != "system"]
+    seen = {h["hop"] for h in recent}
+    earlier = [h for h in prior[:-window_hops] if h["role"] in UNTRUSTED_ROLES and h["hop"] not in seen][-extra_untrusted:]
+    chosen = {h["hop"]: h for h in ([goal] if goal else []) + earlier + recent}
+    return [chosen[k] for k in sorted(chosen)]
+
+
+def rolling_context(hops: list[dict[str, Any]], current_index: int, max_context_hops: int = CONTEXT_HOPS) -> list[dict[str, Any]]:
+    """Preceding hops only (never the current or a future one)."""
+    return history_context(hops[:current_index], max_context_hops)
+
+
+def render_signals(sig: dict[str, Any]) -> str:
+    """The four session signals as one line the classifier can read (drift, instruction cues / authority claims, cross-hop reuse, behaviour)."""
+    reuse = "; ".join(sig["reuse"]) or "none"
+    trusted = "; ".join(sig["trusted"]) or "none"
+    return (f"drift={sig['drift']} | untrusted_cues={sig['cues']} | authority_claims={sig['claims']} | "
+            f"untrusted_item_reuse={reuse} | user_supplied_items={trusted} | behaviour={sig['behaviour']}")
 
 
 def chunk_spans(length: int, size: int = CHUNK_CHARS, stride: int = CHUNK_STRIDE) -> list[tuple[int, int]]:
@@ -97,19 +112,27 @@ def chunk_hop(hop: dict[str, Any], start: int, end: int, whole: bool) -> dict[st
     return {**hop, "content": piece, "content_state": "text", "tool_response": None}
 
 
-def build_text(context: list[dict[str, Any]], current: dict[str, Any]) -> str:
-    """No chunk index/count in the text: they would leak document length and position to the classifier."""
+def build_text(context: list[dict[str, Any]], current: dict[str, Any], signals: dict[str, Any] | None = None) -> str:
+    """Current event FIRST (a tokenizer cut can only trim old history), then the session signals, then the history.
+
+    No chunk index/count appears in the text: they would leak document length and position to the classifier.
+    `signals=None` and `context=[]` give the stateless view (the event alone).
+    """
     parts = ["MAPIS CURRENT EVENT", render_hop(current)]
+    if signals is not None:
+        parts += ["MAPIS SESSION SIGNALS", render_signals(signals)]
     if context:
-        parts += ["MAPIS PRECEDING CONTEXT", *[render_hop(h, CONTEXT_CHARS) for h in context]]
+        goal = next((h for h in context if h["role"] == "user"), None)
+        rest = [h for h in context if h is not goal][::-1]  # newest first: truncation drops the oldest
+        parts += ["MAPIS SESSION HISTORY", *[render_hop(h, CONTEXT_CHARS) for h in ([goal] if goal else []) + rest]]
     return "\n\n".join(parts)
 
 
-def build_texts(context: list[dict[str, Any]], hop: dict[str, Any]) -> list[str]:
+def build_texts(context: list[dict[str, Any]], hop: dict[str, Any], signals: dict[str, Any] | None = None) -> list[str]:
     """One text per chunk of the current event (usually one)."""
     spans = chunk_spans(len(event_text(hop)))
     whole = len(spans) == 1
-    return [build_text(context, chunk_hop(hop, s, e, whole)) for s, e in spans]
+    return [build_text(context, chunk_hop(hop, s, e, whole), signals) for s, e in spans]
 
 
 def action_text(hop: dict[str, Any]) -> str:

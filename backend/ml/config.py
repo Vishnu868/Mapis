@@ -21,7 +21,7 @@ class TrainingConfig:
     mixed_precision: bool = True
     use_context: bool = True          # False trains the stateless ablation (current event only)
     max_fpr: float = 0.05             # best epoch = highest val F1 among epochs with FPR <= this
-    training_data: str = "data/training/mapis_phase4_events_v3.jsonl"
+    training_data: str = "data/training/mapis_phase4_events_v4.jsonl"
     output_dir: str = "artifacts/mapis_detector"
 
     def save(self, path: str | Path) -> None:

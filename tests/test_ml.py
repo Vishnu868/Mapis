@@ -30,13 +30,44 @@ def test_threshold_respects_fpr_budget():
     assert at_threshold(labels, trust, t)["fpr"] <= 0.1
 
 
+def _multihop(variant: str, kind: str = "transfer"):
+    import random
+
+    from scripts.generate_multihop import build, noise_pool
+    return build(kind, 0, variant, 0, random.Random(3), noise_pool(), "train")
+
+
 def test_training_and_runtime_render_identically():
-    """Train/serve parity: the stored example text equals what the shield builds for the same window."""
-    from backend.core.context import build_texts, rolling_context
-    ex = build_examples([SAMPLE])
-    hops = [normalize_hop({**m, "content": m["content"].replace("<INFORMATION>", "").replace("</INFORMATION>", "")}) for m in SAMPLE["messages"]]
-    assert ex[1]["text"] == build_texts(rolling_context(hops, 1), hops[1])[0]
-    assert [e["label"] for e in ex] == ["unlabeled", "malicious", "unlabeled"]
+    """Train/serve parity: replaying a session through the runtime tracker reproduces every stored example text."""
+    from backend.core import session as S
+    from backend.core.store import new_state
+    sample = _multihop("attack")
+    ex = {(e["current_hop"]["hop"], e["chunk_index"]): e for e in build_examples([sample])}
+    hops = [normalize_hop(m) for m in sample["messages"]]
+    state = new_state()
+    for i, hop in enumerate(hops):
+        texts, _ = S.prepare(state, hops[:i], hop)
+        stored = ex.get((hop["hop"], 1))
+        if stored is not None:
+            assert stored["text"] == texts[0]
+        S.commit(state, hops[:i], hop, 1.0 if sample["event_labels"][str(hop["hop"])] == "malicious" else 0.0)
+    assert "untrusted_item_reuse=gb" in ex[(len(hops), 1)]["text"].lower()
+
+
+def test_multihop_attack_is_held_but_authorized_twin_is_not():
+    from backend.config import Settings
+    from backend.core.shield import MapisShield, Tier
+    from backend.core.store import MemoryStore
+
+    def held(sample):
+        shield, out = MapisShield(Settings(redis_url="", model_path="none"), MemoryStore()), False
+        for m in sample["messages"]:
+            e = {k: m.get(k) for k in ("role", "source", "target", "content", "tool_name", "tool_call", "tool_calls", "tool_response")}
+            out |= shield.inspect({"session_id": "s", **e}).tier.severity >= Tier.QUARANTINE.severity
+        return out
+    for kind in ("transfer", "email", "shell"):
+        assert held(_multihop("attack", kind))
+        assert not held(_multihop("authorized", kind)) and not held(_multihop("resisted", kind)) and not held(_multihop("designated", kind))
 
 
 def test_context_never_contains_the_future():
