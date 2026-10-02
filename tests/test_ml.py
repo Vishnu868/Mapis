@@ -65,7 +65,7 @@ def test_multihop_attack_is_held_but_authorized_twin_is_not():
             e = {k: m.get(k) for k in ("role", "source", "target", "content", "tool_name", "tool_call", "tool_calls", "tool_response")}
             out |= shield.inspect({"session_id": "s", **e}).tier.severity >= Tier.QUARANTINE.severity
         return out
-    for kind in ("transfer", "email", "shell"):
+    for kind in ("transfer", "email", "shell", "release", "door", "valve"):
         assert held(_multihop("attack", kind))
         assert not held(_multihop("authorized", kind)) and not held(_multihop("resisted", kind)) and not held(_multihop("designated", kind))
 

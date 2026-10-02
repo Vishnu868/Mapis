@@ -126,6 +126,8 @@ class MapisShield:
         instr, instr_hits = F.instruction_risk(hop) if "instruction" in on else (0.0, [])
         drift = F.drift_risk(state["goal"], hop) if "drift" in on else 0.0
         prov, matches = F.provenance_risk(hop, state) if "provenance" in on else (0.0, [])
+        esc, esc_why = F.escalation_risk(hop, state) if "provenance" in on else (0.0, [])
+        prov = max(prov, esc)
         behav, behav_why = F.behaviour_risk(hop, state) if "behaviour" in on else (0.0, "")
 
         survive = model_trust
@@ -145,6 +147,7 @@ class MapisShield:
             origin = state["taint"][ind]
             reasons.append(f"'{ind}' first appeared in untrusted hop {origin['hop']} ({origin['source']}) and now reaches an action")
             trace = self._propagation(ind, origin["hop"], window, hop)
+        reasons += esc_why
         if behav_why:
             reasons.append(behav_why)
         if state["sensitivity"]:

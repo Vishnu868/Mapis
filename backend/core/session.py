@@ -16,7 +16,7 @@ TRUSTED_ROLES = {"user", "system"}
 
 def compute_signals(state: dict, hop: dict[str, Any]) -> dict[str, Any]:
     """The four stateful signals, bucketed so the transformer can learn what they mean."""
-    drift_value = F.drift_risk(state["goal"], hop) if hop["role"] == "assistant" and F.action_text(hop) else None
+    drift_value = F.drift_risk(state["goal"], hop) if F.is_mutating(hop) else None
     drift = "n/a" if drift_value is None else "low" if drift_value < 0.15 else "medium" if drift_value < 0.5 else "high"
     taint, trusted = state["taint"], set(state["trusted"])
     items = sorted(F.hop_indicators(hop))
@@ -27,6 +27,8 @@ def compute_signals(state: dict, hop: dict[str, Any]) -> dict[str, Any]:
         "claims": min(3, state.get("claims", 0)),
         "reuse": [f"{i}<-hop{taint[i]['hop']} {taint[i]['source']}" for i in items if i in taint and i not in trusted][:3],
         "trusted": [i for i in items if i in trusted][:3],
+        "unrequested": {None: "n/a", True: "yes", False: "no"}[F.unrequested(state["goal"], hop, state["trusted"])],
+        "echo": min(3, F.claim_echo(state["goal"], state.get("claims", 0), hop)),
         "behaviour": "normal" if behaviour_value == 0 else "new_outbound_tool" if behaviour_value >= 0.8 else "new_tool_or_long_message",
     }
 

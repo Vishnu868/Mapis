@@ -90,7 +90,8 @@ def render_signals(sig: dict[str, Any]) -> str:
     reuse = "; ".join(sig["reuse"]) or "none"
     trusted = "; ".join(sig["trusted"]) or "none"
     return (f"drift={sig['drift']} | untrusted_cues={sig['cues']} | authority_claims={sig['claims']} | "
-            f"untrusted_item_reuse={reuse} | user_supplied_items={trusted} | behaviour={sig['behaviour']}")
+            f"untrusted_item_reuse={reuse} | user_supplied_items={trusted} | unrequested_action={sig['unrequested']} | "
+            f"claim_echo={sig['echo']} | behaviour={sig['behaviour']}")
 
 
 def chunk_spans(length: int, size: int = CHUNK_CHARS, stride: int = CHUNK_STRIDE) -> list[tuple[int, int]]:
