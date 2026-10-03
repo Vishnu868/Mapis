@@ -1,0 +1,88 @@
+{
+  "total_examples": 54749,
+  "chunk_labels": {
+    "malicious": 11295,
+    "safe": 29251,
+    "unlabeled": 14203
+  },
+  "splits_chunks": {
+    "test": 2590,
+    "test_bipia": 4062,
+    "test_multihop": 2331,
+    "test_ood": 2617,
+    "test_realharm": 1614,
+    "train": 34484,
+    "validation": 7051
+  },
+  "events_supervised": {
+    "malicious": 6154,
+    "safe": 24355
+  },
+  "events_supervised_by_split_and_label": {
+    "test/malicious": 217,
+    "test/safe": 251,
+    "test_bipia/malicious": 600,
+    "test_bipia/safe": 400,
+    "test_multihop/malicious": 112,
+    "test_multihop/safe": 2022,
+    "test_ood/malicious": 285,
+    "test_ood/safe": 244,
+    "test_realharm/malicious": 374,
+    "test_realharm/safe": 1240,
+    "train/malicious": 3879,
+    "train/safe": 16580,
+    "validation/malicious": 687,
+    "validation/safe": 3618
+  },
+  "source_dataset": {
+    "ASB": 4242,
+    "AgentDojo": 17113,
+    "BIPIA": 9575,
+    "InjecAgent": 2210,
+    "InjecAgent-DH": 5608,
+    "MAPIS-MultiHop": 16001
+  },
+  "native_or_derived": {
+    "chronological_native_trajectory": 17113,
+    "cleaned": 34,
+    "derived": 2176,
+    "minimal_pair_construction": 9575,
+    "real_attack_to_multihop_session": 9850,
+    "synthetic_template": 16001
+  },
+  "attack_class_events": {
+    "None": 20,
+    "code_tool_manipulation": 1623,
+    "data_exfiltration": 1588,
+    "financial_manipulation": 752,
+    "instruction_override": 1340,
+    "physical_safety_harm": 831
+  },
+  "label_source": {
+    "attack_session_label_not_copied_to_hop:chunk_not_selected": 7615,
+    "benign_injecagent_placeholder_excluded:chunk_not_selected": 17,
+    "benign_injecagent_user_instruction_policy": 17,
+    "bipia_clean_context_policy": 1555,
+    "bipia_clean_context_policy:chunk_not_selected": 57,
+    "bipia_poisoned_context": 1457,
+    "bipia_poisoned_context:chunk_not_selected": 470,
+    "bipia_poisoned_context:chunk_partially_overlaps_injection": 74,
+    "bipia_poisoned_context:shifted_window": 2322,
+    "chunk_of_injected_event_without_injection": 1971,
+    "clean_text_adjacent_to_injection": 2035,
+    "derived_injecagent_clean_twin_synthetic_filler": 544,
+    "derived_injecagent_injection_bearing_tool_response": 544,
+    "derived_instruction_extraction_not_runtime_event:chunk_not_selected": 544,
+    "empty_benign_event_excluded:chunk_not_selected": 43,
+    "multihop_scripted_event_label": 24416,
+    "multihop_scripted_event_label:chunk_not_selected": 1435,
+    "native_agentdojo_embedded_tool_instruction": 1700,
+    "native_agentdojo_embedded_tool_instruction:chunk_not_selected": 115,
+    "native_agentdojo_embedded_tool_instruction:chunk_partially_overlaps_injection": 589,
+    "native_agentdojo_embedded_tool_instruction:shifted_window": 2145,
+    "native_agentdojo_pre_injection_tool_output": 721,
+    "native_benign_trajectory_text_policy": 1119,
+    "native_benign_trajectory_text_policy:chunk_not_selected": 435,
+    "null_assistant_tool_call_excluded:chunk_not_selected": 2809
+  }
+}
