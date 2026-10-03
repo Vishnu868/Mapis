@@ -3,11 +3,12 @@
 #   .\scripts\run_pipeline.ps1                 # one full run (seed 42)
 #   .\scripts\run_pipeline.ps1 -Seeds 3        # + 2 extra training seeds for MAPIS and stateless -> results\seeds, aggregated mean +/- std
 #   .\scripts\run_pipeline.ps1 -SkipLlamaGuard # skip the Llama Guard step (its result does not change between runs)
-param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "")
+#   .\scripts\run_pipeline.ps1 -Base          # DeBERTa-v3-base instead of small (slower, more accurate); outputs go to artifacts\base\ and results\base\
+param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "", [switch]$Base)
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force results\logs | Out-Null
 $sets = "multihop,realharm,v1,decomposed,bipia"
-$modelArg = if ($Model) { "--model-name $Model" } else { "" }
+$modelArg = if ($Base) { "--base" } elseif ($Model) { "--model-name $Model" } else { "" }
 
 function Step($name, $cmd, [bool]$Optional = $false) {
     Write-Host "`n=== $name ===" -ForegroundColor Cyan
@@ -16,6 +17,17 @@ function Step($name, $cmd, [bool]$Optional = $false) {
     if ($LASTEXITCODE -ne 0) {
         if ($Optional) { Write-Host "Step '$name' failed (see $log) - continuing" -ForegroundColor Yellow } else { throw "Step '$name' failed (see $log)" }
     }
+}
+
+if ($Base) {
+    New-Item -ItemType Directory -Force results\base | Out-Null
+    Step "base_1_prepare_data"     "python scripts/prepare_phase4_training_data.py"
+    Step "base_2_train_stateful"   "python -m backend.ml.train --run --base --output-dir artifacts/base/mapis_detector"
+    Step "base_3_train_stateless"  "python -m backend.ml.train --run --base --no-context --output-dir artifacts/base/mapis_stateless"
+    Step "base_4_evaluate"         "python -m backend.ml.evaluate --model artifacts/base/mapis_detector --stateless artifacts/base/mapis_stateless --out results/base/evaluate.json"
+    Step "base_5_benchmark"        "python scripts/benchmark.py --systems mapis,mapis-stateless --sets $sets --model artifacts/base/mapis_detector --stateless-model artifacts/base/mapis_stateless --out results/base/benchmark.json"
+    Write-Host "`nDONE (base). Upload results\base\ (whole folder), results\logs\ (whole folder), artifacts\base\mapis_detector\{calibration.json, history.json, training_config.json}, artifacts\base\mapis_stateless\{calibration.json, history.json}" -ForegroundColor Green
+    exit 0
 }
 
 Step "00_code_version"     "git log --oneline -1 && python -c ""import backend.core.features as F, pathlib; assert hasattr(F, 'escalation_risk') and pathlib.Path('data/mapis_bench/mapis_bench_realharm_v1.jsonl').exists(), 'OLD CODE: run git stash; git pull first'; print('code check ok')"""

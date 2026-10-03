@@ -19,6 +19,7 @@ class TrainingConfig:
     max_grad_norm: float = 1.0
     seed: int = 42
     mixed_precision: bool = True
+    gradient_checkpointing: bool = False  # trades ~30 % speed for much less GPU memory (needed for deberta-v3-base on a laptop GPU)
     use_context: bool = True          # False trains the stateless ablation (current event only)
     max_fpr: float = 0.05             # best epoch = highest val F1 among epochs with FPR <= this
     training_data: str = "data/training/mapis_phase4_events_v4.jsonl"

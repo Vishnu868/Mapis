@@ -69,7 +69,9 @@ def train(cfg: TrainingConfig) -> dict:
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
         cfg.model_name, num_labels=2, id2label={0: "MALICIOUS", 1: "SAFE"}, label2id={"MALICIOUS": 0, "SAFE": 1},
-        use_safetensors=True).float().to(device)  # safetensors loads on any torch version; .float(): new transformers loads fp16 weights, mixed precision needs fp32 masters
+        use_safetensors=True).float().to(device)
+    if cfg.gradient_checkpointing:
+        model.gradient_checkpointing_enable()  # safetensors loads on any torch version; .float(): new transformers loads fp16 weights, mixed precision needs fp32 masters
 
     def collate(rows):
         enc = tokenizer([r["text"] for r in rows], padding=True, truncation=True, max_length=cfg.max_length, return_tensors="pt")
@@ -161,9 +163,12 @@ if __name__ == "__main__":
     ap.add_argument("--model-name")
     ap.add_argument("--epochs", type=int)
     ap.add_argument("--seed", type=int)
+    ap.add_argument("--base", action="store_true", help="deberta-v3-base, batch 2 x accumulation 8, gradient checkpointing")
     args = ap.parse_args()
     if not args.run:
         raise SystemExit("Nothing started. Re-run with --run.")
     over = {k: v for k, v in {"output_dir": args.output_dir, "training_data": args.data, "model_name": args.model_name,
                               "epochs": args.epochs, "seed": args.seed, "use_context": False if args.no_context else None}.items() if v is not None}
+    if args.base:
+        over = {"model_name": "microsoft/deberta-v3-base", "train_batch_size": 2, "gradient_accumulation_steps": 8, "gradient_checkpointing": True, **over}
     train(dataclasses.replace(TrainingConfig(), **over))
