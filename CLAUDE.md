@@ -184,7 +184,9 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
 3. [code done 3 Oct] Multi-seed: `.\scripts\run_pipeline.ps1 -Seeds 3` trains 2 extra seeds (42 + 41..) into artifacts\seedN, benchmarks them into
    results\seeds\, `scripts/aggregate_seeds.py` -> results\seeds\summary.json (mean +/- std). `--seed` flag added to backend.ml.train.
 4. [todo] NeMo Guardrails run (OpenAI key, ~$2): `python scripts/benchmark.py --systems nemo --sets multihop,v1,decomposed,bipia --out results/benchmark_nemo.json`.
-5. [option] DeBERTa-v3-base if it fits the 3050 (better BIPIA).
+5. [code done 3 Oct, needs laptop run] DeBERTa-v3-base: `.\scripts\run_pipeline.ps1 -Base` (run AFTER the main run; batch 2 x accumulation 8 +
+   gradient checkpointing; outputs artifacts\base\, results\base\). Keep whichever model is better on validation; small is the fallback.
+   Owner decided (3 Oct): do ALL five improvement items (independent set, 3 seeds, NeMo, RealHarm data, base model).
 6. [todo] Live demo (backend + dashboard, LangGraph and AutoGen, attack blocked with trace) + screenshots; final report; Canva deck; rehearsal.
 
 ---------------------------------------------------------------------------------------------------------------------
