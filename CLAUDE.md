@@ -48,7 +48,7 @@ Targets: **>= 90 % accuracy, <= 5 % FPR, < 200 ms per message, >= 20 points reca
 7. Whenever asking the owner to upload to Drive `mapis_results`, list the exact files every time:
    `results\benchmark.json`, `results\benchmark_llamaguard.json`, `results\evaluate.json` (if present), `results\logs\` (whole folder),
    `artifacts\mapis_detector\{calibration.json, history.json, training_config.json}`, `artifacts\mapis_stateless\{calibration.json, history.json}`
-   (+ any new results file a step produced, e.g. `results\benchmark_nemo.json`). Never upload model weights (`*.safetensors`).
+   (+ any new results file a step produced, e.g. `results\benchmark_nemo.json`, `results\seeds\` folder). Never upload model weights (`*.safetensors`).
 8. Give exact, copy-paste PowerShell commands for the laptop, starting with `cd E:\mapis\mapis\Mapis`.
 9. Keep THIS file complete and current (owner's explicit request): what failed, what succeeded, metrics, ideas, implementation, next steps.
 
@@ -173,11 +173,16 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 7. Plan for the remaining days (to 22 Oct) — update as items finish
-1. [in progress] More real data: InjecAgent direct-harm cases (510: physical / financial / data-security harm, attacker tool call = the completing
-   action) and Agent Security Bench (ASB: observation prompt injection + memory poisoning, 10 agents, 400 attack tools) -> converted to multi-hop
-   sessions with clean twins, held out by attacker tool / agent.
-2. [todo] Independent hand-written multi-hop test set by the team (40-60 sessions, test only) — strongest generalisation evidence.
-3. [todo] 3 training seeds -> mean +/- std for MAPIS and stateless.
+1. [code done 3 Oct, needs laptop run] MAPIS-RealHarm (`scripts/dataset_build/convert_realharm.py`, raw files in `data/raw/`): InjecAgent direct-harm
+   510 cases (physical / financial / data-security; attacker tool call = completing action; skeletons direct / memory relay / cross-agent;
+   twins clean + authorized; split by attacker tool) + ASB (10 agents, 400 attacker tools; observation prompt injection in ASB's 5 styles +
+   memory poisoning; clean twins; test agents aerospace_engineer + legal_consultant, val education_consultant). 2,330 sessions; test split
+   `test_realharm` (148 attacks, 216 twins). Included in training data and benchmark set `realharm`. Regex-only sandbox check: 13 % recall (needs the model).
+2. [guide + tooling done 3 Oct, TEAM TODO] Independent hand-written test set: `docs/INDEPENDENT_TESTSET_GUIDE.md`, example
+   `data/independent/EXAMPLE_attack_and_twin.json`, validator/builder `scripts/dataset_build/build_independent.py` -> benchmark set `independent`.
+   Target 30 attacks + 30 twins written by the 4 team members without looking at the generator.
+3. [code done 3 Oct] Multi-seed: `.\scripts\run_pipeline.ps1 -Seeds 3` trains 2 extra seeds (42 + 41..) into artifacts\seedN, benchmarks them into
+   results\seeds\, `scripts/aggregate_seeds.py` -> results\seeds\summary.json (mean +/- std). `--seed` flag added to backend.ml.train.
 4. [todo] NeMo Guardrails run (OpenAI key, ~$2): `python scripts/benchmark.py --systems nemo --sets multihop,v1,decomposed,bipia --out results/benchmark_nemo.json`.
 5. [option] DeBERTa-v3-base if it fits the 3050 (better BIPIA).
 6. [todo] Live demo (backend + dashboard, LangGraph and AutoGen, attack blocked with trace) + screenshots; final report; Canva deck; rehearsal.
