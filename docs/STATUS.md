@@ -10,7 +10,39 @@
 - FastAPI tap, SQLite forensic log, WebSocket push, React dashboard (timeline, alerts, traces, quarantine review).
 - Training / calibration (temperature) / evaluation code; train/serve text parity is unit-tested.
 
-## Run 1 of the state-aware model (v4 data, RTX 3050, session level, 1,364 test sessions, 95 % Wilson intervals in results/benchmark.json)
+## FINAL measured results - run 3 (commit 7da86d4, RTX 3050, DeBERTa-v3-small, 2 epochs; results/benchmark.json in Drive mapis_results)
+Session level, 1,364 held-out test sessions, every system sees the same events in the same order, 95 % Wilson intervals.
+
+| System | Recall | FPR | Accuracy | F1 |
+|---|---|---|---|---|
+| **MAPIS (stateful DeBERTa + session signals + rules)** | **94.4 %** [92.7-95.7] | **1.7 %** [0.8-3.4] | **95.6 %** | 0.967 |
+| MAPIS learned model only (no rule backstop) | 93.3 % | 1.7 % | 94.9 % | 0.962 |
+| Stateless DeBERTa (same data, current event only) | 89.9 % | 10.3 % | 89.9 % | 0.925 |
+| Llama Guard 3-1B (stateless) | 81.4 % | 82.8 % | 61.7 % | 0.746 |
+| Regex | 16.9 % | 0.0 % | 42.4 % | 0.290 |
+
+**Multi-hop attacks (MAPIS-MultiHop test: 65 attacks from held-out families, 169 matched benign twins)**
+
+| System | Attack recall | FPR | Benign twins flagged (authorized / resisted / designated) |
+|---|---|---|---|
+| **MAPIS** | **100 %** (65/65) [94.4-100] | **3.0 %** (5/169) | 1/65, 3/65, 1/39 |
+| Stateless DeBERTa | 63.1 % (41/65) | 24.3 % (41/169) | 37/65, 3/65, 1/39 |
+| Llama Guard 3-1B | 100 % | 100 % (flags every session) | 65/65, 65/65, 39/39 |
+| Regex | 0 % | 0 % | - |
+
+- Recall gain over the stateless model on multi-hop attacks: **+36.9 points** (target >= 20), with an FPR 21 points lower.
+- Per mechanism (MAPIS / stateless): tool-output manipulation 100 / 25 %, goal hijacking 100 / 100 %, cross-agent injection 100 / 53 %, memory injection 100 / 91 %, document poisoning 100 / 0 % (n=2).
+- Per pipeline depth (0 / 2 / 4 extra hops): MAPIS 100 / 100 / 100 %; stateless 72 / 58 / 54 % - the stateless model degrades as the attack is spread over more hops.
+- Event level (2,134 multi-hop events): stateful 82.1 % recall / 0.1 % FPR vs stateless 44.6 % / 2.4 %.
+- Other sets (MAPIS): MAPIS-Bench v1 100 % recall, 0/26 benign flagged; Decomposed 100 % (learned model alone 58 %, the cross-hop provenance rule supplies the rest; stateless 0 %); BIPIA (never trained on) 91.2 % / 1.0 %.
+- Per class (all test sets, MAPIS): exfiltration 99.3 %, financial 100 %, code/tool 98.6 %, instruction override 89.6 % (misses are BIPIA "harmless-looking request" injections), physical safety 100 %.
+- Cost: 60.5 ms per event single, 49.6 ms batched on the RTX 3050 (target < 200 ms); 22 ms mean / 59 ms p95 per event inside the full shield; 85 CPU-ms per event including the detector.
+
+Targets: accuracy >= 90 % -> 95.6 %; FPR <= 5 % -> 1.7 % (multi-hop 3.0 %); latency < 200 ms -> 61 ms; >= 20-point multi-hop recall gain over stateless -> +36.9. All met.
+Limits: the multi-hop benchmark is template-generated (held-out families, phrasings and carriers, real BIPIA carrier text); its benign set is 169 sessions, so the FPR interval is 1.3-6.7 %.
+NeMo Guardrails is not run (needs an LLM API key).
+
+## History: run 1 of the state-aware model (v4 data, RTX 3050, session level, 1,364 test sessions, 95 % Wilson intervals in results/benchmark.json)
 | System | Recall | FPR | Accuracy |
 |---|---|---|---|
 | MAPIS (stateful DeBERTa) | 93.3 % | 2.1 % | 94.7 % |
@@ -22,7 +54,7 @@ MAPIS-MultiHop only (65 attack / 169 benign sessions): MAPIS 60.0 % recall / 2.4
 Decomposed set: MAPIS 100 %, stateless 0 %. BIPIA (never trained on): MAPIS 93.8 % / 2.5 %. Latency 61 ms per event.
 Failure analysis of run 1: all 26 missed multi-hop attacks were instruction-override (13/13) and physical-safety (13/13); the three classes where an item travels across hops (exfiltration, financial, code) were caught 100 %.
 Cause: nothing travels in those attacks - an untrusted document claims a waiver, then the agent takes an action the user never asked for - and the session signals did not express that, so the model memorised training tool names.
-Fix (run 2, pending): new tool-agnostic session signals `unrequested_action` and `claim_echo`, an escalation term in the cross-hop correlation signal, drift only for state-changing calls, URL host matching, more training families for override / physical.
+Fix (applied in run 3): new tool-agnostic session signals `unrequested_action` and `claim_echo`, an escalation term in the cross-hop correlation signal, drift only for state-changing calls, URL host matching, more training families for override / physical.
 
 ## Earlier measurement, v3 model without session signals (RTX 3050, commit edd7584; the v4 retrain replaces these numbers); DeBERTa-v3-small, 2 epochs, best epoch by validation F1 at FPR <= 5 %)
 Event-level (long events are scored chunk-wise, trust = min over chunks), threshold trust < 0.5, 95 % Wilson intervals.
