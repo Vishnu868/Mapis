@@ -160,9 +160,10 @@ if __name__ == "__main__":
     ap.add_argument("--data")
     ap.add_argument("--model-name")
     ap.add_argument("--epochs", type=int)
+    ap.add_argument("--seed", type=int)
     args = ap.parse_args()
     if not args.run:
         raise SystemExit("Nothing started. Re-run with --run.")
     over = {k: v for k, v in {"output_dir": args.output_dir, "training_data": args.data, "model_name": args.model_name,
-                              "epochs": args.epochs, "use_context": False if args.no_context else None}.items() if v is not None}
+                              "epochs": args.epochs, "seed": args.seed, "use_context": False if args.no_context else None}.items() if v is not None}
     train(dataclasses.replace(TrainingConfig(), **over))
