@@ -149,8 +149,13 @@ Seeds (3 runs, results\seeds\summary.json): MAPIS overall recall 97.0 +/- 1.8, F
 BIPIA 94.6 +/- 3.2 / 1.7 +/- 0.2. Stateless: overall 89.6 +/- 0.3 / FPR 12.2 +/- 6.4; multi-hop recall 46.2 +/- 7.5, FPR 18.3 +/- 6.9; InjecAgent-DH FPR 33 +/- 24.
 Reading: gain over stateless on multi-hop is large and stable (+54 pts recall at seed 42; 100 vs 46 mean) and MAPIS wins on FPR everywhere, BUT the multi-hop FPR (10-17 %)
 now violates the <= 5 % target. Suspected cause: the fragment-bearing tool events of RESISTED twins are 'unlabeled' in training while RealHarm teaches that instructions in tool
-output are malicious, so the model generalises to flagging fragments. Next: diagnose the multi-hop false positives (diagnose.py --sets multihop --kind benign), then fix (label
-resisted fragments 'safe', more hard benign twins) and retrain; do not start the -Base run before that fix.
+output are malicious, so the model generalises to flagging fragments.
+**Diagnosis (4 Oct, 17/169 benign multi-hop sessions flagged at seed 42):** (1) 11 FPs = fragment-bearing TOOL events of resisted/designated/authorized twins blocked
+(trust 0.00-0.5) although the agent never acts on them; (2) 6 FPs (all 'authorized') = the skeleton-D message "Updated plan after reading the sources: <claim>. Proceeding on that
+basis." - labelled malicious in attack sessions but textually identical in the authorized twin => contradictory labels (my generator bug), not a model bug.
+**Fix (commit after 7576a22):** `generate_multihop.py` label policy: a fragment event alone is always 'safe' (identical in attack / resisted / authorized, agent has not acted);
+a relay/plan/memory-write message is 'malicious' only if it carries an actionable item (planted address/account/URL), a claim-only relay is 'unlabeled' (excluded) in attacks;
+the completing action stays 'malicious'. Next: retrain seed 42 only (`.\scripts\run_pipeline.ps1 -SkipLlamaGuard`, ~3 h), check multi-hop FPR <= 5 %, then extra seeds and -Base.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
