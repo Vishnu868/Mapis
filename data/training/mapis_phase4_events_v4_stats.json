@@ -1,9 +1,9 @@
 {
   "total_examples": 54749,
   "chunk_labels": {
-    "malicious": 11295,
-    "safe": 29251,
-    "unlabeled": 14203
+    "malicious": 11130,
+    "safe": 30686,
+    "unlabeled": 12933
   },
   "splits_chunks": {
     "test": 2590,
@@ -15,24 +15,24 @@
     "validation": 7051
   },
   "events_supervised": {
-    "malicious": 6154,
-    "safe": 24355
+    "malicious": 5989,
+    "safe": 25790
   },
   "events_supervised_by_split_and_label": {
     "test/malicious": 217,
     "test/safe": 251,
     "test_bipia/malicious": 600,
     "test_bipia/safe": 400,
-    "test_multihop/malicious": 112,
-    "test_multihop/safe": 2022,
+    "test_multihop/malicious": 92,
+    "test_multihop/safe": 2219,
     "test_ood/malicious": 285,
     "test_ood/safe": 244,
     "test_realharm/malicious": 374,
     "test_realharm/safe": 1240,
-    "train/malicious": 3879,
-    "train/safe": 16580,
-    "validation/malicious": 687,
-    "validation/safe": 3618
+    "train/malicious": 3766,
+    "train/safe": 17534,
+    "validation/malicious": 655,
+    "validation/safe": 3902
   },
   "source_dataset": {
     "ASB": 4242,
@@ -55,8 +55,8 @@
     "code_tool_manipulation": 1623,
     "data_exfiltration": 1588,
     "financial_manipulation": 752,
-    "instruction_override": 1340,
-    "physical_safety_harm": 831
+    "instruction_override": 1258,
+    "physical_safety_harm": 748
   },
   "label_source": {
     "attack_session_label_not_copied_to_hop:chunk_not_selected": 7615,
@@ -74,8 +74,8 @@
     "derived_injecagent_injection_bearing_tool_response": 544,
     "derived_instruction_extraction_not_runtime_event:chunk_not_selected": 544,
     "empty_benign_event_excluded:chunk_not_selected": 43,
-    "multihop_scripted_event_label": 24416,
-    "multihop_scripted_event_label:chunk_not_selected": 1435,
+    "multihop_scripted_event_label": 25686,
+    "multihop_scripted_event_label:chunk_not_selected": 165,
     "native_agentdojo_embedded_tool_instruction": 1700,
     "native_agentdojo_embedded_tool_instruction:chunk_not_selected": 115,
     "native_agentdojo_embedded_tool_instruction:chunk_partially_overlaps_injection": 589,
