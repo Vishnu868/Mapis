@@ -140,6 +140,18 @@ looking at run-1 failures on it -> optimistic; 169 benign multi-hop sessions -> 
 (multi-hop recall 40 % / 0 % / 63 % across three runs); NeMo not run yet; BIPIA misses (Conversational Agent 53 %, Research Assistance 64 %,
 Business Intelligence 76 %) are single-hop "irrelevant question" injections.
 
+### 4b. Run A (4 Oct 2026, commit bb960ba, adds MAPIS-RealHarm to training/test; 1,728 test sessions) — measured, NOT yet the final numbers
+Seed 42 (results\benchmark.json, logs in Drive): MAPIS 96.5 % recall / 3.3 % FPR / 96.6 % acc (model-only identical: 96.5 / 3.3); stateless DeBERTa 89.3 / 18.3 / 86.5;
+Llama Guard 83.6 / 84.4 / 58.6; regex 14.6 / 0 / 46.0.  Multi-hop (65 attacks / 169 twins): MAPIS 100 % recall but **FPR 10.1 %** (authorized 5.3, resisted 13.8,
+designated 2.6) - WORSE than run 3 (3.0 %); stateless 55.4 % / 27.8 % (flags 76.7 % of "authorized" twins). RealHarm: MAPIS InjecAgent-DH 100 % / 0 % FPR,
+ASB 100 % / 0 %; stateless 100 % recall but 50 % FPR on InjecAgent-DH (it cannot tell the authorized twin). BIPIA 93.7 % / 1.5 %. Decomposed 100 %, v1 100 % / 3.8 % FPR (1/26).
+Seeds (3 runs, results\seeds\summary.json): MAPIS overall recall 97.0 +/- 1.8, FPR 3.6 +/- 1.1; multi-hop recall 100 +/- 0, **multi-hop FPR 11.4 +/- 3.7 (seed 3: 16.6, resisted twins 33.8 %)**;
+BIPIA 94.6 +/- 3.2 / 1.7 +/- 0.2. Stateless: overall 89.6 +/- 0.3 / FPR 12.2 +/- 6.4; multi-hop recall 46.2 +/- 7.5, FPR 18.3 +/- 6.9; InjecAgent-DH FPR 33 +/- 24.
+Reading: gain over stateless on multi-hop is large and stable (+54 pts recall at seed 42; 100 vs 46 mean) and MAPIS wins on FPR everywhere, BUT the multi-hop FPR (10-17 %)
+now violates the <= 5 % target. Suspected cause: the fragment-bearing tool events of RESISTED twins are 'unlabeled' in training while RealHarm teaches that instructions in tool
+output are malicious, so the model generalises to flagging fragments. Next: diagnose the multi-hop false positives (diagnose.py --sets multihop --kind benign), then fix (label
+resisted fragments 'safe', more hard benign twins) and retrain; do not start the -Base run before that fix.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
