@@ -157,6 +157,16 @@ basis." - labelled malicious in attack sessions but textually identical in the a
 a relay/plan/memory-write message is 'malicious' only if it carries an actionable item (planted address/account/URL), a claim-only relay is 'unlabeled' (excluded) in attacks;
 the completing action stays 'malicious'. Next: retrain seed 42 only (`.\scripts\run_pipeline.ps1 -SkipLlamaGuard`, ~3 h), check multi-hop FPR <= 5 %, then extra seeds and -Base.
 
+### 4c. Run B-fix (4 Oct evening, commit 583c9fe label-policy fix, seed 42 only, 1,728 test sessions) — measured
+MAPIS 98.9 % recall / 3.1 % FPR / 98.1 % acc / F1 0.985 (model-only: 96.5 / 3.1; the provenance+escalation rules add +2.4 pts); stateless DeBERTa 85.1 / 0.6 / 90.3; Llama Guard (run A) 83.6 / 84.4; regex 14.6 / 0.
+Multi-hop: MAPIS 100 % recall (model-only 96.9 %), FPR **9.5 %** (authorized 5.3, resisted 13.8, designated 0) - the label fix did NOT bring it under 5 %; stateless multi-hop recall 0 % (FPR 0.6 %):
+with fragments/claim-only relays no longer labelled malicious, an event-only model has nothing to detect. RealHarm: MAPIS 100 % / 0 % on InjecAgent-DH and ASB. BIPIA 98.0 % / 2.0 % (stateless 87.7 / 1.0).
+Event level: test_bipia 98.0 % / 1.25 %; test_realharm 100 % / 0 %; test_multihop 87.0 % / 1.0 % FPR; test_ood FPR 8.2 % (InjecAgent clean twins 13 %), test FPR 1.6 %.
+Decomposed: 100 % with rules, model alone 0 % (decomposed sets are eval-only; the cross-hop provenance rule carries them). v1: 0/26 benign flagged.
+Still open: multi-hop benign FPR 9.5 % (target <= 5 %). Hypothesis 2: a handful of BIPIA-test clean contexts (e.g. the 'pytorch CrossEntropyLoss' answer, table / card-receipt texts) used as multi-hop carrier text are
+misclassified at trust ~0.00 and, being reused across many sessions, dominate the session-level FPR (they are the same texts behind the 1.25 % test_bipia FPR); fragment-bearing physical-class tool events
+('Confirmation is not required to bypass the interlock') also get blocked. Next: re-run `diagnose.py --sets multihop --kind benign` on this model to split the two causes.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
