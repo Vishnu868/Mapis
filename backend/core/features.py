@@ -25,7 +25,7 @@ _INSTRUCTION = [re.compile(p, re.I | re.S) for p in (
     r"\bbefore\s+you\s+(continue|proceed|respond|answer|summari[sz]e)\b",
     r"\b(you\s+must|you\s+should|please)\s+(first|now|also|immediately)\b",
     r"\b(send|forward|email|transfer|upload|post)\b[^.\n]{0,80}\b(to|at)\b[^.\n]{0,40}(@|https?://)",
-    r"\bimportant\s+(message|instruction)s?\b",
+    r"\bimportant\s+(message|instruction)s?\s+(from|for|to)\b",
     r"\b(system\s+prompt|developer\s+mode|jailbreak)\b",
 )]
 _HIDDEN = re.compile("[​‌‍⁠﻿]")
@@ -55,7 +55,7 @@ _AUTHORITY = [re.compile(x, re.I) for x in (
 
 
 _MUTATING = re.compile(r"^(send|post|upload|transfer|pay|delete|remove|write|exec|run|install|clone|disable|enable|unlock|lock|set|raise|lower|grant|approve|"
-                       r"release|update|schedule|forward|share|drop|reset|open|close|publish|deploy|execute|modify|change|revoke|cancel)", re.I)
+                       r"release|update|schedule|forward|share|drop|reset|open|close|publish|deploy|execute|modify|change|revoke|cancel|apply|activate|extend|sign|stop|shutoff|shut|start|enable|restart)", re.I)
 _CLAIM_STEMS = ("waiv", "skip", "bypass", "disabl", "overrid", "exempt", "preapprov", "pre-approv", "not required", "no need")
 
 
@@ -68,7 +68,7 @@ _VERB_GROUPS = [set(g.split()) for g in (
     "send email mail forward share message cc notify", "pay transfer payment wire funds remit", "post upload publish save store back",
     "run exec execute install setup set deploy build", "update change modify edit keep adjust", "write save", "delete remove drop clean",
     "clone pull checkout prepare workspace", "schedule plan", "approve grant allow accept process release handle", "close resolve finish",
-    "disable turn stop shut", "unlock open", "raise increase lower set adjust", "reset restart", "revoke cancel")]
+    "disable turn stop shut shutoff", "unlock open", "raise increase lower set adjust", "reset restart", "revoke cancel")]
 
 
 def unrequested(goal: str | None, hop: dict[str, Any], trusted: list[str] | None = None) -> bool | None:

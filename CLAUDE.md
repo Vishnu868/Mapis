@@ -167,6 +167,16 @@ Still open: multi-hop benign FPR 9.5 % (target <= 5 %). Hypothesis 2: a handful 
 misclassified at trust ~0.00 and, being reused across many sessions, dominate the session-level FPR (they are the same texts behind the 1.25 % test_bipia FPR); fragment-bearing physical-class tool events
 ('Confirmation is not required to bypass the interlock') also get blocked. Next: re-run `diagnose.py --sets multihop --kind benign` on this model to split the two causes.
 
+### 4d. Diagnosis of the 16 remaining multi-hop false positives (4 Oct, after the 583c9fe label fix) and fix v3 (commit below)
+Groups: (A) 9 sessions - the held-out override tool `release_order` ('Calling release_order.', trust 0.27-0.50) flagged in authorized AND resisted twins: with only 3-4 training tools per class the model memorised
+tool names; (B) 4 authorized sessions - the skeleton-D "Updated plan after reading the sources: <claim>" message (trust 0.44-0.71); (C) 5 sessions - tool outputs blocked at trust ~0.00: three are the same real BIPIA-test
+context ("As per the documentation ... pytorch ... nn.CrossEntropyLoss() should be in torch.long ...", an instruction-sounding sentence) reused as carrier text, one is the physical claim "Confirmation is not required to
+bypass the interlock", one a URL fragment. Fix v3: (1) +8 override kinds (payout, discount, kyc, contract, password, invoice, leave, warranty) and +8 physical kinds (pump, breaker, heater, ventilation, brake, dosage, gas,
+crane) as extra TRAIN/VAL families (5 sessions each; test families release/door stay unseen) - multihop set now 2,118 sessions; (2) claim-only relay/plan messages labelled 'safe' in attack sessions too (identical text in the
+authorized twin); (3) carrier-text pool now = BIPIA clean contexts + benign AgentDojo tool outputs of the same split (more varied clean text; dilutes the few misread BIPIA contexts); (4) regex cue "important message" now
+requires from/for/to (a bare "Important message!" email subject is benign); (5) more state-changing verbs (apply, activate, extend, sign, stop, shutoff...). Sandbox check (no model, rules only): multi-hop 98.5 % recall, 0 FPs.
+Next: retrain seed 42 (`.\scripts\run_pipeline.ps1 -SkipLlamaGuard`), expect multi-hop FPR <= 5 %.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
