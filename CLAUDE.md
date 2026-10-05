@@ -240,7 +240,8 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
    release/reject; Session inspector = replay any held-out benchmark session hop by hop with signals (`POST /api/v1/replay`, `GET /samples`);
    Results = tables/charts from results/*.json (`GET /results`)). Audience: operator / security admin, NOT the end user (end users only see a
    withheld action). How to run + 5-minute demo script: `docs/DEMO.md`. Sandbox screenshots (rules-only detector): `docs/screenshots/`.
-**ML FREEZE (owner, 5 Oct): the 3-seed run started 5 Oct (commit 40d8975) is the FINAL model. No more model/data changes; report whatever it measures.**
+**Owner clarification (5 Oct): model/data changes ARE allowed if they improve results (review is 22 Oct). Rule: every retrain must target a specific, measured,
+diagnosed failure and must not undo earlier fixes; the 3-seed run started 5 Oct (commit 40d8975) is the current reference to beat.**
 Remaining schedule: 6 Oct record final numbers in STATUS/CLAUDE + `-Base` run overnight (reported as an extra comparison only); 7-8 Oct retake
 screenshots on the laptop with the trained model, NeMo if a key exists, team independent set evaluated; 9-12 Oct final report (docs/REPORT.md);
 13-17 Oct Canva deck; 18-21 Oct rehearsal with the live demo.
