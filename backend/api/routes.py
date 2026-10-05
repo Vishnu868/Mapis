@@ -95,6 +95,83 @@ async def pipeline(req: PipelineRequest, request: Request, db: AsyncSession = De
     return result
 
 
+# ── benchmark replay (Session inspector tab) and measured results (Results tab) ───────────────────────────
+from pathlib import Path  # noqa: E402
+import json as _json  # noqa: E402
+import uuid as _uuid  # noqa: E402
+
+_ROOT = Path(__file__).resolve().parents[2]
+_SETS = {"multihop": "mapis_bench_multihop_v1.jsonl", "realharm": "mapis_bench_realharm_v1.jsonl", "v1": "mapis_bench_v1.jsonl",
+         "decomposed": "mapis_bench_decomposed_v1.jsonl", "bipia": "mapis_bench_bipia_v1.jsonl", "independent": "mapis_bench_independent_v1.jsonl"}
+_NOT_RUNTIME = {"attacker_instruction", "tool_response_template"}
+_cache: dict[str, list[dict]] = {}
+
+
+def _test_sessions(name: str) -> list[dict]:
+    if name not in _cache:
+        path = _ROOT / "data" / "mapis_bench" / _SETS[name]
+        rows = [_json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()] if path.exists() else []
+        _cache[name] = [r for r in rows if r["split"] in ("test", "external")]
+    return _cache[name]
+
+
+@router.get("/samples")
+async def samples(dataset: str = "multihop", limit: int = 60):
+    """Held-out test sessions a reviewer can replay: attacks and their benign twins."""
+    if dataset not in _SETS:
+        raise HTTPException(400, f"dataset must be one of {sorted(_SETS)}")
+    rows = _test_sessions(dataset)
+    attacks = [r for r in rows if r["is_attack"]][: limit // 2]
+    benign = [r for r in rows if not r["is_attack"]][: limit // 2]
+    return [{"sample_id": r["sample_id"], "attack": r["is_attack"], "attack_class": r.get("mapis_attack_class"),
+             "vector": (r.get("provenance") or {}).get("attack_vector"), "benign_kind": r.get("benign_kind"),
+             "hops": len(r["messages"]), "task": next((m.get("content") or "" for m in r["messages"] if m["role"] == "user"), "")[:160]}
+            for r in attacks + benign]
+
+
+class ReplayRequest(BaseModel):
+    dataset: str = "multihop"
+    sample_id: str
+
+
+@router.post("/replay")
+async def replay(req: ReplayRequest, request: Request, db: AsyncSession = Depends(get_db)):
+    """Replay one benchmark session through the live shield, hop by hop, exactly as the benchmark does."""
+    if req.dataset not in _SETS:
+        raise HTTPException(400, "unknown dataset")
+    sample = next((r for r in _test_sessions(req.dataset) if r["sample_id"] == req.sample_id), None)
+    if not sample:
+        raise HTTPException(404, "no such test session")
+    shield, sid, out = request.app.state.shield, f"replay-{_uuid.uuid4().hex[:8]}", []
+    for m in sample["messages"]:
+        if m["role"] in _NOT_RUNTIME:
+            continue
+        event = {k: m.get(k) for k in ("role", "source", "target", "content", "tool_name", "tool_call", "tool_calls", "tool_response")}
+        verdict = (await run_in_threadpool(shield.inspect, {"session_id": sid, **event})).to_dict()
+        verdict["tool_call"] = m.get("tool_call")
+        out.append(verdict)
+        await _record(db, verdict)
+    held = next((v for v in out if v["tier"] in ("QUARANTINE", "BLOCK")), None)
+    return {"session_id": sid, "dataset": req.dataset, "sample_id": sample["sample_id"], "attack": sample["is_attack"],
+            "attack_class": sample.get("mapis_attack_class"), "vector": (sample.get("provenance") or {}).get("attack_vector"),
+            "benign_kind": sample.get("benign_kind"), "notes": sample.get("conversion_notes", ""),
+            "held_at_hop": held["hop"] if held else None,
+            "outcome": ("attack stopped" if held else "attack MISSED") if sample["is_attack"] else ("false alarm" if held else "benign session passed"),
+            "events": out}
+
+
+@router.get("/results")
+async def results():
+    """Measured benchmark numbers (results/*.json written by scripts/benchmark.py on the GPU machine)."""
+    out = {}
+    for key, rel in {"benchmark": "results/benchmark.json", "llamaguard": "results/benchmark_llamaguard.json",
+                     "nemo": "results/benchmark_nemo.json", "seeds": "results/seeds/summary.json", "independent": "results/benchmark_independent.json"}.items():
+        path = _ROOT / rel
+        if path.exists():
+            out[key] = _json.loads(path.read_text(encoding="utf-8"))
+    return out
+
+
 @router.get("/events")
 async def events(limit: int = 100, session_id: str | None = None, min_tier: Tier = Tier.PASS, db: AsyncSession = Depends(get_db)):
     query = select(EventLog).order_by(EventLog.id.desc()).limit(limit)

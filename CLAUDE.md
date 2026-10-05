@@ -236,7 +236,14 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
 5. [code done 3 Oct, needs laptop run] DeBERTa-v3-base: `.\scripts\run_pipeline.ps1 -Base` (run AFTER the main run; batch 2 x accumulation 8 +
    gradient checkpointing; outputs artifacts\base\, results\base\). Keep whichever model is better on validation; small is the fallback.
    Owner decided (3 Oct): do ALL five improvement items (independent set, 3 seeds, NeMo, RealHarm data, base model).
-6. [todo] Live demo (backend + dashboard, LangGraph and AutoGen, attack blocked with trace) + screenshots; final report; Canva deck; rehearsal.
+6. [dashboard done 5 Oct] Operator console rebuilt (`frontend/src/App.jsx`, 3 tabs: Live monitor with LangGraph/AutoGen selector + forensic traces + quarantine
+   release/reject; Session inspector = replay any held-out benchmark session hop by hop with signals (`POST /api/v1/replay`, `GET /samples`);
+   Results = tables/charts from results/*.json (`GET /results`)). Audience: operator / security admin, NOT the end user (end users only see a
+   withheld action). How to run + 5-minute demo script: `docs/DEMO.md`. Sandbox screenshots (rules-only detector): `docs/screenshots/`.
+**ML FREEZE (owner, 5 Oct): the 3-seed run started 5 Oct (commit 40d8975) is the FINAL model. No more model/data changes; report whatever it measures.**
+Remaining schedule: 6 Oct record final numbers in STATUS/CLAUDE + `-Base` run overnight (reported as an extra comparison only); 7-8 Oct retake
+screenshots on the laptop with the trained model, NeMo if a key exists, team independent set evaluated; 9-12 Oct final report (docs/REPORT.md);
+13-17 Oct Canva deck; 18-21 Oct rehearsal with the live demo.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 8. Repo map
