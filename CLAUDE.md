@@ -177,6 +177,18 @@ authorized twin); (3) carrier-text pool now = BIPIA clean contexts + benign Agen
 requires from/for/to (a bare "Important message!" email subject is benign); (5) more state-changing verbs (apply, activate, extend, sign, stop, shutoff...). Sandbox check (no model, rules only): multi-hop 98.5 % recall, 0 FPs.
 Next: retrain seed 42 (`.\scripts\run_pipeline.ps1 -SkipLlamaGuard`), expect multi-hop FPR <= 5 %.
 
+### 4e. Run v3 (5 Oct 2026, commit 42e26c4, seed 42, 1,728 test sessions) — FIRST RUN THAT MEETS ALL TARGETS INCLUDING MULTI-HOP FPR
+MAPIS 95.1 % recall / **0.5 % FPR** / 96.7 % acc / F1 0.973 (model-only identical); stateless DeBERTa 92.1 / 18.0 / 88.4; regex 14.6 / 0 / 46.0 (Llama Guard last run A: 83.6 / 84.4).
+**Multi-hop (65 attacks / 169 twins): MAPIS 98.5 % recall (64/65), FPR 1.8 % (3/169: authorized 2.3, resisted 0, designated 0)**; stateless 58.5 % / 26.6 % (flags 78 % of authorized twins)
+-> recall gain +40 points with FPR 25 points lower. Per mechanism MAPIS: goal hijack 100, cross-agent 97.6, tool-output 100, memory 100, document 100 (stateless 55 / 78 / 97 / 90 / 100).
+RealHarm: MAPIS 100 % / 0 % (InjecAgent-DH and ASB); stateless 100 % but 50 % FPR on InjecAgent-DH. v1 100 % / 0 of 26. Decomposed 100 % (model alone 100 % now). BIPIA 91.2 % / 0.0 % FPR (stateless 94.2 / 0.5).
+Event level: test_multihop 86.0 % / 0.4 % FPR (stateless 41.0 / 2.1); test_realharm 100 / 0 (stateless FPR 5.5); test_bipia 91.2 / 0.0; test 100 / 1.6; test_ood 100 / 7.8 (InjecAgent clean twins 12 %). Latency 66 ms single / 51.6 batched.
+Remaining errors: 3 FPs = skeleton-D plan messages with the unseen test phrasing "Standing procedure: derived summaries are forwarded to the backup destination listed here" (trust ~0.41);
+1 miss = a generator bug (embed() inserted the second fragment INSIDE the planted URL: "h Standing procedure ... ttps://build-mirror2..."), so the URL never appeared intact.
+Fix (commit after 42e26c4): embed() now cuts only at sentence/whitespace boundaries and never inside an already-embedded fragment; verified every attack's planted item appears intact in untrusted text;
+rules-only sandbox check 100 % / 0 FPs. BIPIA recall varies by run (98.0 -> 91.2 between the last two runs, FPR 2.0 -> 0.0) -> report the 3-seed mean.
+Next: final run `.\scripts\run_pipeline.ps1 -Seeds 3` (with Llama Guard, ~7-8 h) = the numbers to present; then `-Base`; NeMo when a key exists; independent set from the team.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
