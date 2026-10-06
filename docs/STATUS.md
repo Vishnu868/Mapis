@@ -10,7 +10,30 @@
 - FastAPI tap, SQLite forensic log, WebSocket push, React dashboard (timeline, alerts, traces, quarantine review).
 - Training / calibration (temperature) / evaluation code; train/serve text parity is unit-tested.
 
-## FINAL measured results - run 3 (commit 7da86d4, RTX 3050, DeBERTa-v3-small, 2 epochs; results/benchmark.json in Drive mapis_results)
+## FINAL RESULTS — 3-seed run (6 Oct 2026, commit 40d8975, seeds 42 + 2 extra, 1,728 test sessions) — THE NUMBERS TO PRESENT (supersede run 3 below)
+Source: Drive `mapis_results` -> results\seeds\summary.json (mean +/- std over 3 training seeds) and results\logs\7_benchmark.txt (seed 42, Wilson 95 % CIs).
+
+| System (session level, 1,728 held-out sessions) | Recall | FPR | Accuracy | F1 |
+|---|---|---|---|---|
+| **MAPIS, 3-seed mean** | **97.1 +/- 1.5 %** | **0.5 +/- 0.3 %** | **98.0 +/- 0.9 %** | 0.984 +/- 0.007 |
+| MAPIS seed 42 | 98.4 % [98-99] | 0.9 % [0-2] | 98.7 % | 0.989 |
+| MAPIS learned model only, seed 42 | 98.4 % | 0.8 % | 98.7 % | 0.990 |
+| Stateless DeBERTa (same data, event only), 3-seed mean | 92.8 +/- 1.2 % | 17.6 +/- 1.6 % | 89.0 +/- 0.2 % | 0.914 |
+| Llama Guard 3-1B (run A, same test events) | 83.6 % | 84.4 % | 58.6 % | - |
+| Regex | 14.6 % | 0.0 % | 46.0 % | 0.255 |
+
+**Multi-hop (MAPIS-MultiHop test, 65 attacks / 169 benign twins):** MAPIS **100 +/- 0 % recall, FPR 0.6 +/- 0.8 %** (seed 42: 100 % / 1.8 %, authorized 2.3, resisted 0, designated 0; seeds 2 and 3: 100 % / 0.0 %);
+stateless 50.3 +/- 7.4 % / 21.5 +/- 4.3 % (seed 42: 56.9 % / 24.9 %, flags 75 % of authorized twins); Llama Guard 100 % / 100 % (flags everything); regex 0 / 0.
+**Recall gain over stateless on multi-hop: +49.7 points (3-seed mean), with an FPR 21 points lower.**
+Per mechanism seed 42 (MAPIS / stateless): goal hijacking 100 / 60, cross-agent 100 / 78, tool-output 100 / 97, memory 100 / 88, document 100 / 100 (n=3) — counted over multihop + realharm attacks.
+RealHarm (real attack corpora, unseen attacker tools/agents): MAPIS 100 % / 0 % on InjecAgent-DH and ASB, all seeds; stateless 100 % recall but **50 % FPR on InjecAgent-DH** (it cannot tell the user-authorized twin from the attack).
+Decomposed: MAPIS 100 % / 0 %; stateless 8.3 %. v1: 100 % / 0 of 23 benign. BIPIA (never trained on): MAPIS 94.7 +/- 2.7 % / 1.2 +/- 0.2 % (seed 42: 97.2 / 1.5); stateless 95.8 +/- 0.9 / 2.0 +/- 0.4.
+Missed attacks seed 42: 0 of 213 multi-hop/realharm/decomposed attacks; v1 benign: 0 flagged. Latency (run v3, same architecture): 66 ms/event single, 51.6 ms batched on the RTX 3050.
+**All four targets met with seed stability:** accuracy 98.0 % (>= 90), FPR 0.5 % (<= 5; multi-hop 0.6 %), latency 66 ms (< 200), multi-hop recall gain +49.7 points (>= 20).
+Honest notes: on BIPIA (single-hop, no cross-hop evidence) stateless recall is ~1 point higher and within seed variance, at higher FPR; MultiHop is template-generated (held-out families, phrasings,
+tools; real carriers) -> the team's independent set is the remaining external check; NeMo not run yet; Llama Guard numbers are from run A on identical test events (not re-run on this model, it does not depend on it).
+
+## Earlier results - run 3 (commit 7da86d4, RTX 3050, DeBERTa-v3-small, 2 epochs; results/benchmark.json in Drive mapis_results)
 Session level, 1,364 held-out test sessions, every system sees the same events in the same order, 95 % Wilson intervals.
 
 | System | Recall | FPR | Accuracy | F1 |
