@@ -20,12 +20,13 @@ def compute_signals(state: dict, hop: dict[str, Any]) -> dict[str, Any]:
     drift = "n/a" if drift_value is None else "low" if drift_value < 0.15 else "medium" if drift_value < 0.5 else "high"
     taint, trusted = state["taint"], set(state["trusted"])
     items = sorted(F.hop_indicators(hop))
+    reused = F.tainted_items(hop, state)
     behaviour_value, _ = F.behaviour_risk(hop, state)
     return {
         "drift": drift,
         "cues": min(3, state.get("cues", 0)),
         "claims": min(3, state.get("claims", 0)),
-        "reuse": [f"{i}<-hop{taint[i]['hop']} {taint[i]['source']}" for i in items if i in taint and i not in trusted][:3],
+        "reuse": [f"{i}<-hop{taint[i]['hop']} {taint[i]['source']}" for i in reused][:3],
         "trusted": [i for i in items if i in trusted][:3],
         "unrequested": {None: "n/a", True: "yes", False: "no"}[F.unrequested(state["goal"], hop, state["trusted"])],
         "echo": min(3, F.claim_echo(state["goal"], state.get("claims", 0), hop)),

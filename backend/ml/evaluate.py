@@ -54,7 +54,7 @@ def event_trust(predictor, events) -> list[float]:
     return out
 
 
-SPLITS = ("test", "test_ood", "test_bipia", "test_multihop", "test_realharm")  # unseen sessions | unseen attack templates | unseen dataset (BIPIA test)
+SPLITS = ("test", "test_ood", "test_bipia", "test_multihop", "test_realharm", "test_adaptive")  # unseen sessions | unseen attack templates | unseen dataset (BIPIA test)
 
 
 def evaluate(model_dir: str, data: str, stateless_dir: str | None = None, threshold: float = 0.5) -> dict:

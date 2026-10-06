@@ -33,7 +33,8 @@ from backend.core.store import new_state  # noqa: E402
 from backend.ml.data import MARKERS, attack_family, is_ood  # noqa: E402
 
 SOURCES = [ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl",
-           ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_realharm_v1.jsonl"]
+           ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl", ROOT / "data/mapis_bench/mapis_bench_realharm_v1.jsonl",
+           ROOT / "data/mapis_bench/mapis_bench_adaptive_v1.jsonl"]
 DEFAULT_OUTPUT = ROOT / "data" / "training" / "mapis_phase4_events_v4.jsonl"
 SAFE_CHUNKS_PER_EVENT = 6     # safe chunks trained per event: first, last and random others (all chunks stay for event-level evaluation)
 NEAR_NEGATIVES = 2            # clean chunks closest to an injection, per injected event
@@ -63,7 +64,8 @@ BENIGN_FILLER = [
 ]
 FILLER_POOL_BY_SPLIT = {"train": range(0, 24), "validation": range(24, 32), "test": range(32, len(BENIGN_FILLER)),
                         "test_ood": range(32, len(BENIGN_FILLER)), "test_bipia": range(32, len(BENIGN_FILLER)),
-                        "test_multihop": range(32, len(BENIGN_FILLER)), "test_realharm": range(32, len(BENIGN_FILLER))}
+                        "test_multihop": range(32, len(BENIGN_FILLER)), "test_realharm": range(32, len(BENIGN_FILLER)),
+                        "test_adaptive": range(32, len(BENIGN_FILLER))}
 
 
 def _h(*parts: str) -> int:
@@ -260,6 +262,8 @@ def build_examples(samples: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for sample in samples:
         if sample["source_dataset"] == "MAPIS-MultiHop":
             split = "test_multihop" if sample["split"] == "test" else sample["split"]
+        elif sample["source_dataset"] == "MAPIS-Adaptive":
+            split = "test_adaptive" if sample["split"] == "test" else sample["split"]
         elif sample["source_dataset"] in ("InjecAgent-DH", "ASB"):
             split = "test_realharm" if sample["split"] == "test" else sample["split"]
         else:

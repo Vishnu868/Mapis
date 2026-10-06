@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
+import unicodedata
 from collections import Counter
 from typing import Any
 
@@ -123,16 +125,117 @@ def drift_risk(goal: str | None, hop: dict[str, Any]) -> float:
 _INDICATOR = re.compile(
     r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+|https?://[^\s\"'<>)\]]+|\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b|\b\d{6,}\b"
 )
+# Adaptive-attacker defences (6 Oct): an attacker who knows the provenance rule writes the item so a pattern matcher misses it
+# ("x at host dot com", "hxxps://h[.]com", "GB29 BARC 1234 ...", zero-width characters) or never writes it whole (mailbox in one document,
+# domain in another). `canonical` undoes the common obfuscations before matching; `item_parts` lets an action that assembles an item
+# from fragments match those fragments. MAPIS_LEGACY_INDICATORS=1 switches both off (used to measure the model before these defences).
+_ZERO_WIDTH = re.compile("[\u200b\u200c\u200d\u2060\ufeff\u00ad]")
+_DASHES = str.maketrans({"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-"})
+_BRACKET_DOT = re.compile(r"\s*[\[\(\{]\s*(?:dot|\.)\s*[\]\)\}]\s*", re.I)
+_BRACKET_AT = re.compile(r"\s*[\[\(\{]\s*(?:at|@)\s*[\]\)\}]\s*", re.I)
+_SPELLED_EMAIL = re.compile(r"\b([\w.+-]+)\s+(?:at|AT)\s+([\w-]+(?:\s+(?:dot|DOT)\s+[\w-]+)+)\b")
+_SPELLED_URL = re.compile(r"\b([\w-]+(?:\s+(?:dot|DOT)\s+[\w-]+)+)\s+(?:slash|SLASH)\s+([\w/-]+)")
+_SPACED_EMAIL = re.compile(r"([\w.+-]+)\s+@\s+([\w-]+(?:\s*\.\s*[\w-]+)+)")
+_IBAN_START = re.compile(r"\b[A-Za-z]{2}[ .-]?\d")
+_TOKEN_SEP = re.compile(r"[ .-]")
+_IBAN = re.compile(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}")
+_BARE_DOMAIN = re.compile(r"\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|net|org|io|co|uk|de|in|info|biz|dev|app|example|cloud|xyz|ru|cn|me)\b", re.I)
+_ALNUM_ID = re.compile(r"\b(?=[A-Za-z0-9]*\d)[A-Za-z0-9]{6,}\b")
+
+
+def _legacy() -> bool:
+    return os.environ.get("MAPIS_LEGACY_INDICATORS") == "1"
+
+
+def _collapse_ibans(text: str) -> str:
+    """'GB29 BARC 1234 5678 9012 34' / 'gb2 9ba rc1 234 ...' / 'GB29-BARC-...' -> 'GB29BARC12345678901234'."""
+    out, pos = [], 0
+    for m in _IBAN_START.finditer(text):
+        if m.start() < pos:
+            continue
+        tokens, end, i = [], m.start(), m.start()
+        while i < len(text):
+            t = re.match(r"[A-Za-z0-9]{1,30}", text[i:])
+            if not t:
+                break
+            tok = t.group(0)
+            ok = not tokens or any(c.isdigit() for c in tok) or (tok.isalpha() and len(tok) == 4 and len(tokens) <= 2)
+            if not ok:
+                break
+            tokens.append(tok)
+            end = i + len(tok)
+            if end < len(text) and _TOKEN_SEP.match(text[end]) and end + 1 < len(text) and text[end + 1].isalnum():
+                i = end + 1
+            else:
+                break
+        joined = "".join(tokens).upper()
+        if len(tokens) > 1 and _IBAN.fullmatch(joined) and len(joined) <= 34:
+            out.append(text[pos:m.start()] + joined)
+            pos = end
+    return "".join(out) + text[pos:]
+
+
+def canonical(text: str) -> str:
+    if _legacy() or not text:
+        return text or ""
+    t = _ZERO_WIDTH.sub("", unicodedata.normalize("NFKC", text)).translate(_DASHES)
+    t = re.sub(r"hxxp\[s\]", "https", t, flags=re.I)
+    t = re.sub(r"\bhxxp(s?)", r"http\1", t, flags=re.I)
+    t = _BRACKET_DOT.sub(".", t)
+    t = _BRACKET_AT.sub("@", t)
+    t = _SPELLED_EMAIL.sub(lambda m: m.group(1) + "@" + re.sub(r"\s+(?:dot|DOT)\s+", ".", m.group(2)), t)
+    t = _SPELLED_URL.sub(lambda m: "https://" + re.sub(r"\s+(?:dot|DOT)\s+", ".", m.group(1)) + "/" + m.group(2), t)
+    t = _SPACED_EMAIL.sub(lambda m: m.group(1) + "@" + re.sub(r"\s+", "", m.group(2)), t)
+    return _collapse_ibans(t)
 
 
 def indicators(text: str) -> set[str]:
     """Emails, URLs, account ids and long numbers; a URL also contributes its host, so `https://h/x` taints `https://h/x/setup.sh`."""
-    found = {m.lower().rstrip(".,;:") for m in _INDICATOR.findall(text or "")}
+    found = {m.lower().rstrip(".,;:") for m in _INDICATOR.findall(canonical(text))}
     return found | {m.split("/")[2] for m in found if m.startswith("http") and m.count("/") >= 2}
 
 
+def text_parts(text: str) -> set[str]:
+    """Fragments an attacker can spread over several documents: bare domains / hosts and id-like tokens (letters+digits, >= 6 chars)."""
+    if _legacy():
+        return set()
+    t = canonical(text)
+    return {m.lower() for m in _BARE_DOMAIN.findall(t)} | {m.lower() for m in _ALNUM_ID.findall(t)}
+
+
+def item_parts(item: str) -> set[str]:
+    """The pieces of one canonical item: an email's mailbox and domain, a URL's host."""
+    if "@" in item:
+        local, domain = item.split("@", 1)
+        return {domain} | ({local} if len(local) >= 6 and any(c.isdigit() for c in local) else set())
+    if item.startswith("http") and item.count("/") >= 2:
+        return {item.split("/")[2]}
+    return set()
+
+
+def hop_text(hop: dict[str, Any]) -> str:
+    return " ".join(str(hop.get(k) or "") for k in ("content", "tool_response")) + " " + action_text(hop)
+
+
 def hop_indicators(hop: dict[str, Any]) -> set[str]:
-    return indicators(" ".join(str(hop.get(k) or "") for k in ("content", "tool_response")) + " " + action_text(hop))
+    return indicators(hop_text(hop))
+
+
+def tainted_items(hop: dict[str, Any], state: dict) -> list[str]:
+    """Tainted keys (whole items, or fragments of items) that this event uses and the user never supplied."""
+    trusted, taint = set(state["trusted"]), state["taint"]
+    items = hop_indicators(hop)
+    hits = [i for i in sorted(items) if i in taint and i not in trusted]
+    if hits or _legacy():
+        return hits
+    for item in sorted(items - trusted):  # an item assembled from fragments (split across documents)
+        pieces = item_parts(item) | ({item} if _IBAN.fullmatch(item.upper()) or item.isdigit() else set())
+        for key in taint:
+            if key in trusted or len(key) < 6:
+                continue
+            if key in pieces or (item.isalnum() and key.isalnum() and key != item and (item.startswith(key) or item.endswith(key))):
+                hits.append(key)
+    return sorted(set(hits))
 
 
 _OUTBOUND = re.compile(r"send|mail|post|upload|http|request|transfer|pay|forward|share|delete|write|exec|run|clone|install|download|fetch|pull|curl|git|shell|payee|schedule", re.I)
@@ -143,8 +246,7 @@ def provenance_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]
     is_action = hop["role"] == "assistant" and bool(action_text(hop))
     if not (is_action or hop["role"] == "memory_write"):
         return 0.0, []
-    trusted = set(state["trusted"])
-    matches = [i for i in hop_indicators(hop) if i in state["taint"] and i not in trusted]
+    matches = tainted_items(hop, state)
     if not matches:
         return 0.0, []
     # A destination the user never named, taken from untrusted content, now steering an outbound action
@@ -195,6 +297,7 @@ UNTRUSTED_FOR_TAINT = UNTRUSTED_ROLES
 def register_indicators(hop: dict[str, Any], state: dict, risk: float, trusted_source: bool = False) -> None:
     """User/system text (or a source the user explicitly named) is trusted; anything else from a data channel is tainted."""
     found = hop_indicators(hop)
+    found |= text_parts(hop_text(hop)) | {p for i in found for p in item_parts(i)}
     if hop["role"] in ("user", "system") or (trusted_source and risk < 0.25):
         state["trusted"] = sorted(set(state["trusted"]) | found)
     elif hop["role"] in UNTRUSTED_ROLES:

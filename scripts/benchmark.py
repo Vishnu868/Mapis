@@ -30,7 +30,8 @@ from backend.ml.metrics import confusion, summarize  # noqa: E402
 DATASETS = {"v1": ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", "decomposed": ROOT / "data/mapis_bench/mapis_bench_decomposed_v1.jsonl",
             "bipia": ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl", "multihop": ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl",
             "realharm": ROOT / "data/mapis_bench/mapis_bench_realharm_v1.jsonl",
-            "independent": ROOT / "data/mapis_bench/mapis_bench_independent_v1.jsonl"}
+            "independent": ROOT / "data/mapis_bench/mapis_bench_independent_v1.jsonl",
+            "adaptive": ROOT / "data/mapis_bench/mapis_bench_adaptive_v1.jsonl"}
 NOT_RUNTIME = {"attacker_instruction", "tool_response_template"}  # derived annotations, not events an agent would emit
 
 
@@ -127,15 +128,17 @@ def main() -> None:
     for name in args.systems.split(","):
         system = build(name, args.model, args.stateless_model)
         flags, labels, lats, by_set, by_class = [], [], [], defaultdict(lambda: ([], [])), defaultdict(list)
-        by_vector, by_depth, cpu0 = defaultdict(list), defaultdict(list), time.process_time()
+        by_vector, by_depth, by_tech, cpu0 = defaultdict(list), defaultdict(list), defaultdict(lambda: ([], [])), time.process_time()
         for s in samples:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
             flags.append(held); labels.append(y); lats += lat
-            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "MAPIS-MultiHop": "MAPIS-MultiHop", "InjecAgent-DH": "RealHarm: InjecAgent direct harm", "ASB": "RealHarm: ASB", "MAPIS-Independent": "Independent (hand-written)", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
+            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "MAPIS-MultiHop": "MAPIS-MultiHop", "InjecAgent-DH": "RealHarm: InjecAgent direct harm", "ASB": "RealHarm: ASB", "MAPIS-Independent": "Independent (hand-written)", "MAPIS-Adaptive": "MAPIS-Adaptive (evasive attacker)", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
             by_set[set_name][0].append(y); by_set[set_name][1].append(held)
             if s.get("benign_kind"):  # benign sessions reported separately by kind
                 by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)
+            if s["provenance"].get("technique"):  # MAPIS-Adaptive: per evasion technique (attacks and their twins)
+                by_tech[s["provenance"]["technique"]][0].append(y); by_tech[s["provenance"]["technique"]][1].append(held)
             if s["is_attack"]:
                 by_class[s["mapis_attack_class"]].append(held)
                 if s["provenance"].get("attack_vector"):  # MAPIS-MultiHop: the abstract's five attack mechanisms, and pipeline depth
@@ -146,6 +149,7 @@ def main() -> None:
             "by_set": {k: summarize(confusion(*v)) for k, v in by_set.items()},
             "recall_by_attack_class": {str(k): {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in by_class.items()},
             "recall_by_attack_vector": {k: {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in by_vector.items()},
+            "by_adaptive_technique": {k: summarize(confusion(*v)) for k, v in by_tech.items()},
             "recall_by_extra_hops": {k: {"n": len(v), "recall": round(sum(v) / len(v), 4)} for k, v in sorted(by_depth.items())},
             "cpu_ms_per_event_incl_detector": round(1000 * (time.process_time() - cpu0) / max(1, len(lats)), 2),
             "latency_ms_per_event": {"mean": round(statistics.fmean(lats), 2), "p95": round(sorted(lats)[int(0.95 * len(lats))], 2)} if lats else None,
@@ -155,6 +159,8 @@ def main() -> None:
         print(f"{system.name:22s} recall {o['recall']:.3f} {ci(o, 'recall')}  FPR {o['fpr']:.3f} {ci(o, 'fpr')}  F1 {o['f1']:.3f}  acc {o['accuracy']:.3f}")
         for k, v in report[system.name]["recall_by_attack_vector"].items():
             print(f"   vector {k:37s} recall {v['recall']:.3f}  (n={v['n']})")
+        for k, v in report[system.name]["by_adaptive_technique"].items():
+            print(f"   adaptive {k:35s} recall {v['recall']:.3f}  FPR {v['fpr']:.3f}  (n={v['n']})")
         for k, v in report[system.name]["by_set"].items():
             print(f"   {k:44s} recall {v['recall']:.3f}  FPR {v['fpr']:.3f} {ci(v, 'fpr')}  (n={v['n']})")
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
