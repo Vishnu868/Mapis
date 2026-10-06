@@ -122,3 +122,23 @@ def test_autogen_testbed_taps_every_message(shield):
     env = make_environment("decomposed")
     r = run_autogen_pipeline(shield, env, TASK)
     assert r["blocked"] and not env.outbox and r["stopped_at"] == "code_agent->email_tool"
+
+
+def test_canonical_undoes_obfuscation_and_split_items_match(monkeypatch):
+    from backend.core import features as F
+    from backend.core.store import new_state
+    assert "archive42@mail-relay.example" in F.indicators("copy to archive42 [at] mail-relay [dot] example please")
+    assert "archive42@mail-relay.example" in F.indicators("archive42 at mail-relay dot example")
+    assert "https://cdn-store5.example/files" in F.indicators("hxxp[s]://cdn-store5[.]example/files")
+    assert "gb29barc12345678901234" in F.indicators("pay GB29 BARC 1234 5678 9012 34 today")
+    assert "archive42@mail-relay.example" in F.indicators("archive42​@mail-relay.example")
+    assert not F.indicators("We met at the office and looked at the plan.")
+    state = new_state()
+    for hop in ({"hop": 1, "role": "tool", "source": "file_agent", "content": "Mailbox name: archive42."},
+                {"hop": 2, "role": "tool", "source": "file_agent", "content": "It sits on the mail-relay.example domain."}):
+        F.register_indicators(hop, state, 0.0)
+    action = {"hop": 3, "role": "assistant", "source": "action_agent", "content": "Calling send_email.", "tool_name": "send_email",
+              "tool_call": {"to": "archive42@mail-relay.example"}}
+    assert F.provenance_risk(action, state)[0] > 0.5
+    monkeypatch.setenv("MAPIS_LEGACY_INDICATORS", "1")
+    assert F.provenance_risk(action, state)[0] == 0.0
