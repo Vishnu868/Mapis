@@ -9,7 +9,8 @@ runs = [json.loads(f.read_text()) for f in files if f.exists()]
 summary = {}
 for system in ("mapis", "deberta-v3-small"):
     rows = [r[system] for r in runs if system in r]
-    for scope in ("overall", "MAPIS-MultiHop", "RealHarm: InjecAgent direct harm", "RealHarm: ASB", "BIPIA (unseen dataset)"):
+    for scope in ("overall", "MAPIS-MultiHop", "RealHarm: InjecAgent direct harm", "RealHarm: ASB", "BIPIA (unseen dataset)",
+                  "MAPIS-Adaptive (evasive attacker)", "MAPIS-Decomposed", "MAPIS-Bench v1"):
         vals = [(r["overall"] if scope == "overall" else r["by_set"].get(scope)) for r in rows]
         vals = [v for v in vals if v]
         if not vals:

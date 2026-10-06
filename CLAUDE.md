@@ -113,7 +113,8 @@ Targets: **>= 90 % accuracy, <= 5 % FPR, < 200 ms per message, >= 20 points reca
 - `scripts/diagnose.py` — prints missed attacks / false positives hop by hop. `scripts/run_pipeline.ps1` — whole pipeline on the laptop with logs
   in `results\logs` (00 code check, 0 multihop set, 1 prepare, 2 validate, 3 train stateful, 4 train stateless, 5 decomposed, 6 evaluate,
   7 benchmark, 8 false positives, 9 missed attacks, 10 Llama Guard). ~85 min total on the 3050.
-- Tests: `tests/` 28 pytest tests (shield, API, ML parity, AutoGen tap, multihop held vs twins). Run `python -m pytest -q`.
+- `scripts/generate_adaptive.py` (MAPIS-Adaptive), `scripts/live_agentdojo.py` (live LLM agents), `backend/llm.py` (OpenAI-compatible client) - see 4h.
+- Tests: `tests/` 29 pytest tests (shield, API, ML parity, AutoGen tap, multihop held vs twins). Run `python -m pytest -q`.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 4. Run 3 results (commit 7da86d4, 3 Oct 2026) — SUPERSEDED by section 4f (final 3-seed run)
@@ -223,6 +224,36 @@ injection detector -> weak baseline; no stateful-LLM-judge or Prompt Guard 2 / A
 paraphrased claims, items split across hops). Proposed upgrades (owner to confirm): adaptive-attack test set; Prompt Guard 2 + history-aware LLM-judge
 baselines (Groq free tier); live-LLM AgentDojo run with MAPIS as tap (attack success rate + utility); team independent set.
 
+### 4h. Evaluation upgrade (6 Oct, commits 646b53e..) - the four weak spots of 4g, implemented; laptop runs pending
+1. **Saturated own benchmark / no adaptive attacker -> MAPIS-Adaptive** (`scripts/generate_adaptive.py`, `data/mapis_bench/mapis_bench_adaptive_v1.jsonl`,
+   1,692 sessions; test = 192 attacks + 384 twins from the held-out MultiHop families, with held-out evasion styles). Attacker knows MAPIS:
+   obfuscated items ("x at host dot example", "hxxp[s]://h[.]example", "GB29 BARC 1234 ..."), split items (mailbox in one document, domain in another;
+   IBAN halves), unicode (zero-width, soft hyphen, full-width @/.), paraphrased authority claims with none of the regex vocabulary, long delay (8 hops
+   between fragments and action, beyond the 4-hop history window), combo. Twins: authorized (user gave the item) and resisted.
+   Defences in `backend/core/features.py`: `canonical()` (NFKC, zero-width removal, hxxp/[.]/(at)/spelled at-dot/spaced @/grouped IBAN collapse) before
+   indicator matching; `text_parts()` / `item_parts()` / `tainted_items()` register fragments (bare domains, hosts, id-like tokens) so an action that
+   assembles an item from fragments matches them (session signal `reuse=` shows the fragment). `MAPIS_LEGACY_INDICATORS=1` = old behaviour (before numbers).
+   Adaptive train/val sessions are in the training data (adversarial training; train 52k chunks, +34 %), test split `test_adaptive`, benchmark set `adaptive`.
+   **Sandbox, rules-only (no trained model): adaptive recall obfuscated 29 -> 100 %, split 33 -> 100 %, unicode 38 -> 100 %, paraphrase 60 % (unchanged:
+   override/physical paraphrases carry no item; the model must learn them), long delay 100 %, combo 25 -> 60 %; 0 new false positives on any set.**
+2. **Weak baseline (Llama Guard is not an injection detector) -> new baselines** in `backend/baselines.py` / `scripts/benchmark.py`:
+   `promptguard` (Meta Llama Prompt Guard 2 86M; needs HF licence acceptance), `protectai` (protectai/deberta-v3-base-prompt-injection-v2, ungated),
+   `llmjudge` (history-aware LLM judge = stateful LLM baseline, AlignmentCheck-style, one call per session with the whole transcript - a post-hoc audit
+   that sees more than a real-time monitor), `nemo` (NeMo Guardrails self-check input rail only, per message). LLM ones use `backend/llm.py`
+   (any OpenAI-compatible endpoint via LLM_BASE_URL / LLM_MODEL / LLM_API_KEY: Groq, Cerebras, Gemini, OpenAI, local Ollama; disk cache in
+   results/llm_cache, retry/backoff, LLM_RPM cap). `--max-per-set N` = class-balanced subset per dataset; all systems scored on the same subset.
+   Verified in the sandbox against a mock OpenAI server (plumbing only; no real LLM numbers yet).
+3. **Scripted agents -> live LLM agents**: `scripts/live_agentdojo.py` runs AgentDojo v1.2.1 (banking, slack, workspace, travel) with a real LLM
+   agent; MAPIS taps every message (user query, each tool call before execution, each tool output before the LLM reads it); withheld calls are not
+   executed (agent told "withheld"), withheld outputs replaced. Defences none / mapis / stateless / protectai; metrics utility, utility under attack,
+   ASR; resumable. Attack `important_instructions_no_names`. Caveat to state once: MAPIS's v1 training data contains AgentDojo injections of this
+   template family. Plumbing verified with a mock tool-calling LLM (MAPIS withheld the attacker's send_money calls).
+4. Team independent set (unchanged, `docs/INDEPENDENT_TESTSET_GUIDE.md`).
+Extra deps: `pip install -r requirements-eval.txt` (agentdojo, nemoguardrails, langchain-openai, openai; no torch/transformers pins).
+Laptop order: (a) `.\scripts\run_pipeline.ps1 -Seeds 3` (step 00a/00b first record the BEFORE numbers of the current model on the adaptive set, then
+retrain with adversarial data, benchmark all sets incl. adaptive, Prompt Guard 2 + ProtectAI, Llama Guard, 2 extra seeds); (b) `-Live` with Ollama;
+(c) `-LLMBaselines` with a Groq (or other) key set in the shell only. Report the new 3-seed numbers only if they do not regress the 4f reference.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
@@ -276,7 +307,7 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
    withheld action). How to run + 5-minute demo script: `docs/DEMO.md`. Sandbox screenshots (rules-only detector): `docs/screenshots/`.
 **Owner clarification (5 Oct): model/data changes ARE allowed if they improve results (review is 22 Oct). Rule: every retrain must target a specific, measured,
 diagnosed failure and must not undo earlier fixes; the 3-seed run started 5 Oct (commit 40d8975) is the current reference to beat.**
-Remaining schedule: [done 6 Oct] final numbers recorded (4f). Next: `-Base` run overnight (reported as an extra comparison only); 7-8 Oct retake
+Remaining schedule: [done 6 Oct] final numbers recorded (4f); [code done 6 Oct] evaluation upgrade 4h. Next: `-Base` run overnight (6 Oct, extra comparison only), then 4h laptop runs (a) 7 Oct night, (b)+(c) 8-9 Oct; 7-8 Oct retake
 screenshots on the laptop with the trained model, NeMo if a key exists, team independent set evaluated; 9-12 Oct final report (docs/REPORT.md);
 13-17 Oct Canva deck; 18-21 Oct rehearsal with the live demo.
 
