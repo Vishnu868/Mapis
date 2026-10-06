@@ -33,6 +33,11 @@ Missed attacks seed 42: 0 of 213 multi-hop/realharm/decomposed attacks; v1 benig
 Honest notes: on BIPIA (single-hop, no cross-hop evidence) stateless recall is ~1 point higher and within seed variance, at higher FPR; MultiHop is template-generated (held-out families, phrasings,
 tools; real carriers) -> the team's independent set is the remaining external check; NeMo not run yet; Llama Guard numbers are from run A on identical test events (not re-run on this model, it does not depend on it).
 
+## Evaluation upgrade (6 Oct) - implemented, laptop runs pending
+See CLAUDE.md section 4h. MAPIS-Adaptive (evasive attacker, held-out styles), canonical/fragment provenance matching, Prompt Guard 2 / ProtectAI /
+history-aware LLM judge / NeMo baselines on any OpenAI-compatible endpoint, live LLM agents on AgentDojo with MAPIS tapping every message.
+Sandbox rules-only check on MAPIS-Adaptive test (576 sessions): recall 51 % -> 83 % with canonical/fragment matching, 0 false positives before and after.
+
 ## Earlier results - run 3 (commit 7da86d4, RTX 3050, DeBERTa-v3-small, 2 epochs; results/benchmark.json in Drive mapis_results)
 Session level, 1,364 held-out test sessions, every system sees the same events in the same order, 95 % Wilson intervals.
 
