@@ -14,7 +14,7 @@ except ModuleNotFoundError:
 
 
 VALID_LABELS = {"malicious", "safe", "unlabeled"}
-VALID_SPLITS = {"train", "validation", "test"}
+VALID_SPLITS = {"train", "validation", "test", "test_ood", "test_bipia", "test_multihop", "test_realharm", "test_adaptive"}
 
 
 def load_examples(path: Path) -> list[dict]:
@@ -43,6 +43,10 @@ def validate_examples(examples: list[dict]) -> dict:
             errors.append(f"{prefix}: future-hop leakage")
         if current.get("content_state") == "null_assistant_tool_call" and example.get("label") != "unlabeled":
             errors.append(f"{prefix}: null assistant tool call supervised")
+        if example.get("label") != "unlabeled" and example.get("event_label") == "unlabeled":
+            errors.append(f"{prefix}: supervised chunk of an unlabeled event")
+        if "<INFORMATION>" in str(example.get("text")):
+            errors.append(f"{prefix}: dataset artifact tag still present")
         if example.get("label") == "malicious" and example.get("label_source") == "attack_session_label_not_copied_to_hop":
             errors.append(f"{prefix}: attack session automatically labeled positive")
         if "<Attacker Instruction>" in str(current.get("content")) and not example.get("source_sample_id", "").startswith("injecagent_benign_"):

@@ -1,40 +1,36 @@
-from pydantic_settings import BaseSettings
-from typing import Optional
+"""Runtime settings. Trust scale everywhere: 0 = malicious, 1 = safe."""
+
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # App
-    APP_NAME: str = "MAPIS"
-    APP_ENV: str = "development"
-    APP_PORT: int = 8000
-    SECRET_KEY: str = "change-this-in-production"
+    model_config = SettingsConfigDict(env_file=".env", env_prefix="MAPIS_", extra="ignore")
 
-    # LLM
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o-mini"
+    redis_url: str = "redis://localhost:6379/0"
+    database_url: str = "sqlite+aiosqlite:///./mapis.db"
+    frontend_url: str = "http://localhost:3000"
+    model_path: str = "artifacts/mapis_detector"  # falls back to the regex detector when absent
 
-    # Redis
-    REDIS_HOST: str = "localhost"
-    REDIS_PORT: int = 6379
-    REDIS_DB: int = 0
+    # Tier boundaries on the trust score: PASS >= pass_at > FLAG >= flag_at > QUARANTINE >= quarantine_at > BLOCK
+    pass_at: float = 0.75
+    flag_at: float = 0.50
+    quarantine_at: float = 0.25
 
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./mapis.db"
+    window_hops: int = 4          # causal context hops given to the classifier (plus the user's goal)
+    session_ttl: int = 3600       # seconds of inactivity before a session expires
+    sensitivity_step: float = 0.15  # risk boost per FLAG in the session
+    sensitivity_cap: float = 0.60
+    fail_mode: str = "closed"     # "closed": errors block; "open": errors pass (with alert)
 
-    # Trust thresholds (0.0 = fully trusted, 1.0 = fully malicious)
-    TRUST_BLOCK_THRESHOLD: float = 0.3   # block if trust score BELOW this
-    TRUST_WARN_THRESHOLD: float = 0.6    # warn if trust score BELOW this
-    SESSION_HISTORY_LIMIT: int = 50      # max messages remembered per session
-
-    # CORS
-    FRONTEND_URL: str = "http://localhost:3000"
-
-    # Logging
-    LOG_LEVEL: str = "INFO"
-
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    # Noisy-OR weights of the stateful features (the transformer score has weight 1)
+    w_provenance: float = 0.80
+    w_instruction: float = 0.50
+    w_drift: float = 0.15
+    w_behaviour: float = 0.15
 
 
-settings = Settings()
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

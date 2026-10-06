@@ -1,0 +1,6 @@
+# Extra packages for the evaluation upgrades (6 Oct): live LLM agents on AgentDojo, NeMo Guardrails, LLM judge.
+# pip install -r requirements-eval.txt     (none of them pin torch / transformers)
+agentdojo>=0.1.35
+nemoguardrails>=0.10
+langchain-openai
+openai>=1.40

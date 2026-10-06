@@ -56,13 +56,9 @@ mapiss/
 
 # MAPIS generated / large data
 artifacts/
-results/
 data/external/
-data/training/*.jsonl
 
 # Large generated benchmark files
-data/mapis_bench/mapis_bench_v1.jsonl
-data/mapis_bench/mapis_bench_v1_injecagent.jsonl
 data/mapis_multihop/
 
 # External repository
@@ -71,3 +67,9 @@ InjecAgent/
 # Local inspection/generated files
 data/external_dataset_inspection.txt
 data/external_dataset_summary.json
+
+# Trained weights stay local (publish via a release); metrics under results/ are ignored by default
+
+# Event dataset is rebuilt deterministically from MAPIS-Bench v1 (scripts/prepare_phase4_training_data.py)
+data/training/*.jsonl
+results/llm_cache/
