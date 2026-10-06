@@ -86,6 +86,29 @@ class StatelessSystem:
         return held, lat
 
 
+class JudgeSystem:
+    """Session-level system (sees the whole transcript at once)."""
+
+    def __init__(self, judge):
+        self.name, self.judge = judge.name, judge
+
+    def run(self, sample: dict) -> tuple[bool, list[float]]:
+        return self.judge.run(sample, list(events(sample)))
+
+
+def subsample(samples: list[dict], n: int) -> list[dict]:
+    """Deterministic, class-balanced subset per dataset (for API-limited LLM baselines; every system then sees the same subset)."""
+    import hashlib
+    groups = defaultdict(list)
+    for s in samples:
+        groups[(s["source_dataset"], s["is_attack"])].append(s)
+    out = []
+    for key, rows in sorted(groups.items(), key=lambda kv: str(kv[0])):
+        rows.sort(key=lambda r: hashlib.sha256(r["sample_id"].encode()).hexdigest())
+        out += rows[: max(1, n // 2)]
+    return out
+
+
 def build(name: str, model: str, stateless_model: str):
     cfg = Settings(redis_url="", model_path=model)
     if name == "mapis":
@@ -106,6 +129,12 @@ def build(name: str, model: str, stateless_model: str):
     if name == "promptguard":
         from backend.baselines import PromptGuardBaseline
         return StatelessSystem(PromptGuardBaseline())
+    if name == "protectai":  # public (ungated) DeBERTa prompt-injection classifier, fallback when Prompt Guard 2 access is pending
+        from backend.baselines import PromptGuardBaseline
+        return StatelessSystem(PromptGuardBaseline("protectai/deberta-v3-base-prompt-injection-v2", name="protectai-deberta-v2"))
+    if name == "llmjudge":
+        from backend.baselines import LLMJudgeSystem
+        return JudgeSystem(LLMJudgeSystem())
     if name == "nemo":
         from backend.baselines import NemoBaseline
         return StatelessSystem(NemoBaseline())
@@ -120,9 +149,12 @@ def main() -> None:
     ap.add_argument("--model", default="artifacts/mapis_detector")
     ap.add_argument("--stateless-model", default="artifacts/mapis_stateless")
     ap.add_argument("--out", default="results/benchmark.json")
+    ap.add_argument("--max-per-set", type=int, default=0, help="class-balanced subset per dataset (LLM baselines on free API tiers)")
     args = ap.parse_args()
 
     samples = load(args.sets.split(","), args.split)
+    if args.max_per_set:
+        samples = subsample(samples, args.max_per_set)
     print(f"{len(samples)} sessions ({args.sets}, split={args.split})")
     report = {}
     for name in args.systems.split(","):
