@@ -212,6 +212,17 @@ Missed attacks seed 42: 0 of 213 multi-hop/realharm/decomposed attacks; v1 benig
 Honest notes: on BIPIA (single-hop, no cross-hop evidence) stateless recall is ~1 point higher and within seed variance, at higher FPR; MultiHop is template-generated (held-out families, phrasings,
 tools; real carriers) -> the team's independent set is the remaining external check; NeMo not run yet; Llama Guard numbers are from run A on identical test events (not re-run on this model, it does not depend on it).
 
+### 4g. Related work check (6 Oct) and what would make the result stronger
+Not "first ever": Prompt Infection (Lee & Tiwari 2024, self-replicating injection across agents), G-Safeguard (ACL 2025, GNN anomaly detection on the
+multi-agent utterance graph + edge pruning), LlamaFirewall AlignmentCheck (Meta 2025, LLM audits the whole agent trajectory vs the user goal),
+control-flow hijacking defenses in MAS (arXiv 2510.17276). MAPIS's own contribution = the combination: a small fine-tuned classifier fed with
+stateful session signals at a framework-agnostic communication tap (AutoGen + LangGraph), fragment-split attacks with matched benign twins, provenance
+trace, tiered response, < 70 ms/event. Weak spots of the current evaluation (why 100 % is not the end): (1) MultiHop is our own template set and is
+saturated; (2) testbed agents are scripted, not real LLMs (no attack-success / utility numbers); (3) Llama Guard is a content-safety model, not an
+injection detector -> weak baseline; no stateful-LLM-judge or Prompt Guard 2 / AlignmentCheck baseline; (4) no adaptive attacker (obfuscated items,
+paraphrased claims, items split across hops). Proposed upgrades (owner to confirm): adaptive-attack test set; Prompt Guard 2 + history-aware LLM-judge
+baselines (Groq free tier); live-LLM AgentDojo run with MAPIS as tap (attack success rate + utility); team independent set.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
