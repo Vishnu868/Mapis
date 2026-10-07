@@ -254,6 +254,14 @@ Laptop order: (a) `.\scripts\run_pipeline.ps1 -Seeds 3` (step 00a/00b first reco
 retrain with adversarial data, benchmark all sets incl. adaptive, Prompt Guard 2 + ProtectAI, Llama Guard, 2 extra seeds); (b) `-Live` with Ollama;
 (c) `-LLMBaselines` with a Groq (or other) key set in the shell only. Report the new 3-seed numbers only if they do not regress the 4f reference.
 
+### 4i. DeBERTa-v3-base run (7 Oct 2026, seed 42, code of 6 Oct before the adaptive set, 1,728 test sessions; Drive `mapis_results/base`) - extra comparison, NOT the headline model
+MAPIS (base): **99.9 % recall / 2.0 % FPR** / 99.2 % acc / F1 0.994 (small 3-seed: 97.1 / 0.5 / 98.0). Multi-hop: recall 100 %, **FPR 5.3 %** [3-10] (authorized 3.8, resisted 6.2, designated 0) - above the <= 5 % target
+(small: 0.6 +/- 0.8). RealHarm 100 % / 0 % on both; BIPIA **99.8 % / 2.0 %** (small 94.7 / 1.2); v1 100 % / 0; decomposed 100 %. Stateless base: 93.5 / 18.1; multi-hop 53.8 % / 23.7 %; InjecAgent-DH FPR 50 %;
+decomposed 4.2 % -> multi-hop recall gain +46.2 points. Event-level evaluate: test 100 / 1.2, test_ood 100 / 0.4, test_bipia 99.8 / 1.0, test_multihop 88.0 / 0.5, test_realharm 100 / 0.
+Latency (evaluate.json): 115 ms/event single, 96 ms batched (small: ~66 / 52) - still < 200 ms. Training ~6,800 s per model on the 3050.
+Reading: base buys recall (BIPIA +5 points) and pays FPR (overall 0.5 -> 2.0, multi-hop 0.6 -> 5.3, one seed, resisted twins 6.2 %) and 1.7x latency. Decision: **keep small as the headline** (all targets met, 3 seeds);
+report base as the capacity comparison. Optional later: rerun base on the adaptive-augmented data after the main run, or calibrate its threshold on validation to trade recall for FPR.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
@@ -307,7 +315,7 @@ Then upload the exact files listed in rule 7 to Drive `mapis_results`.
    withheld action). How to run + 5-minute demo script: `docs/DEMO.md`. Sandbox screenshots (rules-only detector): `docs/screenshots/`.
 **Owner clarification (5 Oct): model/data changes ARE allowed if they improve results (review is 22 Oct). Rule: every retrain must target a specific, measured,
 diagnosed failure and must not undo earlier fixes; the 3-seed run started 5 Oct (commit 40d8975) is the current reference to beat.**
-Remaining schedule: [done 6 Oct] final numbers recorded (4f); [code done 6 Oct] evaluation upgrade 4h. Next: `-Base` run overnight (6 Oct, extra comparison only), then 4h laptop runs (a) 7 Oct night, (b)+(c) 8-9 Oct; 7-8 Oct retake
+Remaining schedule: [done 6 Oct] final numbers recorded (4f); [code done 6 Oct] evaluation upgrade 4h. [done 7 Oct] `-Base` run (4i). Next: 4h laptop runs (a) 7 Oct night, (b)+(c) 8-9 Oct; 7-8 Oct retake
 screenshots on the laptop with the trained model, NeMo if a key exists, team independent set evaluated; 9-12 Oct final report (docs/REPORT.md);
 13-17 Oct Canva deck; 18-21 Oct rehearsal with the live demo.
 
