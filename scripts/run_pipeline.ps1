@@ -62,7 +62,8 @@ Step "7_benchmark"         "python scripts/benchmark.py --systems mapis,mapis-mo
 Step "8_false_positives"   "python scripts/diagnose.py --sets v1 --kind benign"
 Step "9_missed_attacks"    "python scripts/diagnose.py --sets multihop,adaptive,realharm --kind attack --limit 15"
 Step "9b_adaptive_false_positives" "python scripts/diagnose.py --sets adaptive --kind benign --limit 15"
-Step "10b_injection_classifiers" "python scripts/benchmark.py --systems promptguard,protectai --sets $sets --out results/benchmark_promptguard.json" $true
+Step "10b_protectai" "python scripts/benchmark.py --systems protectai --sets $sets --out results/benchmark_protectai.json" $true
+Step "10c_promptguard" "python scripts/benchmark.py --systems promptguard --sets $sets --out results/benchmark_promptguard.json" $true
 if (-not $SkipLlamaGuard) {
     Step "10_llamaguard"   "python scripts/benchmark.py --systems llamaguard --sets $sets --out results/benchmark_llamaguard.json" $true
 }

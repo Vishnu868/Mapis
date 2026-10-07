@@ -24,6 +24,21 @@ Upload: `results\benchmark.json`, `results\benchmark_llamaguard.json`, `results\
 `results\adaptive_before.json`, `results\adaptive_old_model_new_rules.json`, `results\logs\`, `results\seeds\`,
 `artifacts\mapis_detector\{calibration.json, history.json, training_config.json}`, `artifacts\mapis_stateless\{calibration.json, history.json}`.
 
+## Step 2b - gated Hugging Face models (only if step 10 / 10c of the main run failed with 401)
+Cause: a stale `HF_TOKEN` environment variable overrides the saved login. Fix in a NEW PowerShell window after the main run finished:
+```powershell
+cd E:\mapis\mapis\Mapis
+& E:\mapis\mapis\Scripts\Activate.ps1
+Remove-Item Env:HF_TOKEN -ErrorAction SilentlyContinue
+[Environment]::SetEnvironmentVariable("HF_TOKEN", $null, "User")   # removes a persistent stale one
+hf auth login          # paste a NEW Read token from huggingface.co/settings/tokens (same account that accepted the licences)
+hf auth whoami
+python scripts/benchmark.py --systems protectai --sets multihop,adaptive,realharm,v1,decomposed,bipia --out results/benchmark_protectai.json
+python scripts/benchmark.py --systems promptguard --sets multihop,adaptive,realharm,v1,decomposed,bipia --out results/benchmark_promptguard.json
+python scripts/benchmark.py --systems llamaguard --sets multihop,adaptive,realharm,v1,decomposed,bipia --out results/benchmark_llamaguard.json
+```
+Upload: `results\benchmark_protectai.json`, `results\benchmark_promptguard.json`, `results\benchmark_llamaguard.json`.
+
 ## Step 3 - live LLM agents on AgentDojo (free, ~7-10 h)
 Install Ollama (ollama.com), then `ollama pull qwen2.5:7b`.
 ```powershell
