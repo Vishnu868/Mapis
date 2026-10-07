@@ -14,7 +14,13 @@ Never upload `*.safetensors`. Upload everything else listed to Drive `mapis_resu
 Upload: `results\base\`, `results\logs\`, `artifacts\base\mapis_detector\{calibration.json, history.json, training_config.json}`,
 `artifacts\base\mapis_stateless\{calibration.json, history.json}`.
 
-## Step 2 - main run with adaptive attacks + new baselines (overnight, ~12 h)
+## Step 2 - main run (RESTART after a killed run: use -SkipBefore, see below)
+If the main run was interrupted, back up the real before-numbers first and restart with `-SkipBefore`:
+`Copy-Item results\adaptive_before.json results\adaptive_before_BACKUP.json; Copy-Item results\adaptive_old_model_new_rules.json results\adaptive_old_model_new_rules_BACKUP.json`
+then `.\scripts\run_pipeline.ps1 -Seeds 1 -SkipBefore` (seed 42 only, ~8-10 h). If its numbers do not regress the 4f reference, add the other seeds with
+`.\scripts\run_pipeline.ps1 -Seeds 3 -ExtraSeedsOnly` (~7 h each seed pair).
+
+## Step 2 (original text) - main run with adaptive attacks + new baselines (overnight, ~12 h)
 Once: accept the licence at huggingface.co/meta-llama/Llama-Prompt-Guard-2-86M (same HF account as Llama Guard).
 ```powershell
 pip install -r requirements-eval.txt
