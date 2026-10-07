@@ -3,10 +3,12 @@
 #   .\scripts\run_pipeline.ps1                 # one full run (seed 42)
 #   .\scripts\run_pipeline.ps1 -Seeds 3        # + 2 extra training seeds for MAPIS and stateless -> results\seeds, aggregated mean +/- std
 #   .\scripts\run_pipeline.ps1 -SkipLlamaGuard # skip the Llama Guard step (its result does not change between runs)
+#   .\scripts\run_pipeline.ps1 -SkipBefore    # do not record the "before" numbers of the existing artifacts\mapis_detector (use when a new model already overwrote it)
+#   .\scripts\run_pipeline.ps1 -Seeds 3 -ExtraSeedsOnly   # only train/benchmark seeds 2..N and aggregate (after a -Seeds 1 run you were happy with)
 #   .\scripts\run_pipeline.ps1 -Live          # live LLM agents on AgentDojo with/without MAPIS (needs Ollama or LLM_* variables, see scripts/live_agentdojo.py)
 #   .\scripts\run_pipeline.ps1 -LLMBaselines  # history-aware LLM judge + NeMo Guardrails (needs LLM_BASE_URL / LLM_MODEL / LLM_API_KEY)
 #   .\scripts\run_pipeline.ps1 -Base          # DeBERTa-v3-base instead of small (slower, more accurate); outputs go to artifacts\base\ and results\base\
-param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "", [switch]$Base, [switch]$Live, [switch]$LLMBaselines, [int]$LLMSample = 60)
+param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "", [switch]$Base, [switch]$Live, [switch]$LLMBaselines, [int]$LLMSample = 60, [switch]$SkipBefore, [switch]$ExtraSeedsOnly)
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force results\logs | Out-Null
 $sets = "multihop,adaptive,realharm,v1,decomposed,bipia"
@@ -19,6 +21,22 @@ function Step($name, $cmd, [bool]$Optional = $false) {
     if ($LASTEXITCODE -ne 0) {
         if ($Optional) { Write-Host "Step '$name' failed (see $log) - continuing" -ForegroundColor Yellow } else { throw "Step '$name' failed (see $log)" }
     }
+}
+
+function Run-ExtraSeeds {
+for ($s = 2; $s -le $Seeds; $s++) {
+    $seed = 40 + $s
+    Step "11_seed${s}_train_stateful"  "python -m backend.ml.train --run --seed $seed --output-dir artifacts/seed$s/mapis_detector $modelArg"
+    Step "11_seed${s}_train_stateless" "python -m backend.ml.train --run --seed $seed --no-context --output-dir artifacts/seed$s/mapis_stateless $modelArg"
+    Step "11_seed${s}_benchmark"       "python scripts/benchmark.py --systems mapis,mapis-stateless --sets $sets --model artifacts/seed$s/mapis_detector --stateless-model artifacts/seed$s/mapis_stateless --out results/seeds/benchmark_seed$s.json"
+}
+    if ($Seeds -gt 1) { Step "12_aggregate_seeds" "python scripts/aggregate_seeds.py" }
+}
+
+if ($ExtraSeedsOnly) {
+    Run-ExtraSeeds
+    Write-Host "`nDONE (extra seeds). Upload results\seeds\ (whole folder) and results\logs\ (whole folder)" -ForegroundColor Green
+    exit 0
 }
 
 if ($Live) {
@@ -44,7 +62,7 @@ if ($Base) {
 }
 
 Step "00_code_version"     "git log --oneline -1 && python -c ""import backend.core.features as F, pathlib; assert hasattr(F, 'canonical') and pathlib.Path('data/mapis_bench/mapis_bench_realharm_v1.jsonl').exists(), 'OLD CODE: run git stash; git pull first'; print('code check ok')"""
-if (Test-Path artifacts\mapis_detector\config.json) {
+if ((Test-Path artifacts\mapis_detector\config.json) -and (-not $SkipBefore)) {
     # BEFORE numbers on the evasive-attacker set: the previous model, with the old indicator matching and with the new canonical matching
     Step "00a_adaptive_before"        "set MAPIS_LEGACY_INDICATORS=1&& python scripts/benchmark.py --systems mapis,mapis-model,mapis-stateless --sets adaptive --out results/adaptive_before.json" $true
     Step "00b_adaptive_old_model_new_rules" "python scripts/benchmark.py --systems mapis,mapis-model --sets adaptive --out results/adaptive_old_model_new_rules.json" $true
@@ -68,13 +86,7 @@ if (-not $SkipLlamaGuard) {
     Step "10_llamaguard"   "python scripts/benchmark.py --systems llamaguard --sets $sets --out results/benchmark_llamaguard.json" $true
 }
 
-for ($s = 2; $s -le $Seeds; $s++) {
-    $seed = 40 + $s
-    Step "11_seed${s}_train_stateful"  "python -m backend.ml.train --run --seed $seed --output-dir artifacts/seed$s/mapis_detector $modelArg"
-    Step "11_seed${s}_train_stateless" "python -m backend.ml.train --run --seed $seed --no-context --output-dir artifacts/seed$s/mapis_stateless $modelArg"
-    Step "11_seed${s}_benchmark"       "python scripts/benchmark.py --systems mapis,mapis-stateless --sets $sets --model artifacts/seed$s/mapis_detector --stateless-model artifacts/seed$s/mapis_stateless --out results/seeds/benchmark_seed$s.json"
-}
-if ($Seeds -gt 1) { Step "12_aggregate_seeds" "python scripts/aggregate_seeds.py" }
+Run-ExtraSeeds
 
 Write-Host "`nDONE. Upload to the Drive folder 'mapis_results':" -ForegroundColor Green
 Write-Host "  results\benchmark.json, results\benchmark_llamaguard.json, results\benchmark_promptguard.json, results\evaluate.json, results\adaptive_before.json, results\adaptive_old_model_new_rules.json, results\logs\ (whole folder), results\seeds\ (if it exists)"
