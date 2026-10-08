@@ -262,6 +262,16 @@ Latency (evaluate.json): 115 ms/event single, 96 ms batched (small: ~66 / 52) - 
 Reading: base buys recall (BIPIA +5 points) and pays FPR (overall 0.5 -> 2.0, multi-hop 0.6 -> 5.3, one seed, resisted twins 6.2 %) and 1.7x latency. Decision: **keep small as the headline** (all targets met, 3 seeds);
 report base as the capacity comparison. Optional later: rerun base on the adaptive-augmented data after the main run, or calibrate its threshold on validation to trade recall for FPR.
 
+### 4j. Run with adaptive training data (8 Oct 2026, commit b815f96, seed 42 only, 2,304 test sessions incl. 576 MAPIS-Adaptive) - first run of the 4h upgrade
+**MAPIS: 97.0 % recall / 0.2 % FPR / 98.2 % acc / F1 0.984** (model only: 97.0 / 0.1). Before the upgrade, same adaptive test set: old model + old matching 64.6 % / 2.9 %; old model + new matching 100 % / 3.9 %; **new model 100 % / 0.0 % on all six
+techniques (obfuscated, split, unicode, paraphrase, long delay, combo; 576 sessions, 192 attacks)**. Multi-hop 100 % / 1.2 % FPR (authorized 0.6, resisted 0, designated 0); RealHarm InjecAgent-DH 98.5 % (1 miss) / 0 %, ASB 100 / 0;
+v1 100 / 0; decomposed 100 / 0; BIPIA 93.7 % / 0.0 % (4f mean 94.7 / 1.2); memory-injection vector 99.2 %, others 100 %. No regression vs 4f -> this model is the new reference (extra seeds pending: `-Seeds 3 -ExtraSeedsOnly`).
+Stateless DeBERTa (same data): overall 94.7 % / **33.6 % FPR**; multi-hop 86.2 % / 49.1 % (flags 89 % of authorized and 77 % of designated twins); adaptive 87.0 % / 45.6 %; InjecAgent-DH FPR 50 %; decomposed 50 % / 50 %. Regex 12.5 / 0.
+**Open point (be explicit): the plain recall gain over stateless on multi-hop is +13.8 points this seed (4f mean was +49.7), because the stateless model, now trained with adaptive data, reaches 86 % recall only by flagging half of all benign twins.**
+Fair comparison tool: `scripts/stateless_sweep.py` = stateless recall at a threshold giving <= 5 % FPR (threshold chosen on validation). Laptop: `python scripts/stateless_sweep.py --sets multihop,adaptive,realharm`.
+Baselines still missing from this run: ProtectAI (10b failed) and Prompt Guard 2 (10c) - **C: drive had 553 MB free; the HF cache must be redirected to E: with `$env:HF_HUB_CACHE="E:\hf_cache"`** (not HF_HOME, which would hide the login token); Llama Guard step never started (laptop switched off 07:06).
+Per-run table in 4f stays the 3-seed reference until the extra seeds of this configuration finish.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
