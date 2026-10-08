@@ -272,6 +272,15 @@ Fair comparison tool: `scripts/stateless_sweep.py` = stateless recall at a thres
 Baselines still missing from this run: ProtectAI (10b failed) and Prompt Guard 2 (10c) - **C: drive had 553 MB free; the HF cache must be redirected to E: with `$env:HF_HUB_CACHE="E:\hf_cache"`** (not HF_HOME, which would hide the login token); Llama Guard step never started (laptop switched off 07:06).
 Per-run table in 4f stays the 3-seed reference until the extra seeds of this configuration finish.
 
+### 4k. Fair stateless comparison and ProtectAI (8 Oct 2026, run on the laptop, seed-42 models of 4j)
+**Stateless DeBERTa held to <= 5 % FPR (threshold picked on the validation split per dataset, applied to test; `results/stateless_sweep.json`):**
+MAPIS-MultiHop recall **0.0 %** (FPR 0.6 %; threshold 0.365), MAPIS-Adaptive recall **0.0 %** (FPR 0.5 %), InjecAgent-DH 83.8 % (FPR 0 %), ASB 95.0 % (FPR 0 %). At the default threshold 0.5 it reaches 86.2 % / 87.0 % on multi-hop / adaptive only with 49 % / 46 % FPR.
+MAPIS on the same sets: 100 % / 100 % / 98.5 % / 100 % at 0-1.2 % FPR. -> **at matched false-positive budget the recall gain on multi-hop and adaptive attacks is +100 points** (the plain +13.8 of 4j is an artefact of the stateless model flagging the user-authorized twins:
+the event text is identical, only session state tells them apart). Likely reason (inferred; the per-threshold curve is in the json): attack and authorized-twin events get the same stateless score.
+**ProtectAI deberta-v3-base-prompt-injection-v2 (public injection classifier, stateless, default threshold):** overall 53.3 % recall / 49.5 % FPR; multi-hop 70.8 / 63.9; adaptive 66.1 / 64.1; InjecAgent-DH 36.8 / 4.4; ASB 13.8 / 0; v1 78.5 / 88.5; BIPIA 44.7 / 56.5; decomposed 29.2 / 33.3.
+Prompt Guard 2 and Llama Guard failed again with 401: a stale **HF_TOKEN environment variable** (invalid) is re-inherited by every new terminal and overrides the saved browser login (ProtectAI is public, so it ran). Fix: remove HF_TOKEN from User/Machine
+environment, restart VS Code; in the current session `Remove-Item Env:HF_TOKEN`.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
