@@ -101,7 +101,8 @@ class NemoBaseline:
         model = os.environ.get("LLM_MODEL", "gpt-4o-mini")
         os.environ.setdefault("OPENAI_API_KEY", os.environ.get("LLM_API_KEY") or os.environ.get("GROQ_API_KEY") or "none")
         yaml = (f"models:\n  - type: main\n    engine: openai\n    model: {model}\n    parameters:\n      base_url: {base_url}\n      temperature: 0\n"
-                "rails:\n  input:\n    flows:\n      - self check input\n"
+                + (f"      reasoning_effort: {os.environ['LLM_REASONING']}\n" if os.environ.get("LLM_REASONING") else "")
+                + "rails:\n  input:\n    flows:\n      - self check input\n"
                 "prompts:\n  - task: self_check_input\n    content: |\n" + "".join(f"      {line}\n" for line in NEMO_PROMPT.splitlines()))
         self.rails = LLMRails(RailsConfig.from_content(yaml_content=yaml))
 
@@ -163,7 +164,13 @@ class LLMJudgeSystem:
         import re
 
         msgs = [{"role": "system", "content": JUDGE_SYSTEM}, {"role": "user", "content": render_session(events)}]
-        text, ms = self.llm.chat(msgs, max_tokens=150)
+        import os
+
+        text, ms = self.llm.chat(msgs, max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "150")))
+        if not text.strip():
+            self.empty = getattr(self, "empty", 0) + 1
+            if self.empty <= 5:
+                print("[llm-judge] EMPTY reply (a reasoning model used the whole token budget?) - raise LLM_MAX_TOKENS or lower LLM_REASONING")
         m = re.search(r"\{.*\}", text, re.S)
         verdict = ""
         if m:

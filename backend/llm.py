@@ -7,6 +7,8 @@ Ollama server. Configured by environment variables so no key is ever written to 
     LLM_API_KEY    the provider key (any string for Ollama)
     LLM_MODEL      e.g. llama-3.3-70b-versatile          |  qwen2.5:7b
     LLM_RPM        optional client-side requests-per-minute cap (free tiers), default 25
+    LLM_REASONING  optional reasoning_effort sent with every request (low|medium|high) for reasoning models
+    LLM_MAX_TOKENS answer budget of the LLM judge (default 150; reasoning models need ~800 because thinking tokens count)
 
 Every completion is cached on disk (results/llm_cache/<model>.jsonl, keyed by a hash of the request) so an interrupted run resumes
 for free and reruns cost nothing. 429 / 5xx responses are retried with exponential backoff.
@@ -49,6 +51,9 @@ class LLMClient:
 
     def chat(self, messages: list[dict], max_tokens: int = 200, temperature: float = 0.0, **kw) -> tuple[str, float]:
         """-> (reply text, latency ms of the real call; the cached latency when served from cache)."""
+        effort = os.environ.get("LLM_REASONING")  # "low" / "medium" for reasoning models (gpt-oss, qwen3 ...): keeps their thinking short
+        if effort and "reasoning_effort" not in kw:
+            kw["reasoning_effort"] = effort
         key = self._key(messages, max_tokens=max_tokens, temperature=temperature, **kw)
         if key in self._cache:
             self.cached += 1
