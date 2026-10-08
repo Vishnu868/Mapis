@@ -281,6 +281,14 @@ the event text is identical, only session state tells them apart). Likely reason
 Prompt Guard 2 and Llama Guard failed again with 401: a stale **HF_TOKEN environment variable** (invalid) is re-inherited by every new terminal and overrides the saved browser login (ProtectAI is public, so it ran). Fix: remove HF_TOKEN from User/Machine
 environment, restart VS Code; in the current session `Remove-Item Env:HF_TOKEN`.
 
+### 4l. Prompt Guard 2 and Llama Guard on the 2,304 test sessions (8 Oct 2026; HF_TOKEN fixed, cache on E:)
+**Prompt Guard 2 (Meta, injection classifier):** 7.5 % recall / 0.1 % FPR (flags almost nothing: multi-hop 0 %, adaptive 0 %, memory 0.8 %, BIPIA 1.0 %, v1 27.7 %, ASB 25 %, InjecAgent-DH 0 %).
+**Llama Guard 3-1B:** 86.1 % recall / **90.3 % FPR**, accuracy 52.3 % (flags almost every session: multi-hop 100 / 100, adaptive 100 / 100, authorized twins 94.8 %, BIPIA 72.5 / 65.5).
+Baseline picture on identical sessions: Llama Guard flags everything, Prompt Guard 2 flags nothing, ProtectAI (4k) flags half at random (53 / 49.5), the stateless DeBERTa needs 49 % FPR on multi-hop for 86 % recall and gets 0 % at <= 5 % FPR; MAPIS 97.0 / 0.2 (multi-hop 100 / 1.2, adaptive 100 / 0.0).
+Persistent `HF_TOKEN` removed from the User environment (restart VS Code to drop it from new terminals). Files: results\benchmark_promptguard.json, benchmark_llamaguard.json, benchmark_protectai.json, stateless_sweep.json.
+Next (plan): (1) tonight `-Seeds 3 -ExtraSeedsOnly` (~11 h: each seed = ~4.3 h stateful + ~1.3 h stateless training); (2) in parallel on CPU, with a free Groq key in the shell only, `-LLMBaselines` (history-aware LLM judge + NeMo) with `$env:CUDA_VISIBLE_DEVICES="-1"`;
+(3) `-Live` with Ollama (needs the GPU, after the seeds); (4) team independent set; (5) final report docs/REPORT.md from the 3-seed numbers; (6) screenshots with the trained model; (7) Canva deck 13-17 Oct; rehearsal 18-21 Oct.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
