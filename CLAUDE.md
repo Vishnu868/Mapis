@@ -190,7 +190,7 @@ Fix (commit after 42e26c4): embed() now cuts only at sentence/whitespace boundar
 rules-only sandbox check 100 % / 0 FPs. BIPIA recall varies by run (98.0 -> 91.2 between the last two runs, FPR 2.0 -> 0.0) -> report the 3-seed mean.
 Next: final run `.\scripts\run_pipeline.ps1 -Seeds 3` (with Llama Guard, ~7-8 h) = the numbers to present; then `-Base`; NeMo when a key exists; independent set from the team.
 
-### 4f. FINAL RESULTS — 3-seed run (6 Oct 2026, commit 40d8975, seeds 42 + 2 extra, 1,728 test sessions) — THE NUMBERS TO PRESENT (supersede section 4)
+### 4f. 3-seed run of the PREVIOUS configuration (6 Oct 2026, commit 40d8975, 1,728 test sessions) - superseded by 4m
 Source: Drive `mapis_results` -> results\seeds\summary.json (mean +/- std over 3 training seeds) and results\logs\7_benchmark.txt (seed 42, Wilson 95 % CIs).
 
 | System (session level, 1,728 held-out sessions) | Recall | FPR | Accuracy | F1 |
@@ -288,6 +288,22 @@ Baseline picture on identical sessions: Llama Guard flags everything, Prompt Gua
 Persistent `HF_TOKEN` removed from the User environment (restart VS Code to drop it from new terminals). Files: results\benchmark_promptguard.json, benchmark_llamaguard.json, benchmark_protectai.json, stateless_sweep.json.
 Next (plan): (1) tonight `-Seeds 3 -ExtraSeedsOnly` (~11 h: each seed = ~4.3 h stateful + ~1.3 h stateless training); (2) in parallel on CPU, with a free Groq key in the shell only, `-LLMBaselines` (history-aware LLM judge + NeMo) with `$env:CUDA_VISIBLE_DEVICES="-1"`;
 (3) `-Live` with Ollama (needs the GPU, after the seeds); (4) team independent set; (5) final report docs/REPORT.md from the 3-seed numbers; (6) screenshots with the trained model; (7) Canva deck 13-17 Oct; rehearsal 18-21 Oct.
+
+### 4m. FINAL 3-SEED RESULTS of the adaptive-data configuration (9 Oct 2026, commit b815f96 + seeds 2, 3 via -ExtraSeedsOnly; 2,304 test sessions incl. 576 MAPIS-Adaptive) - THE NUMBERS TO PRESENT (supersede 4f)
+Source: Drive results\seeds\summary.json (mean +/- std over seeds 42, 2, 3) and the per-seed benchmark logs.
+| System (session level) | Recall | FPR | Accuracy |
+|---|---|---|---|
+| **MAPIS** | **97.7 +/- 0.6 %** | **0.5 +/- 0.4 %** | **98.5 +/- 0.3 %** (F1 0.986) |
+| Stateless DeBERTa (same data, event only) | 94.6 +/- 0.4 % | 35.2 +/- 2.1 % | 81.4 +/- 1.1 % |
+| Llama Guard 3-1B / Prompt Guard 2 / ProtectAI (seed-independent, 4k-4l) | 86.1 / 7.5 / 53.3 % | 90.3 / 0.1 / 49.5 % | 52.3 % (Llama Guard) |
+Per set, MAPIS: **multi-hop recall 100 +/- 0 %, FPR 2.2 +/- 2.3 %** (per seed 1.2 / 5.3 / 0.0 - seed 2 is 5.3 % [3-10], marginally above the 5 % target; the mean is below); **adaptive evasive attacker 100 / 0.0 +/- 0.0 %** on all six techniques, all seeds;
+RealHarm InjecAgent-DH 99.5 +/- 0.7 / 0 %, ASB 100 / 0 %; decomposed 100 / 0; v1 100 / 0; BIPIA (never trained on) 95.1 +/- 1.1 % / 0.7 +/- 0.6 %.
+Stateless per set: multi-hop 92.3 +/- 5.8 % recall / **55.2 +/- 5.1 % FPR** (seed 3: 100 % recall / 61.5 % FPR, flags 100 % of authorized and designated twins); adaptive 93.8 / 47.4 %; InjecAgent-DH 100 / 50 %; decomposed 50 +/- 41 / 50 +/- 41; BIPIA 93.3 / 1.8.
+Read: at default thresholds the stateless model buys 92 % recall with 55 % false alarms (it cannot separate an attack from the same action the user asked for); at an FPR <= 5 % budget it gets 0 % on multi-hop and adaptive (4k, seed 42; seeds 2, 3: `scripts/stateless_sweep.py --stateless-model artifacts/seedN/mapis_stateless`).
+Targets: accuracy 98.5 % (>= 90) met; FPR 0.5 % overall (<= 5) met, multi-hop mean 2.2 % met (one seed 5.3 %); multi-hop recall gain at matched FPR ~ +100 points (>= 20) met (plain default-threshold gain only +7.7 points: 100 vs 92.3 - see 4j/4k); latency: re-check results\evaluate.json (small model, 4e: 66 ms/event) .
+LLM-baseline subset run (434 class-balanced sessions, CPU, 9 Oct): MAPIS 99.6 % recall / 0.0 % FPR, stateless 92.3 % / 30.5 % (multi-hop 86.7 / 53.3, adaptive 93.3 / 53.3, InjecAgent-DH 100 / 56.7). The history-aware LLM judge and NeMo did NOT run: Groq returned 404
+`model_not_found` for llama-3.3-70b-versatile (account/project model access or catalogue change; list models with GET /openai/v1/models). Groq free tier: 70B ~ 6-12 k tokens/min and ~100 k tokens/day -> use LLM_JUDGE_CHARS=9000 (shorter transcripts), --max-per-set 20, and a model that the key can list.
+**Security note: the Groq API key was pasted into the chat and must be revoked at console.groq.com/keys; keys are only ever typed into the laptop shell.**
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
