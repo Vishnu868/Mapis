@@ -305,6 +305,15 @@ LLM-baseline subset run (434 class-balanced sessions, CPU, 9 Oct): MAPIS 99.6 % 
 `model_not_found` for llama-3.3-70b-versatile (account/project model access or catalogue change; list models with GET /openai/v1/models). Groq free tier: 70B ~ 6-12 k tokens/min and ~100 k tokens/day -> use LLM_JUDGE_CHARS=9000 (shorter transcripts), --max-per-set 20, and a model that the key can list.
 **Security note: the Groq API key was pasted into the chat and must be revoked at console.groq.com/keys; keys are only ever typed into the laptop shell.**
 
+### 4n. Fair stateless comparison over all three seeds + NeMo check (9 Oct 2026)
+Stateless DeBERTa at a threshold chosen on validation for <= 5 % FPR, applied to test (results\stateless_sweep*.json); recall (FPR) per seed 42 / 2 / 3:
+multi-hop 0 (0.6) / 0 (0.6) / 20.0 (7.7) % -> mean recall 6.7 %; adaptive 0 (0.5) / 14.1 (8.8) / 12.0 (5.5) % -> mean 8.7 %; InjecAgent-DH 83.8 / 95.6 / 92.6 % (FPR 0) -> mean 90.7 %; ASB 95.0 / 100 / 100 % (FPR 0) -> mean 98.3 %.
+MAPIS: multi-hop 100 %, adaptive 100 %, InjecAgent-DH 99.5 %, ASB 100 % at FPR 0-2 %. => at a matched false-positive budget MAPIS leads by about **+93 points on multi-hop and +91 points on adaptive attacks** (the thresholds picked on validation did not hold exactly on
+test: seed 3 multi-hop FPR 7.7 %, seed 2 adaptive 8.8 %, so these baseline recalls are if anything generous). On RealHarm the stateless model is competitive at FPR 0 (attack tool outputs carry explicit injection text), the gap there is <= 9 points.
+NeMo Guardrails (self-check input rail, gpt-oss-20b through Groq) smoke check: benign question and benign tool output pass ('No'), the obvious injection and a plain `send_email` agent call are blocked ('Yes') - it works as a per-message checker and, like the other
+stateless systems, will block the user-authorized actions too. History-aware LLM judge (gpt-oss-120b, Groq) smoke test on 8 sessions: 4/4 attacks caught, 1/4 benign flagged (plumbing works, empty-reply guard silent). Full runs pending (Groq daily token limit; resumable).
+Pending: live LLM agents on AgentDojo (Ollama qwen2.5:7b; `scripts/live_agentdojo.py`), NeMo + LLM judge on a 20-per-group subset, team independent set, report, deck.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
