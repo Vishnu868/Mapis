@@ -99,7 +99,7 @@ class NemoBaseline:
 
         base_url = os.environ.get("LLM_BASE_URL", "https://api.openai.com/v1")
         model = os.environ.get("LLM_MODEL", "gpt-4o-mini")
-        os.environ.setdefault("OPENAI_API_KEY", os.environ.get("LLM_API_KEY") or os.environ.get("GROQ_API_KEY") or "none")
+        os.environ["OPENAI_API_KEY"] = os.environ.get("LLM_API_KEY") or os.environ.get("GROQ_API_KEY") or os.environ.get("OPENAI_API_KEY") or "none"
         yaml = (f"models:\n  - type: main\n    engine: openai\n    model: {model}\n    parameters:\n      base_url: {base_url}\n      temperature: 0\n"
                 + (f"      reasoning_effort: {os.environ['LLM_REASONING']}\n" if os.environ.get("LLM_REASONING") else "")
                 + "rails:\n  input:\n    flows:\n      - self check input\n"
