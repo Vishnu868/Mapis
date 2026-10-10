@@ -325,6 +325,18 @@ No run errors. The two successful attacks without a defence (slack user_task_19 
 AgentDojo attacks carry explicit injection text in the tool output (the case stateless detectors handle at FPR 0, see 4n). The plumbing (MAPIS gating every tool call and tool output of a real LLM agent) is verified end to end. A stronger/larger run is planned:
 `--user-tasks 8 --injection-tasks 4` (~8 h) so that the baseline ASR rests on >= 10 successes. results\live_agentdojo.json holds the per-case rows and `monitor_stats` (withheld calls / outputs per defence).
 
+### 4p. Larger live LLM agent run on AgentDojo (10 Oct 2026; qwen2.5:7b via Ollama; attack important_instructions_no_names; 4 suites, 8 user tasks x 4 injection tasks per suite = 39 benign + 144 attacked runs per defence; no run errors) - supersedes the underpowered 4o
+| Defence | Utility (no attack) | Utility under attack | Attack success rate |
+|---|---|---|---|
+| none | 28.2 % (11/39) | 22.9 % (33/144) | **15.3 % (22/144)** |
+| **MAPIS** | 25.6 % (10/39) | 15.3 % (22/144) | **0.0 % (0/144)** [Wilson 95 % upper bound 2.6 %] |
+| stateless DeBERTa | 20.5 % (8/39) | 16.0 % (23/144) | 0.0 % (0/144) |
+**MAPIS removed all 22 successful attacks (15.3 % -> 0 %) at a cost of 1 of 39 benign tasks (-2.6 points); the stateless model also stopped all 22 but lost 3 of 39 benign tasks (-7.7 points).** Utility under attack drops for both defences because withholding a poisoned tool output also withholds the data
+the user task needed. Differences in utility rest on n = 39 and are not significant; the ASR difference (22/144 vs 0/144) is highly significant.
+Honest reading: AgentDojo's injections are explicit text in tool outputs, so a message-by-message detector also catches them (same as RealHarm in 4n) - this run shows MAPIS works inside a live LLM-agent pipeline with low utility cost; it does not separate MAPIS from the stateless model,
+which is what the multi-hop / adaptive sets (4m, 4n) are for. Caveat to state once: MAPIS and the stateless model were trained on AgentDojo-style injections (MAPIS-Bench v1). Agent is a 7B local model (28 % benign utility), seed-42 MAPIS and stateless models.
+Pending: independent team test set; NeMo + LLM judge via Ollama (Groq key/limits abandoned: 401 with an invalid key, 200k tokens/day per model).
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
