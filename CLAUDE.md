@@ -337,6 +337,16 @@ Honest reading: AgentDojo's injections are explicit text in tool outputs, so a m
 which is what the multi-hop / adaptive sets (4m, 4n) are for. Caveat to state once: MAPIS and the stateless model were trained on AgentDojo-style injections (MAPIS-Bench v1). Agent is a 7B local model (28 % benign utility), seed-42 MAPIS and stateless models.
 Pending: independent team test set; NeMo + LLM judge via Ollama (Groq key/limits abandoned: 401 with an invalid key, 200k tokens/day per model).
 
+### 4q. NeMo Guardrails and history-aware LLM judge, both with qwen2.5:7b through Ollama (10 Oct 2026; class-balanced subset, 153 test sessions: up to 20 per dataset, `--max-per-set 20`; results\benchmark_llm.json)
+| System (153 sessions) | Recall | FPR | Accuracy |
+|---|---|---|---|
+| NeMo Guardrails (self-check input rail, per message) | 48.7 % [38-60] | 17.8 % [11-28] | 64.7 % |
+| LLM judge (whole session transcript, 7B) | 67.5 % [57-77] | 23.3 % [15-34] | 71.9 % |
+NeMo per set (recall / FPR): multi-hop 20 / 10, adaptive 30 / 0, InjecAgent-DH 60 / 20, ASB 30 / 0, v1 65 / 0, BIPIA 20 / 0, decomposed 100 / 100 (n = 20 each; adaptive technique cells n = 1-9). LLM judge: multi-hop 100 / **80** (resisted twins 86 %, designated 100 %), adaptive 90 / **70**,
+InjecAgent-DH 80 / 10, ASB 50 / 0, BIPIA 50 / 0, v1 80 / 7.7, decomposed 10 / 0. Reading: a 7B judge reading the whole history finds the multi-hop attacks but flags 80 % of the benign twins (any session whose documents contain the fragments), NeMo misses most multi-hop and
+adaptive attacks; neither separates an attack from the identical user-authorized action. Limit to state once: the judge and NeMo's checker are a 7B local model (the Groq gpt-oss-120b smoke test on 8 sessions, 4/4 attacks and 1/4 benign flagged, is too small to report). MAPIS and the stateless model on these
+exact 153 sessions: run `scripts/benchmark.py --systems mapis,mapis-stateless --max-per-set 20 --out results/benchmark_llm_mapis.json` (earlier 434-session subset, 9 Oct: MAPIS 99.6 / 0.0, stateless 92.3 / 30.5).
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
