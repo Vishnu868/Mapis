@@ -51,6 +51,7 @@ Targets: **>= 90 % accuracy, <= 5 % FPR, < 200 ms per message, >= 20 points reca
    (+ any new results file a step produced, e.g. `results\benchmark_nemo.json`, `results\seeds\` folder). Never upload model weights (`*.safetensors`).
 8. Give exact, copy-paste PowerShell commands for the laptop, starting with `cd E:\mapis\mapis\Mapis`.
 9. Keep THIS file complete and current (owner's explicit request): what failed, what succeeded, metrics, ideas, implementation, next steps.
+10. **Every file meant for presenting or reading (reports, explainers, decks, HTML pages, screenshots) MUST also be delivered as a downloadable file** (SendUserFile with the file attached), in addition to any artifact link or repo commit. Owner's explicit standing instruction (11 Oct 2026). Also keep a copy under docs/ in the repo.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 3. Implementation (what exists, file by file)
