@@ -345,7 +345,15 @@ Pending: independent team test set; NeMo + LLM judge via Ollama (Groq key/limits
 NeMo per set (recall / FPR): multi-hop 20 / 10, adaptive 30 / 0, InjecAgent-DH 60 / 20, ASB 30 / 0, v1 65 / 0, BIPIA 20 / 0, decomposed 100 / 100 (n = 20 each; adaptive technique cells n = 1-9). LLM judge: multi-hop 100 / **80** (resisted twins 86 %, designated 100 %), adaptive 90 / **70**,
 InjecAgent-DH 80 / 10, ASB 50 / 0, BIPIA 50 / 0, v1 80 / 7.7, decomposed 10 / 0. Reading: a 7B judge reading the whole history finds the multi-hop attacks but flags 80 % of the benign twins (any session whose documents contain the fragments), NeMo misses most multi-hop and
 adaptive attacks; neither separates an attack from the identical user-authorized action. Limit to state once: the judge and NeMo's checker are a 7B local model (the Groq gpt-oss-120b smoke test on 8 sessions, 4/4 attacks and 1/4 benign flagged, is too small to report). MAPIS and the stateless model on these
-exact 153 sessions: run `scripts/benchmark.py --systems mapis,mapis-stateless --max-per-set 20 --out results/benchmark_llm_mapis.json` (earlier 434-session subset, 9 Oct: MAPIS 99.6 / 0.0, stateless 92.3 / 30.5).
+exact 153 sessions (run 11 Oct, results\benchmark_llm_mapis.json, seed-42 models):
+| System (same 153 sessions) | Recall | FPR | Accuracy |
+|---|---|---|---|
+| **MAPIS** | **100 %** [95-100] | **0.0 %** [0-5] | **100 %** |
+| Stateless DeBERTa | 91.2 % [83-96] | 32.9 % [23-44] | 79.7 % |
+| LLM judge (qwen2.5:7b, whole transcript) | 67.5 % | 23.3 % | 71.9 % |
+| NeMo (qwen2.5:7b) | 48.7 % | 17.8 % | 64.7 % |
+MAPIS: 0 FPs on authorized (15), resisted (7), designated (3), clean (15), normal-task (10); all four mechanisms 100 %. Stateless: flags 93 % of authorized and 100 % of designated twins, 50 % of InjecAgent-DH twins, 60 % of multi-hop/adaptive benign; decomposed 50 / 70.
+Small-sample note (state once): n = 20 per dataset, so a 100 % / 0 % cell has a Wilson upper bound of 5 % (FPR) - the 3-seed full-test numbers in 4m remain the headline; this table is only the like-for-like comparison with the LLM baselines.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
