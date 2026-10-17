@@ -1,0 +1,10 @@
+*.aux
+*.log
+*.toc
+*.out
+*.bbl
+*.blg
+*.lof
+*.lot
+*.synctex.gz
+mythesis.pdf

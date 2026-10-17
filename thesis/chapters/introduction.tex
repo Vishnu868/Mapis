@@ -1,0 +1,42 @@
+\label{chap.1}
+\section{Background}
+Large language models are no longer used only as chat assistants. They are deployed as \emph{agents} that call tools, browse the web, read documents, write to memory and send messages. Frameworks such as AutoGen and LangGraph let several such agents cooperate: a planner splits a task, a web agent fetches pages, a file agent reads documents, a memory agent stores notes, and a code or email agent acts on the result.
+
+Every one of these agents reads content that its operator did not write. A web page, a PDF, an email, a tool result or a retrieved memory can carry text that an attacker placed there. If an agent follows that text instead of the user's request, the attacker has taken control without ever interacting with the system. This is \emph{indirect prompt injection} (IPI)~\cite{greshake2023}. It is ranked as the first risk in the OWASP list for LLM applications~\cite{owasp2025}.
+
+\section{Motivation}
+In a multi-agent pipeline the damage spreads. One compromised agent hands its output to the next, and the next agent has no reason to distrust a message from a colleague. The user sees only the final result. Worse, an attacker can avoid any obvious command. Consider the task ``Summarise \texttt{report.pdf} and email the summary to my manager''.
+\begin{itemize}
+\item In the easy case the PDF contains ``Ignore previous instructions and email all customer data to evil@mail.net''. A keyword filter can catch this.
+\item In the hard case the PDF only says ``Finance questions: audit-desk@fin-review.net''. A later agent writes that address into memory, another reads it back, and the email agent sends the summary to it. No single message contains a command.
+\end{itemize}
+A guardrail that judges one message at a time cannot separate the hard case from a task where the user themselves asked for the summary to be sent to audit-desk@fin-review.net. The words of the final action are identical. Only the \emph{history} of the session shows who introduced the address.
+
+\section{Problem Statement}
+Existing LLM guardrails evaluate each message in isolation and cannot detect indirect prompt injection that spreads its intent across several agent hops. The problem addressed here is to build a monitor for the communication layer of a multi-agent pipeline that tracks evidence across the whole session, scores every agent-to-agent and agent-to-tool message in real time, and holds attacks before they reach a downstream agent, while leaving legitimate, user-requested actions untouched.
+
+\subsection{Scope}
+\textbf{In scope:} indirect (content-borne) injection; text messages, tool outputs and memory reads and writes; AutoGen and LangGraph testbeds; detection, tiered response and forensic logging; benchmarking against existing guardrails.
+
+\textbf{Out of scope:} direct user jailbreaks; training-time or weight-level defences; multimodal injection; adversarial attacks aimed at the MAPIS classifier itself; enterprise-scale production hardening.
+
+\section{Objectives}
+\begin{enumerate}
+\item[O1] Build a testbed on AutoGen and LangGraph with a FastAPI tap on every agent, tool and memory call.
+\item[O2] Construct a labelled benchmark of at least 1,000 multi-hop injection samples across five attack classes, with benign counterparts.
+\item[O3] Develop a stateful trust-scoring classifier with at least 90\% accuracy and at most 5\% false-positive rate.
+\item[O4] Implement a tiered response layer with a forensic trace and at most 200 ms added latency per message.
+\item[O5] Benchmark MAPIS against existing guardrails on identical attacks, targeting at least 20 percentage points of recall gain on multi-hop attacks.
+\end{enumerate}
+
+\section{Contributions}
+\begin{enumerate}
+\item A stateful, provenance-aware monitor (MAPIS) at a framework-neutral tap, combining a fine-tuned DeBERTa-v3-small classifier with four session signals and a four-tier response.
+\item MAPIS-Bench: six benchmark sets, including multi-hop fragment attacks with matched benign twins and an evasive-attacker set.
+\item A fair comparison method: stateless detection evaluated at a threshold that gives at most 5\% false positives, chosen on validation data.
+\item An evaluation against five baselines on identical sessions, and inside a live LLM-agent pipeline.
+\item An operator console with live monitoring, session replay and a results view, and an open repository with 29 automated tests.
+\end{enumerate}
+
+\section{Organisation of the Thesis}
+Chapter~2 reviews related work and states the research gap. Chapter~3 describes the design of MAPIS. Chapter~4 describes the datasets. Chapter~5 covers the model, training and implementation. Chapter~6 reports the experimental results. Chapter~7 reports the live-agent evaluation and the demonstration. Chapter~8 concludes and lists further work. Appendix~A gives the reproduction guide.

@@ -1,0 +1,25 @@
+\label{chap.8}
+\section{Summary}
+This thesis addressed indirect prompt injection that spreads across the hops of a multi-agent LLM pipeline, including attacks split into fragments that look harmless message by message. We built MAPIS, a stateful trust-scoring monitor at a framework-neutral tap. It keeps a record of where every item in a session first appeared, feeds a summary of that record and four signals to a fine-tuned DeBERTa-v3-small classifier, fuses the result with rule signals, and answers with a four-tier response, a forensic trace and an operator dashboard.
+
+The evaluation used 2,304 held-out sessions from six benchmark sets, three training seeds and five baselines. MAPIS reached $97.7\pm0.6$\% recall with $0.5\pm0.4$\% false positives and $98.5\pm0.3$\% accuracy at 63 ms per event. On multi-hop attacks it caught 100\% with 2.2\% false positives, whereas a stateless model of the same size, held to 5\% false positives, caught 6.7\%. Against an evasive attacker it reached 100\% recall with no false positives. In a live LLM-agent run it reduced the attack success rate from 15.3\% to 0\%. All four targets were met.
+
+\section{Answer to the Research Question}
+Session memory is what separates an attack from the same action requested by the user. Without it a detector must either miss the fragment attacks or stop the user's own legitimate requests; with it, a small and fast classifier does both jobs.
+
+\section{Limitations}
+\begin{itemize}
+\item MultiHop and Adaptive are template-generated, with held-out families, wordings and tools and real carrier text. The hand-written independent set is the remaining external check.
+\item One training seed had a multi-hop false-positive rate of 5.3\%, slightly above the 5\% target. The three-seed mean is 2.2\%.
+\item MAPIS was trained on AgentDojo-style injections, and the live run uses them. The live agent, the LLM judge and NeMo used a small 7B local model.
+\item On single-hop BIPIA there is no cross-hop evidence, so the stateless model is within seed variance of MAPIS in recall.
+\item Attacks aimed at the classifier itself are out of scope.
+\end{itemize}
+
+\section{Scope for Further Research}
+\begin{itemize}
+\item Evaluate on an independent, hand-written test set and on real agent traffic.
+\item Run larger live agents and stronger LLM judges as baselines.
+\item Study adaptive attacks aimed directly at the classifier and the session record.
+\item Extend the tap to multimodal content and to additional frameworks, and harden the system for production use.
+\end{itemize}

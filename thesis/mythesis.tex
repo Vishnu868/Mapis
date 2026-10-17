@@ -1,0 +1,198 @@
+%AMRITA UNIVERSITY PH.D latex template...Created by Chungath, CYS-CBE%
+
+\documentclass[a4paper, 12pt]{report}
+%\renewcommand{\bibname}{References}
+\usepackage[margin=0.8in]{geometry}
+
+\usepackage{bold-extra}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage [english]{babel}
+\usepackage [autostyle, english = american]{csquotes}
+\MakeOuterQuote{"}
+%\usepackage[a4paper,top=30mm,bottom=30mm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\graphicspath{{images/}}
+\usepackage{amsthm}
+%\usepackage{hyperref}
+%\hypersetup{colourlinks=true,linkcolour=blue}
+\usepackage{array}
+%\usepackage{parskip}
+\usepackage{cite}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{titletoc}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+\usepackage{listings}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,columns=fullflexible}
+\definecolor{silver}{HTML}{C0C0C0}
+\definecolor{maroon}{HTML}{A4123F}
+\theoremstyle{definition}
+\newtheorem{Definition}{Definition}[section]
+
+%-------------------------------------------------------------
+% title page
+\begin{document}
+	\pagecolor{silver}
+	\pagenumbering{gobble}
+	\thispagestyle{empty}
+	\begin{large}
+		\begin{center}
+			{\Large\bfseries{MAPIS: MULTI-AGENT PROMPT INJECTION SHIELD\\[0.3cm]\large A Stateful Trust-Scoring Monitor for Indirect Prompt Injection in Multi-Agent LLM Pipelines}}\\
+			\vspace{1.3cm}
+			A Thesis \\
+			\vspace{.1cm}
+			Submitted in partial fulfilment for the Degree of\\
+			\vspace{.1cm}
+			BACHELOR OF TECHNOLOGY\\
+			\vspace{.1cm}
+            in 
+            \vspace{.1cm}
+            \\ COMPUTER SCIENCE AND ENGINEERING (ARTIFICIAL INTELLIGENCE) \\
+			\vspace{1cm}
+			by\\ \vspace{0.2cm}
+			\vspace{.1cm}
+			{\Large\bfseries{Dodla Nithya Sai (CB.SC.U4AIE23021)}} \\ 
+            {\Large\bfseries{Vishnu Vardhan (CB.SC.U4AIE23043)}} \\
+            {\Large\bfseries{Sreekar Reddy (CB.SC.U4AIE23049)}} \\
+            {\Large\bfseries{Beena Reddy (CB.SC.U4AIE23065)}} \\
+            \vspace{3cm}
+			
+			\includegraphics[scale=0.8]{univA.png}\\
+			\vfill
+			DEPARTMENT OF ARTIFICIAL INTELLIGENCE\\
+			\Large{\textbf{AMRITA VISHWA VIDYAPEETHAM}}\\
+			{\large COIMBATORE CAMPUS (INDIA)}\\
+			\vspace*{.3cm}
+			October 2026
+		\end{center}
+	\end{large}
+	%------------------------------------------------------------------------------------
+	% bonafide certificate
+	\newpage
+	\nopagecolor
+	\begin{center}
+		
+		{\large DEPARTMENT OF ARTIFICIAL INTELLIGENCE}\\
+		\Large{ \textbf{AMRITA VISHWA VIDYAPEETHAM}}\\
+			{\large COIMBATORE CAMPUS}\\
+		\vspace*{2.2cm}
+		%\includegraphics[width=5cm,height=5cm,keepaspectratio]{university.jpg}
+		\includegraphics[scale=0.8]{univA.png}\\
+		\vspace*{1.5cm}
+		{\Large \textbf{BONAFIDE CERTIFICATE}}
+	\end{center}
+	\vspace*{.8cm}
+	\noindent This is to certify that the thesis entitled \enquote{\textbf{MAPIS: Multi-Agent Prompt Injection Shield}} submitted by \textbf{Dodla Nithya Sai, Roll. No: CB.SC.U4AIE23021}, \textbf{Vishnu Vardhan, Roll. No: CB.SC.U4AIE23043}, \textbf{Sreekar Reddy, Roll. No: CB.SC.U4AIE23049} and \textbf{Beena Reddy, Roll. No: CB.SC.U4AIE23065} for the award of the \textbf{Degree of Bachelor of Technology} under the \textbf{Faculty of Engineering} is a bonafide record of the work carried out by him/her under my guidance and supervision at \enquote{Department of Artificial Intelligence}, Amrita Vishwa Vidyapeetham, Coimbatore Campus.\\
+	%\vspace*{0.5cm}
+    \vfill
+    Submitted for the examination held on .........
+    \vfill
+    \textbf{INTERNAL EXAMINER}    \hspace{5cm}      \textbf{EXTERNAL EXAMINER}
+    \vfill
+\begin{center}
+		\textbf{Professor Sripriyan}\\
+	Thesis Advisor,\\
+	Professor,\\
+	Department of Artificial Intelligence,\\
+	Amrita Vishwa Vidyapeetham,\\
+	Coimbatore Campus,\\
+	India.
+\end{center}
+
+	%-------------------------------------------------------------------------------
+	% Declaration page
+	\newpage
+	\begin{center}
+	{\large DEPARTMENT OF ARTIFICIAL INTELLIGENCE}\\
+	\Large{ \textbf{AMRITA VISHWA VIDYAPEETHAM}}\\
+
+	{\large COIMBATORE CAMPUS}\\
+		
+	
+		\vspace*{2.5cm}
+		\large {\textbf{DECLARATION}}
+		\vspace*{.3cm}
+	\end{center}
+	
+	\noindent We, \textbf{Dodla Nithya Sai}, \textbf{Reg. No: CB.SC.U4AIE23021}, \textbf{Vishnu Vardhan}, \textbf{Reg. No: CB.SC.U4AIE23043}, \textbf{Sreekar Reddy}, \textbf{Reg. No: CB.SC.U4AIE23049} and \textbf{Beena Reddy}, \textbf{Reg. No: CB.SC.U4AIE23065}, hereby declare that this thesis entitled \enquote{\textbf{MAPIS: Multi-Agent Prompt Injection Shield}} is the record of the original work done by us under the guidance of \textbf{Professor Sripriyan}, Professor, Department of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore Campus. To the best of our knowledge, this work has not formed the basis for the award of any degree/diploma/associateship/fellowship or a similar award to any candidate in any University.\\\\
+	
+	\vspace*{1cm}
+	\noindent{\bf Place:\hfill Signature of the Students} \\
+	\noindent {\bf Date: }
+	\vfill
+	\begin{center}
+		\large{COUNTERSIGNED}\\
+	\end{center}
+	\vspace{0.6in}
+	
+\begin{center}
+		\textbf{Dr. K.P Soman}\\
+	Professor and Dean, \\ 
+	Department of Artificial Intelligence \\ Amrita Vishwa Vidyapeetham,\\
+	Coimbatore Campus,\\
+	India.
+\end{center}
+	
+	%-----------------------------------------------------------------------------
+	\clearpage
+	\pagenumbering{roman}
+	\tableofcontents
+	
+	\chapter*{Acknowledgements}
+\addcontentsline{toc}{chapter}{Acknowledgements}
+\input{chapters/acknowledgements}
+\listoffigures
+	\addcontentsline{toc}{chapter}{List of figures}
+	\listoftables
+	\addcontentsline{toc}{chapter}{List of tables}
+	\newpage
+\input{chapters/abbreviations}
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+\input{chapters/abstract}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\chapter{Introduction}
+\input{chapters/introduction}
+\chapter{Literature Review and Research Gap}
+\input{chapters/chapter2}
+\chapter{System Design and Architecture}
+\input{chapters/chapter3}
+\chapter{Datasets: MAPIS-Bench}
+\input{chapters/chapter4}
+\chapter{Model, Training and Implementation}
+\input{chapters/chapter5}
+\chapter{Experimental Evaluation and Results}
+\input{chapters/chapter6}
+\chapter{Live Agent Evaluation, Dashboard and Demonstration}
+\input{chapters/chapter7}
+\chapter{Conclusion and Scope for Further Research}
+\input{chapters/conclusion}
+\appendix
+\chapter{Reproduction Guide and Repository Map}
+\input{chapters/appendix}
+
+%\addcontentsline{toc}{chapter}{\textbf{References}}
+\newpage
+\renewcommand{\bibname}{References}
+\bibliographystyle{ieeetr}
+\addcontentsline{toc}{chapter}{References}
+\bibliography{mybib}
+
+\chapter*{List of Publications \\ \large(Based on the Project Work)}
+\addcontentsline{toc}{chapter}{List of Publications Based on the Project Work}
+No papers have been published or communicated from this work at the time of submission.
+
+\end{document}

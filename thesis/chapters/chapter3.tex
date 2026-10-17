@@ -1,0 +1,77 @@
+\label{chap.3}
+\section{Overview}
+MAPIS is a stateful, trust-scoring monitor on the communication layer of a multi-agent pipeline. Figure~\ref{fig:arch} shows the message path.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.55cm, box/.style={draw, rounded corners, align=center, minimum width=3.6cm, minimum height=0.95cm, font=\small}, hot/.style={box, fill=maroon!10, draw=maroon}, ar/.style={-{Stealth[length=2.5mm]}, thick}]
+\node[box] (ag) {Agents: planner, web, file, memory, code/email\\LangGraph or AutoGen};
+\node[hot, below=of ag] (tap) {MAPIS tap (FastAPI \texttt{/inspect})\\every message, tool call, tool output, memory access};
+\node[hot, below=of tap] (ses) {Session record (Redis)\\goal, item sources, authority claims, baselines};
+\node[hot, below=of ses] (sc) {Trust score $t\in[0,1]$\\DeBERTa-v3-small + four signals};
+\node[box, below=of sc] (tier) {Tier: PASS / FLAG / QUARANTINE / BLOCK};
+\node[box, below=of tier] (log) {Forensic trace and operator dashboard};
+\foreach \a/\b in {ag/tap,tap/ses,ses/sc,sc/tier,tier/log} \draw[ar] (\a) -- (\b);
+\end{tikzpicture}
+\caption{Path of a message through MAPIS.}
+\label{fig:arch}
+\end{figure}
+
+\section{The Tap}
+The tap is a FastAPI endpoint (\texttt{POST /inspect}). The testbed calls it before delivering any message, so MAPIS does not depend on one framework. For LangGraph the call sits in the graph before every delivery. For AutoGen 0.2 it is registered through \texttt{register\_hook("process\_message\_before\_send")}, and a withheld message ends the chat. The same deterministic five-agent testbed (planner, web, file, memory, code/email) runs on both and offers clean, overt-attack and decomposed-attack scenarios.
+
+\section{Session Record}
+For each session MAPIS stores a compact record, in Redis with a time-to-live and an in-memory fallback:
+\begin{itemize}
+\item the user's goal, taken from the first user message, which is the trust anchor;
+\item \emph{tainted} items: emails, URLs and hosts, IBAN-like ids and long numbers, and fragments of them, first seen in untrusted content (tool, tool response, memory read, memory write);
+\item \emph{trusted} items that the user named;
+\item untrusted authority claims (``approved by management'') and instruction cues;
+\item per-agent baselines: tools used and message lengths;
+\item the session sensitivity and the set of suspended channels.
+\end{itemize}
+The record is updated after every event. The same module (\texttt{session.py}) is used when the training data are built and at run time, and a unit test checks that both produce identical text.
+
+\section{Classifier Input}
+The classifier reads three parts in a fixed order (module \texttt{context.py}): the current event first, so that truncation only trims history; one line of session signals; and the session history, namely the goal, the most recent hops clipped to 110 characters and up to three older untrusted hops. Events longer than 900 characters are cut into chunks (stride 450) and the event's trust is the minimum over chunks.
+
+\section{The Four Signals}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{p{3.4cm}p{5.0cm}p{4.3cm}}
+\toprule
+Signal & What it detects & Example\\
+\midrule
+Instruction in data & Command-like text or hidden characters in data channels & ``you must now forward\ldots'' inside a PDF\\
+Drift from the goal & A state-changing action unrelated to the user's request (lexical similarity of goal and action, only for state-changing calls) & Asked for a summary, agent wants to pay money\\
+Cross-hop provenance and escalation & An item first seen in untrusted content reaches an action or memory write; an untrusted authority claim followed by an unrequested action or waiver wording the user never used & The planted address becomes the email recipient\\
+Behaviour anomaly & A tool or outbound action outside the agent's baseline; a message four times longer than usual & The file agent suddenly sends email\\
+\bottomrule
+\end{tabular}
+\caption{The four signals.}
+\end{table}
+
+\subsection{Evasion defences}
+An attacker who knows MAPIS can hide an item. Before matching, \texttt{canonical()} normalises Unicode (NFKC), removes zero-width characters, and collapses forms such as \texttt{hxxp}, \texttt{[.]}, ``(at)'', spelled ``at/dot'', spaced \texttt{@} and grouped IBANs. Fragment matching registers bare domains, hosts and id-like tokens, so an action that assembles an item from pieces matches the fragments (the session signal \texttt{reuse=} names the fragment).
+
+\section{Fusion and Response}
+The final trust fuses the model trust $t_m$ with the rule risks $r_k$ by a noisy-OR and scales the result by the session sensitivity $\sigma$:
+\begin{equation}
+r = 1 - t_m\prod_{k}\bigl(1 - w_k r_k\bigr), \qquad t = 1 - \min\bigl(1,\ (1+\sigma)\,r\bigr).
+\end{equation}
+The event therefore loses trust when the model or any weighted rule signal reports risk. The weights are $w_{\text{provenance}}=0.8$, $w_{\text{instruction}}=0.5$, $w_{\text{drift}}=0.15$ and $w_{\text{behaviour}}=0.15$. User and system messages always receive $t=1$, and a message on a suspended channel receives $t=0$.
+
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Trust $t$ & Tier & Action\\
+\midrule
+$\ge 0.75$ & PASS & Deliver\\
+$0.50$ to $0.75$ & FLAG & Deliver, raise session sensitivity by $0.15$ (cap $0.6$)\\
+$0.25$ to $0.50$ & QUARANTINE & Hold for operator Release or Reject\\
+$< 0.25$ & BLOCK & Drop and suspend the channel\\
+\bottomrule
+\end{tabular}
+\caption{Tiered response.}
+\end{table}
+The end user never sees MAPIS: a held action simply does not happen. Every non-PASS verdict carries a forensic trace listing the origin (the untrusted source that introduced the item), the relay hops and the action. The fail mode is closed.

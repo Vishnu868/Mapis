@@ -1,0 +1,39 @@
+\label{chap.4}
+\section{Design Principles}
+A detector can score well on a benchmark simply by flagging anything that looks suspicious. To prevent that, every attack in MAPIS-Bench has benign \emph{twins} that look almost the same:
+\begin{itemize}
+\item \textbf{authorized}: the user named the destination or rule that the attack plants;
+\item \textbf{resisted}: the planted fragments are present in the data, but the agent acts correctly;
+\item \textbf{designated}: the user named the file to use.
+\end{itemize}
+Training and test data are separated by attack family and phrasing, and the test families use action tools never seen in training.
+
+\section{The Six Sets}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{p{3.1cm}p{9.6cm}}
+\toprule
+Set & Content\\
+\midrule
+MAPIS-Bench v1 & 1,693 sessions: AgentDojo (1,000 attack and 132 benign) and InjecAgent (561 data-stealing cases), audited against the original sources. Splits 1,169 / 242 / 282.\\
+BIPIA & 1,800 minimal-pair sessions. The BIPIA test part is used only for testing and was never trained on.\\
+MAPIS-Decomposed & 288 sessions from 12 template families: exfiltration through memory where no single message looks harmful (evaluation only).\\
+MAPIS-MultiHop & About 2,100 sessions. Attacks are fragments (a changed detail plus an authority claim) inside real carrier text across untrusted hops; the agent's final action uses them. Four skeletons realise the five mechanisms of the abstract; depth padding of 0, 2 or 4 benign hops.\\
+MAPIS-RealHarm & 2,330 sessions from InjecAgent direct harm (510 cases) and ASB (10 agents, 400 attacker tools), with held-out attacker tools and agents.\\
+MAPIS-Adaptive & 1,692 sessions of an attacker who knows MAPIS: obfuscated items, items split over two documents, invisible Unicode, paraphrased claims, delay beyond the four-hop window, and combinations.\\
+\bottomrule
+\end{tabular}
+\caption{The benchmark sets.}
+\end{table}
+
+\section{Attack Classes and Mechanisms}
+Results are reported both by the five attack classes of the first review (data exfiltration, financial manipulation, code/tool manipulation, instruction override, physical safety harm) and by the five mechanisms of the abstract (document poisoning, memory injection, tool-output manipulation, cross-agent instruction injection, goal hijacking). The four MultiHop skeletons are: tool fragments (document poisoning and tool-output manipulation), memory promotion (memory injection), cross-agent relay, and goal hijacking.
+
+\section{Labelling Policy}
+Labels are per event. A fragment event on its own is labelled safe, because it is identical in attack, resisted and authorized sessions and the agent has not yet acted. A relay, plan or memory-write message is labelled malicious only if it carries an actionable planted item. The completing action is malicious. This policy was reached after two failures described in Section~\ref{sec:history}.
+
+\section{Final Test Set}
+The test split contains 2,304 sessions: 576 MAPIS-Adaptive (192 attacks, 384 twins), 234 MAPIS-MultiHop (65 attacks, 169 twins), 364 RealHarm sessions from the held-out attacker tools and agents, 282 from v1, 800 from BIPIA and 48 decomposed sessions. For every set the same events are replayed through every system.
+
+\section{Limits of the Data}
+MultiHop and Adaptive are generated from templates, with held-out families, wordings and tools and real carrier text. They are therefore more optimistic than real traffic. A hand-written independent set (30 attacks and 30 twins, written without access to the generator) is prepared by the team as the remaining external check.

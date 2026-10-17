@@ -1,0 +1,37 @@
+\section{Repository Map}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{p{4.2cm}p{8.5cm}}
+\toprule
+Path & Contents\\
+\midrule
+\texttt{backend/core/} & shield, session, features, context, store, detector\\
+\texttt{backend/ml/} & training configuration, training, evaluation, metrics, data\\
+\texttt{backend/agents/} & testbed, LangGraph graph, AutoGen testbed\\
+\texttt{backend/api/} & FastAPI routes\\
+\texttt{backend/baselines.py} & Llama Guard, Prompt Guard 2, ProtectAI, NeMo, LLM judge\\
+\texttt{frontend/} & React operator console\\
+\texttt{scripts/} & dataset generators, training-data builder, benchmark, diagnosis, stateless sweep, live AgentDojo run, pipeline script\\
+\texttt{data/mapis\_bench/} & the benchmark sets\\
+\texttt{tests/} & 29 automated tests\\
+\texttt{docs/} & report, guide, demo script, explainer\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Reproduction Commands}
+All commands were run on a Windows laptop with an RTX 3050 GPU, in PowerShell, from the project folder.
+\begin{lstlisting}
+python -m pytest -q                       # 29 tests
+.\scripts\run_pipeline.ps1                # data, training, evaluation, benchmark
+.\scripts\run_pipeline.ps1 -Seeds 3       # two extra training seeds + aggregate
+python scripts/stateless_sweep.py --sets multihop,adaptive,realharm
+.\scripts\run_pipeline.ps1 -Live          # live LLM agents (needs Ollama)
+.\scripts\run_pipeline.ps1 -LLMBaselines  # LLM judge and NeMo
+
+python -m uvicorn backend.main:app --port 8000   # API
+cd frontend ; npm install ; npm start            # dashboard
+\end{lstlisting}
+
+\section{Result Files}
+\texttt{results/benchmark.json} (seed 42, all systems), \texttt{results/seeds/summary.json} (mean and standard deviation over three seeds), \texttt{results/stateless\_sweep*.json} (matched false-positive comparison), \texttt{results/benchmark\_llamaguard.json}, \texttt{benchmark\_promptguard.json}, \texttt{benchmark\_protectai.json}, \texttt{benchmark\_llm.json} and \texttt{benchmark\_llm\_mapis.json} (153-session comparison), \texttt{results/live\_agentdojo.json} (live agents) and \texttt{results/evaluate.json} (event-level metrics and latency).

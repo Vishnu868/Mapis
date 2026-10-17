@@ -419,3 +419,9 @@ backend/core (shield, session, features, context, store, detector) · backend/ml
 graph = LangGraph, autogen_testbed) · backend/api · backend/baselines.py · configs/nemo · frontend/ · scripts/ (generate_multihop, generate_decomposed,
 prepare_phase4_training_data, validate_..., benchmark, diagnose, run_pipeline.ps1, dataset_build/) · docs/STATUS.md (all measured results) ·
 docs/TRAINING.md · tests/.
+
+---------------------------------------------------------------------------------------------------------------------
+## 9. Final-submission files (17 Oct 2026)
+- **Thesis** (professor's LaTeX template, silver title page): `thesis/` (`mythesis.tex`, `chapters/`, `mybib.bib`), compiled `thesis/MAPIS_Thesis.pdf` (42 pages), `thesis/MAPIS_Thesis_Source.zip` for Overleaf. Signed hard copy must be submitted at the presentation (soft bound is fine). TODO before printing: examination date, signatures, advisor designation (currently "Professor").
+- **Final presentation** `docs/presentation/MAPIS_Final_Review.pptx` (16 slides, built on the professor's *First Review sample* template; speaker notes on every slide; generator `docs/presentation/build_final_ppt.py`). The professor has not yet sent a final-review template: when it arrives, rebuild on it. A half-finished Canva deck also exists in the owner's Canva (ignore it).
+- Report `docs/REPORT.md`, guide `docs/MAPIS_Complete_Guide.md`, explainer `docs/MAPIS_Explained.html`.

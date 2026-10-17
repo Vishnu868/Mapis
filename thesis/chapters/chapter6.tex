@@ -1,0 +1,127 @@
+\label{chap.6}
+\section{Method}
+All systems see the same events of the 2,304 held-out sessions. A session counts as detected if any of its events is held. Recall is the share of attack sessions detected, FPR is the share of benign sessions wrongly held, and accuracy covers both. Confidence intervals are 95\% Wilson intervals~\cite{wilson1927}. MAPIS and the stateless model are trained with three seeds and reported as mean $\pm$ standard deviation; the other systems do not depend on the seed.
+
+\section{Headline Results}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrr}
+\toprule
+System & Recall (\%) & FPR (\%) & Accuracy (\%)\\
+\midrule
+\textbf{MAPIS} & \textbf{97.7 $\pm$ 0.6} & \textbf{0.5 $\pm$ 0.4} & \textbf{98.5 $\pm$ 0.3}\\
+Stateless DeBERTa (same data, event only) & 94.6 $\pm$ 0.4 & 35.2 $\pm$ 2.1 & 81.4 $\pm$ 1.1\\
+Llama Guard 3-1B & 86.1 & 90.3 & 52.3\\
+ProtectAI DeBERTa-v3 injection v2 & 53.3 & 49.5 & 52.1\\
+Prompt Guard 2 (86M) & 7.5 & 0.1 & 48.4\\
+\bottomrule
+\end{tabular}
+\caption{Session-level results on 2,304 held-out sessions.}
+\label{tab:head}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=9pt, width=13.5cm, height=6.4cm, ymin=0, ymax=105, ylabel={Percent}, symbolic x coords={MAPIS,Stateless,Llama Guard,ProtectAI,Prompt Guard 2}, xtick=data, x tick label style={font=\scriptsize}, legend style={at={(0.5,-0.18)},anchor=north,legend columns=2,font=\small}, nodes near coords, nodes near coords style={font=\tiny}, enlarge x limits=0.12]
+\addplot[fill=maroon] coordinates {(MAPIS,97.7) (Stateless,94.6) (Llama Guard,86.1) (ProtectAI,53.3) (Prompt Guard 2,7.5)};
+\addplot[fill=gray] coordinates {(MAPIS,0.5) (Stateless,35.2) (Llama Guard,90.3) (ProtectAI,49.5) (Prompt Guard 2,0.1)};
+\legend{Recall, False-positive rate}
+\end{axis}
+\end{tikzpicture}
+\caption{Recall and false-positive rate on 2,304 held-out sessions.}
+\end{figure}
+
+Llama Guard flags almost every session, Prompt Guard 2 flags almost none, ProtectAI flags about half of everything, and the stateless model catches most attacks only by also stopping a third of harmless sessions. MAPIS is high on recall and close to zero on false alarms.
+
+\section{Results by Set}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrr}
+\toprule
+Set & MAPIS recall (\%) & MAPIS FPR (\%)\\
+\midrule
+MAPIS-MultiHop & 100 & 2.2 $\pm$ 2.3\\
+MAPIS-Adaptive (all six techniques) & 100 & 0.0\\
+RealHarm: InjecAgent direct harm & 99.5 $\pm$ 0.7 & 0.0\\
+RealHarm: ASB & 100 & 0.0\\
+MAPIS-Decomposed & 100 & 0.0\\
+MAPIS-Bench v1 & 100 & 0.0\\
+BIPIA (never trained on) & 95.1 $\pm$ 1.1 & 0.7 $\pm$ 0.6\\
+\bottomrule
+\end{tabular}
+\caption{MAPIS per benchmark set (mean over three seeds). Multi-hop FPR per seed was 1.2, 5.3 and 0.0\%.}
+\end{table}
+By mechanism, recall is 100\% for tool-output manipulation, cross-agent injection, goal hijacking and document poisoning, and 99.2\% for memory injection. By attack class the lowest value is instruction override at 92 to 96\%, where the misses are mostly harmless-looking single-hop BIPIA injections.
+
+\section{Why Memory Matters: Matched False-Positive Budget}
+At the default threshold the stateless model reaches 92.3\% multi-hop recall, but its false-positive rate is 55.2\%: it flags 100\% of authorized and designated twins in one seed. The event text of an attack and of its authorized twin is identical, so a model that only sees the event cannot separate them. To compare fairly we hold the stateless model to at most 5\% false positives, choosing the threshold on validation data and applying it to the test data.
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrr}
+\toprule
+Set & Stateless recall at $\le$5\% FPR (\%) & MAPIS recall (\%)\\
+\midrule
+MAPIS-MultiHop & 6.7 & 100\\
+MAPIS-Adaptive & 8.7 & 100\\
+InjecAgent direct harm & 90.7 & 99.5\\
+ASB & 98.3 & 100\\
+\bottomrule
+\end{tabular}
+\caption{Stateless recall at a matched false-positive budget (mean of three seeds).}
+\end{table}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[ybar, bar width=14pt, width=11cm, height=6cm, ymin=0, ymax=110, ylabel={Recall (\%)}, symbolic x coords={Multi-hop,Adaptive}, xtick=data, legend style={at={(0.5,-0.15)},anchor=north,legend columns=2,font=\small}, nodes near coords, nodes near coords style={font=\scriptsize}, enlarge x limits=0.5]
+\addplot[fill=maroon] coordinates {(Multi-hop,100) (Adaptive,100)};
+\addplot[fill=gray] coordinates {(Multi-hop,6.7) (Adaptive,8.7)};
+\legend{MAPIS, Stateless at $\le 5\%$ FPR}
+\end{axis}
+\end{tikzpicture}
+\caption{Recall at a matched false-positive budget.}
+\end{figure}
+The recall gain of MAPIS over stateless detection on multi-hop attacks is therefore about 93 percentage points at a matched budget, against the target of 20. At the default threshold the plain gain is only 7.7 points (100 against 92.3), which is why we report the matched comparison. The thresholds chosen on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7\%, seed 2 adaptive 8.8\%), so these stateless recalls are generous to the baseline. On RealHarm the attack text is explicit, a message-level model is competitive at zero false positives, and the gap is at most 9 points.
+
+\section{The Evasive Attacker}
+Before the upgrade of Section~\ref{sec:history}, the model with the old matching reached 64.6\% recall at 2.9\% FPR on the adaptive test set. With canonical matching it reached 100\% but at 3.9\% FPR with the old model. The retrained model reaches 100\% recall and 0.0\% FPR on obfuscated, split, Unicode, paraphrased, long-delay and combined attacks (576 sessions, 192 attacks, all seeds).
+
+\section{Comparison with LLM-Based Detectors}
+A history-aware LLM judge (the whole session transcript in one call, in the style of AlignmentCheck) and NeMo Guardrails (self-check input rail, one call per message) were run through a local Ollama server with the 7B model qwen2.5. Because these runs cost many LLM calls, they used a class-balanced subset of 153 test sessions (up to 20 per dataset).
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrrr}
+\toprule
+System (153 sessions) & Recall (\%) & FPR (\%) & Accuracy (\%)\\
+\midrule
+\textbf{MAPIS} & \textbf{100} & \textbf{0.0} & \textbf{100}\\
+Stateless DeBERTa & 91.2 & 32.9 & 79.7\\
+LLM judge (qwen2.5 7B, whole transcript) & 67.5 & 23.3 & 71.9\\
+NeMo Guardrails (qwen2.5 7B) & 48.7 & 17.8 & 64.7\\
+\bottomrule
+\end{tabular}
+\caption{Comparison on identical sessions.}
+\end{table}
+The judge finds multi-hop attacks (100\% recall) but flags 80\% of the benign multi-hop twins, because any session whose documents contain the fragments looks suspicious. NeMo misses most multi-hop and adaptive attacks (20\% and 30\% recall). Neither separates an attack from the identical user-authorized action. With 20 sessions per dataset a result of 0\% FPR has a 95\% upper bound of 5\%, so Table~\ref{tab:head} remains the headline and this table is the like-for-like comparison. Both LLM baselines ran on a small local model and could do better with a large one.
+
+\section{Latency and Cost}
+On the RTX 3050 laptop GPU the classifier takes 63.0 ms per event for single events and 51.4 ms per event batched. The DeBERTa-v3-base variant (extra capacity comparison) takes 115 ms single, still below 200 ms. The rule signals add a few milliseconds per event.
+
+\section{Capacity Comparison}
+A DeBERTa-v3-base model (one seed, earlier data) reached 99.9\% recall and 2.0\% FPR, with a multi-hop FPR of 5.3\%. It buys recall and pays false alarms and speed, so the small model remains the headline.
+
+\section{Targets}
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lll}
+\toprule
+Target & Result & Met\\
+\midrule
+Accuracy $\ge$ 90\% & $98.5\pm0.3$\% & Yes\\
+FPR $\le$ 5\% & $0.5\pm0.4$\% overall, multi-hop mean $2.2\pm2.3$\% & Yes (one seed 5.3\% on multi-hop)\\
+Latency $<$ 200 ms & 63 ms & Yes\\
+Multi-hop recall gain $\ge$ 20 points & +93 points at matched FPR & Yes\\
+\bottomrule
+\end{tabular}
+\caption{Project targets.}
+\end{table}
