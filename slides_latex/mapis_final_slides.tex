@@ -1,0 +1,464 @@
+% MAPIS final review slides (Beamer). Follows the structure of the faculty's final-presentation guidelines.
+% Build: pdflatex mapis_final_slides.tex && bibtex mapis_final_slides && pdflatex mapis_final_slides.tex && pdflatex mapis_final_slides.tex
+\documentclass[aspectratio=169,10pt]{beamer}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.16}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{capt-of}
+
+\definecolor{maroon}{HTML}{A4123F}
+\definecolor{ink}{HTML}{1F2933}
+\definecolor{soft}{HTML}{F3F4F6}
+\definecolor{rose}{HTML}{F7E6EB}
+\definecolor{okgreen}{HTML}{2B7A4B}
+\definecolor{warn}{HTML}{B7910B}
+\definecolor{hold}{HTML}{C25E0E}
+\definecolor{bad}{HTML}{B3261E}
+
+\usetheme{default}
+\usecolortheme{default}
+\setbeamercolor{structure}{fg=maroon}
+\setbeamercolor{normal text}{fg=ink}
+\setbeamercolor{frametitle}{fg=maroon,bg=white}
+\setbeamerfont{frametitle}{series=\bfseries,size=\Large}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\color{maroon}\small$\bullet$}
+\setbeamertemplate{itemize subitem}{\color{maroon}--}
+\setbeamertemplate{caption}[numbered]
+\setbeamerfont{caption}{size=\scriptsize}
+\setbeamertemplate{frametitle}{%
+  \vspace{0.35cm}\hspace{0.2cm}\usebeamercolor[fg]{frametitle}\usebeamerfont{frametitle}\insertframetitle\par}
+\setbeamertemplate{footline}{%
+  \hspace{0.3cm}{\tiny\color{gray}MAPIS \textbullet\ Final Review \textbullet\ Team A1 \textbullet\ Amrita School of Artificial Intelligence\hfill\insertframenumber\,/\,\inserttotalframenumber\hspace{0.4cm}}\vspace{0.25cm}}
+\lstset{basicstyle=\ttfamily\tiny,frame=single,columns=fullflexible,backgroundcolor=\color{soft},breaklines=true}
+
+\newcommand{\tier}[3]{\tikz\node[fill=#1,text=white,rounded corners=2pt,inner sep=3pt,font=\scriptsize\bfseries]{#2\ #3};}
+
+% confusion matrix: \cm{TP}{FN}{FP}{TN}
+\newcommand{\cm}[4]{%
+\begin{tikzpicture}[x=1.55cm,y=0.95cm,font=\small]
+\fill[okgreen!20] (0,1) rectangle (1,2); \fill[bad!15] (1,1) rectangle (2,2);
+\fill[bad!15] (0,0) rectangle (1,1); \fill[okgreen!20] (1,0) rectangle (2,1);
+\draw (0,0) grid (2,2);
+\node at (0.5,1.5) {\textbf{#1}}; \node at (1.5,1.5) {#2};
+\node at (0.5,0.5) {#3}; \node at (1.5,0.5) {\textbf{#4}};
+\node[font=\scriptsize] at (0.5,2.25) {pred. attack}; \node[font=\scriptsize] at (1.5,2.25) {pred. safe};
+\node[font=\scriptsize,rotate=90] at (-0.3,1.5) {attack}; \node[font=\scriptsize,rotate=90] at (-0.3,0.5) {safe};
+\end{tikzpicture}}
+
+\title[MAPIS]{MAPIS: Multi-Agent Prompt Injection Shield}
+\subtitle{A stateful trust-scoring monitor for indirect prompt injection in multi-agent LLM pipelines}
+\author[Team A1]{Group A1\\[3pt]
+Dodla Nithya Sai (CB.SC.U4AIE23021)\quad Vishnu Vardhan (CB.SC.U4AIE23043)\\
+Sreekar Reddy (CB.SC.U4AIE23049)\quad Beena Reddy (CB.SC.U4AIE23065)}
+\institute{Amrita School of Artificial Intelligence, Coimbatore\\Supervisor: Professor Sripriyan}
+\date{Final Review, October 2026}
+
+\begin{document}
+
+% ------------------------------------------------------------------ 1 title
+\begin{frame}[plain]
+\begin{center}
+\includegraphics[height=1.6cm]{images/univA.png}\\[0.3cm]
+{\large\color{maroon}\textbf{FINAL REVIEW -- B.TECH PROJECT}}\\[0.2cm]
+{\Huge\bfseries\color{maroon} MAPIS}\\[0.1cm]
+{\Large\bfseries Multi-Agent Prompt Injection Shield}\\[0.15cm]
+{\normalsize A stateful trust-scoring monitor for indirect prompt injection\\in multi-agent LLM pipelines}\\[0.35cm]
+{\small \textbf{Group A1}\\[2pt]
+Dodla Nithya Sai (CB.SC.U4AIE23021) \quad Vishnu Vardhan (CB.SC.U4AIE23043)\\
+Sreekar Reddy (CB.SC.U4AIE23049) \quad Beena Reddy (CB.SC.U4AIE23065)\\[4pt]
+Supervisor: Professor Sripriyan\\
+Amrita School of Artificial Intelligence, Coimbatore \textbullet\ October 2026}
+\end{center}
+\end{frame}
+
+% ------------------------------------------------------------------ 2 problem and motivation
+\begin{frame}{1. Problem and motivation}
+\begin{columns}[T]
+\column{0.54\textwidth}
+\small
+\textbf{The problem}
+\begin{itemize}\setlength\itemsep{1pt}
+\item AI agents work in teams: web, file, memory, code and email agents pass messages and call tools.
+\item They read content nobody vetted. An attacker plants text in it: \textbf{indirect prompt injection} (OWASP LLM01 \cite{owasp2025}).
+\item The attack can be split into fragments that look harmless message by message.
+\end{itemize}
+\textbf{Why it matters}
+\begin{itemize}\setlength\itemsep{2pt}
+\item A hijacked agent can send data out, pay a planted account or change a rule, and the user sees only the final result.
+\end{itemize}
+\textbf{Why a new approach is needed}
+\begin{itemize}\setlength\itemsep{2pt}
+\item Guards that judge one message cannot tell a planted action from one the user asked for. The evidence is in the \emph{session history}.
+\end{itemize}
+\column{0.44\textwidth}
+\begin{tikzpicture}[node distance=0.28cm,font=\scriptsize,b/.style={draw,rounded corners,align=center,fill=soft,minimum width=3.3cm,minimum height=0.55cm,text width=3.3cm},h/.style={b,fill=rose,draw=maroon},ar/.style={-{Stealth},thick}]
+\node[b] (u) {User: ``Summarise report.pdf and\\email it to my manager''};
+\node[h,below=of u] (f) {File agent reads PDF:\\``Finance contact: audit-desk@fin-review.net''};
+\node[h,below=of f] (m) {Memory agent stores the note};
+\node[h,below=of m] (e) {Email agent sends the summary\\to audit-desk@fin-review.net};
+\draw[ar] (u)--(f); \draw[ar] (f)--(m); \draw[ar] (m)--(e);
+
+\end{tikzpicture}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 3 dataset and objectives
+\begin{frame}{2. Dataset, task and objectives}
+\begin{columns}[T]
+\column{0.6\textwidth}
+\scriptsize
+\begin{tabular}{@{}p{2.55cm}p{4.5cm}@{}}
+\toprule
+\textbf{MAPIS-Bench set} & \textbf{Content}\\\midrule
+v1 & 1,693 sessions: AgentDojo and InjecAgent\\
+BIPIA & 1,800 sessions; test part never trained on\\
+MultiHop & about 2,100 fragment attacks with benign twins\\
+Decomposed & 288 ``invisible per message'' sessions\\
+RealHarm & 2,330 sessions: InjecAgent direct harm, ASB\\
+Adaptive & 1,692 evasive-attacker sessions\\\bottomrule
+\end{tabular}\\[4pt]
+\normalsize
+\textbf{Task:} binary classification of each event (label 0 malicious, 1 safe) and session-level detection.\\
+\textbf{Split:} by attack family, wording and tools. \textbf{Test: 2,304 held-out sessions} (576 Adaptive, 234 MultiHop, 364 RealHarm, 282 v1, 800 BIPIA, 48 Decomposed). Validation: 9,064 events.\\
+\textbf{Metrics:} accuracy, precision, recall, F1, false-positive rate, latency.
+\column{0.38\textwidth}
+\textbf{Objectives}
+\begin{enumerate}\setlength\itemsep{2pt}\footnotesize
+\item[O1] Testbed on LangGraph and AutoGen with a FastAPI tap
+\item[O2] Benchmark of $\ge$1,000 multi-hop samples, 5 attack classes
+\item[O3] Stateful classifier: accuracy $\ge$90\%, FPR $\le$5\%
+\item[O4] Tiered response and trace, $\le$200 ms per message
+\item[O5] Beat stateless detection by $\ge$20 points of recall on multi-hop attacks
+\end{enumerate}
+\textbf{Twins:} every attack has benign look-alikes (user-authorized, resisted, designated).
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 4 base work
+\begin{frame}{3. Base work and what we replicated}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Data and evaluation foundations}
+\begin{itemize}\setlength\itemsep{2pt}\small
+\item AgentDojo -- Debenedetti et al., NeurIPS 2024 \cite{debenedetti2024}
+\item InjecAgent -- Zhan et al., ACL Findings 2024 \cite{zhan2024}
+\item BIPIA -- Yi et al., 2023 \cite{yi2023}; ASB -- Zhang et al., 2024 \cite{zhang2024asb}
+\end{itemize}
+\textbf{Base architecture}
+\begin{itemize}\setlength\itemsep{2pt}\small
+\item A single-message injection classifier on DeBERTa \cite{he2021}, as in public detectors \cite{protectai2024,promptguard2025}.
+\end{itemize}
+\column{0.48\textwidth}
+\begin{block}{What we replicated}
+No single base paper's model is reproduced end to end. We \textbf{replicate the base architecture}: DeBERTa-v3-small fine-tuned on the same data, event text only (``stateless DeBERTa''), plus the public detectors on identical sessions.
+\end{block}
+\begin{block}{Related defences (not replicated)}
+Task Shield \cite{jia2024}, AgentWatcher \cite{wang2026}, LlamaFirewall \cite{llamafirewall2025}, G-Safeguard \cite{gsafeguard2025}, Prompt Infection \cite{lee2024}: per-action or LLM-based checks, or graph models.
+\end{block}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 5 baseline architecture
+\begin{frame}{3. Baseline architecture: stateless DeBERTa classifier}
+\centering
+\begin{tikzpicture}[node distance=0.32cm,font=\scriptsize,b/.style={draw,rounded corners,align=center,fill=soft,minimum height=1.1cm,minimum width=2.4cm},h/.style={b,fill=rose,draw=maroon},ar/.style={-{Stealth},thick}]
+\node[b] (ev) {Current event\\\scriptsize message, tool call,\\tool output, memory};
+\node[b,right=of ev] (tok) {Tokenizer\\\scriptsize max 512 tokens,\\chunks of 900 chars};
+\node[h,right=of tok] (enc) {DeBERTa-v3-small\\\scriptsize 6 layers, 768 hidden,\\disentangled attention};
+\node[b,right=of enc] (cls) {Classification head\\\scriptsize temperature-\\calibrated};
+\node[b,right=of cls] (sc) {Trust score\\\scriptsize $0$ malicious\\$1$ safe};
+\draw[ar] (ev)--(tok); \draw[ar] (tok)--(enc); \draw[ar] (enc)--(cls); \draw[ar] (cls)--(sc);
+\end{tikzpicture}\\[0.4cm]
+\begin{columns}[T]
+\column{0.46\textwidth}
+\textbf{Key blocks}
+\begin{itemize}\setlength\itemsep{2pt}\small
+\item \textbf{Chunking}: long events are cut into overlapping chunks; event trust is the minimum over chunks.
+\item \textbf{DeBERTa-v3-small}: pretrained encoder, fine-tuned end to end.
+\item \textbf{Calibration}: a temperature fitted on validation makes the output a usable score.
+\end{itemize}
+\column{0.5\textwidth}
+\textbf{Limit of this design}\\[2pt]
+The model sees \emph{only the event}. An attack action and the same action requested by the user have identical text, so they get the same score. This is the failure the modification removes.
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 6 baseline results
+\begin{frame}{4. Baseline results on the same 2,304 test sessions}
+\centering
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+System (seed-42 models) & Acc.\ (\%) & Prec.\ (\%) & Recall (\%) & F1 (\%) & FPR (\%)\\\midrule
+Regex rules & 51.2 & 100.0 & 12.5 & 22.1 & 0.0\\
+Prompt Guard 2 (86M) & 48.4 & 99.0 & 7.5 & 14.0 & 0.1\\
+ProtectAI DeBERTa-v3 v2 & 52.1 & 57.6 & 53.3 & 55.4 & 49.5\\
+Llama Guard 3-1B & 52.3 & 54.6 & 86.1 & 66.8 & 90.3\\
+\textbf{Stateless DeBERTa (replicated base)} & \textbf{82.2} & \textbf{78.1} & \textbf{94.7} & \textbf{85.6} & \textbf{33.6}\\
+\bottomrule
+\end{tabular}
+\captionof{table}{Baseline detectors, session-level metrics (a session counts as detected if any event is held).}
+\vspace{0.1cm}
+\begin{itemize}\setlength\itemsep{2pt}\small
+\item[] Llama Guard flags almost every session, Prompt Guard 2 almost none, ProtectAI about half of everything.
+\item[] The replicated stateless model reaches high recall only by also stopping one harmless session in three.
+\end{itemize}
+\end{frame}
+
+% ------------------------------------------------------------------ 7 confusion matrix
+\begin{frame}{4. Confusion matrices (session level, seed 42)}
+\centering
+\begin{columns}[c]
+\column{0.45\textwidth}
+\centering
+\textbf{Stateless DeBERTa (baseline)}\\[4pt]
+\cm{1217}{68}{342}{677}\\[4pt]
+\scriptsize accuracy 82.2\%, precision 78.1\%, recall 94.7\%, F1 85.6\%
+\column{0.45\textwidth}
+\centering
+\textbf{MAPIS (modified)}\\[4pt]
+\cm{1246}{39}{2}{1017}\\[4pt]
+\scriptsize accuracy 98.2\%, precision 99.8\%, recall 97.0\%, F1 98.4\%
+\end{columns}
+\vspace{0.3cm}
+\small
+Rows are the true class (1,285 attack and 1,019 safe sessions), columns the prediction. The baseline raises 342 false alarms; MAPIS raises 2, and catches 29 more attacks.
+\end{frame}
+
+% ------------------------------------------------------------------ 8 code structure and settings
+\begin{frame}[fragile]{5. Implementation: code structure and training settings}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Code structure} (GitHub: Vishnu868/Mapis)\\[2pt]
+\begin{lstlisting}
+backend/core/    shield, session, features,
+                 context, store, detector
+backend/ml/      config, train, evaluate,
+                 metrics, data
+backend/agents/  testbed, LangGraph graph,
+                 AutoGen testbed
+backend/api/     FastAPI (/inspect, replay)
+backend/baselines.py  Llama Guard, Prompt Guard 2,
+                 ProtectAI, NeMo, LLM judge
+scripts/         data generators, benchmark,
+                 stateless_sweep, live AgentDojo
+frontend/        React operator console
+tests/           29 pytest tests
+\end{lstlisting}
+\footnotesize Data loading: \texttt{prepare\_phase4\_training\_data.py}. Model: \texttt{detector.py}. Training: \texttt{train.py}. Evaluation: \texttt{benchmark.py}, \texttt{evaluate.py}.
+\column{0.48\textwidth}
+\textbf{Training settings}\\[2pt]
+\footnotesize
+\begin{tabular}{@{}ll@{}}
+\toprule
+Framework & PyTorch, HuggingFace Transformers\\
+Model & microsoft/deberta-v3-small\\
+Optimizer & AdamW, weight decay 0.01\\
+Learning rate & $2\times10^{-5}$, warm-up 0.1\\
+Batch size & 4, gradient accumulation 4\\
+Epochs & 2 (best by validation F1, FPR $\le$5\%)\\
+Loss & class-weighted cross-entropy\\
+Precision & fp16, fp32 master weights\\
+Seeds & 42, 2, 3\\
+Hardware & RTX 3050 Laptop GPU\\
+Time & about 4.3 h stateful, 1.3 h stateless\\
+\bottomrule
+\end{tabular}
+\captionof{table}{Training configuration (identical for baseline and modified model).}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 9 logs and curves
+\begin{frame}[fragile]{5. Training logs and curves (seed 42)}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth,height=3.3cm,xlabel={Epoch},ylabel={Training loss},xtick={1,2},ymin=0,ymax=0.22,legend style={font=\tiny,at={(0.5,-0.5)},anchor=north},label style={font=\scriptsize},tick label style={font=\scriptsize},grid=major,every axis plot/.append style={thick,mark=*}]
+\addplot[color=maroon] coordinates {(1,0.1587) (2,0.0138)};
+\addplot[color=gray] coordinates {(1,0.1855) (2,0.0777)};
+\legend{Modified (stateful),Baseline (stateless)}
+\end{axis}
+\end{tikzpicture}
+\column{0.5\textwidth}
+\begin{tikzpicture}
+\begin{axis}[width=\linewidth,height=3.3cm,xlabel={Epoch},ylabel={Validation F1},xtick={1,2},ymin=0.82,ymax=1.0,legend style={font=\tiny,at={(0.5,-0.5)},anchor=north},label style={font=\scriptsize},tick label style={font=\scriptsize},grid=major,every axis plot/.append style={thick,mark=*}]
+\addplot[color=maroon] coordinates {(1,0.9819) (2,0.9913)};
+\addplot[color=gray] coordinates {(1,0.8537) (2,0.8605)};
+\legend{Modified (stateful),Baseline (stateless)}
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\vspace{0.1cm}
+\begin{lstlisting}
+stateful  epoch 2 | train_loss 0.0138 | val acc 0.9978 prec 0.9878 rec 0.9948 F1 0.9913 FPR 0.0018
+stateless epoch 2 | train_loss 0.0777 | val acc 0.9606 prec 0.7781 rec 0.9624 F1 0.8605 FPR 0.0396
+(validation: 9,064 events)
+\end{lstlisting}
+\scriptsize Source: \texttt{history.json} of both models. Two epochs only: the best epoch is selected by validation F1 with FPR $\le$5\%.
+\end{frame}
+
+% ------------------------------------------------------------------ 10 modification
+\begin{frame}{6. Our modification: give the classifier session memory}
+\begin{columns}[T]
+\column{0.55\textwidth}
+\textbf{What we changed relative to the baseline}
+\begin{enumerate}\setlength\itemsep{3pt}
+\item \textbf{Session record} (Redis): the user goal, where each item (email, URL, account, number) first appeared, authority claims, per-agent baselines.
+\item \textbf{Classifier input}: current event first, then one line of session signals, then recent history. Same text builder in training and at run time.
+\item \textbf{Four signals}: instruction in data, drift from goal, cross-hop provenance and escalation, behaviour anomaly.
+\item \textbf{Fusion and tiers}: noisy-OR of model trust with rule risks; PASS, FLAG, QUARANTINE, BLOCK; forensic trace.
+\item \textbf{Evasion defences}: Unicode and obfuscation normalising, fragment matching, adversarial training data.
+\end{enumerate}
+\column{0.42\textwidth}
+\begin{block}{Why this modification}
+The baseline cannot separate an attack from the same action the user requested. The only difference is who introduced the item, which lives in the history.
+\end{block}
+\begin{block}{Fair comparison}
+Same data split, seeds, model size and training settings for baseline and modified model. Only the input and the tap differ.
+\end{block}
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 11 modified architecture
+\begin{frame}{6. Modified architecture: MAPIS}
+\centering
+\begin{tikzpicture}[node distance=0.4cm,font=\scriptsize,b/.style={draw,rounded corners,align=center,fill=soft,minimum height=0.95cm,minimum width=2.3cm},h/.style={b,fill=rose,draw=maroon},ar/.style={-{Stealth},thick},t/.style={rounded corners=2pt,text=white,align=center,minimum height=0.8cm,minimum width=2.6cm,font=\scriptsize\bfseries}]
+\node[b] (ag) {Agents\\planner, web, file,\\memory, code/email};
+\node[h,right=of ag] (tap) {MAPIS tap\\FastAPI /inspect};
+\node[h,right=of tap] (ses) {Session record\\goal, item sources,\\claims, baselines};
+\node[h,right=of ses,minimum width=3cm] (cl) {DeBERTa-v3-small\\event + signals + history};
+\node[h,right=of cl] (fu) {Fusion\\noisy-OR with\\rule signals};
+\draw[ar] (ag)--(tap); \draw[ar] (tap)--(ses); \draw[ar] (ses)--(cl); \draw[ar] (cl)--(fu);
+\node[t,fill=okgreen,below=1.0cm of ag,xshift=0.6cm] (p) {PASS $\ge$ 0.75};
+\node[t,fill=warn,right=0.15cm of p] (f) {FLAG 0.50--0.75};
+\node[t,fill=hold,right=0.15cm of f] (q) {QUARANTINE 0.25--0.50};
+\node[t,fill=bad,right=0.15cm of q] (bb) {BLOCK $<$ 0.25};
+\draw[ar] (fu.south) -- ++(0,-0.35) -| (bb.north);
+\node[font=\scriptsize] at ([xshift=1.0cm,yshift=-0.55cm]fu.south) {trust $t$};
+\node[b,below=0.5cm of q,minimum width=8cm] (log) {Forensic trace (origin $\rightarrow$ relay $\rightarrow$ action) \textbullet\ operator dashboard (release / reject)};
+\draw[ar] (q.south)--(log.north);
+\end{tikzpicture}\\[0.2cm]
+\small Differences from the baseline: input now carries \textbf{session state}; rule signals and tiers act on the score; a \textbf{trace} explains every hold.
+\end{frame}
+
+% ------------------------------------------------------------------ 12 comparison table
+\begin{frame}{7. Comparison: baseline vs.\ modified model}
+\centering
+\small
+\begin{tabular}{@{}lrrrrr@{}}
+\toprule
+\multicolumn{6}{@{}l}{\textbf{Seed 42, same 2,304 sessions}}\\
+Model & Acc.\ (\%) & Prec.\ (\%) & Recall (\%) & F1 (\%) & FPR (\%)\\\midrule
+Baseline: stateless DeBERTa & 82.2 & 78.1 & 94.7 & 85.6 & 33.6\\
+\textbf{Modified: MAPIS} & \textbf{98.2} & \textbf{99.8} & \textbf{97.0} & \textbf{98.4} & \textbf{0.2}\\\midrule
+\multicolumn{6}{@{}l}{\textbf{Mean $\pm$ std over three training seeds}}\\
+Baseline & 81.4 $\pm$ 1.1 & -- & 94.6 $\pm$ 0.4 & -- & 35.2 $\pm$ 2.1\\
+\textbf{MAPIS} & \textbf{98.5 $\pm$ 0.3} & -- & \textbf{97.7 $\pm$ 0.6} & -- & \textbf{0.5 $\pm$ 0.4}\\\midrule
+\multicolumn{6}{@{}l}{\textbf{Multi-hop attacks, recall (FPR)}}\\
+Baseline at default threshold & & & 92.3 (55.2) & & \\
+Baseline held to $\le$5\% FPR & & & 6.7 & & \\
+\textbf{MAPIS} & & & \textbf{100 (2.2)} & & \\\bottomrule
+\end{tabular}
+\captionof{table}{Baseline against modified model. Precision and F1 are shown for the single seed-42 run only.}
+\small
+\vspace{0.1cm}
+Targets: accuracy $\ge$90\% (98.5), FPR $\le$5\% (0.5), latency $<$200 ms (63 ms per event), multi-hop gain $\ge$20 points (+93 at matched FPR).
+\end{frame}
+
+% ------------------------------------------------------------------ 13 ablation
+\begin{frame}{7. Ablation: what produced the gain}
+\begin{columns}[T]
+\column{0.56\textwidth}
+\footnotesize
+\begin{tabular}{@{}p{3.25cm}rrr@{}}
+\toprule
+Configuration (seed 42) & Recall & FPR & F1\\\midrule
+Event only (baseline) & 94.7 & 33.6 & 85.6\\
++ session text and signals (learned model only) & 97.0 & 0.1 & 98.4\\
++ rule fusion (full MAPIS) & 97.0 & 0.2 & 98.4\\
+Evasive attacker, before upgrade & 64.6 & 2.9 & --\\
+Evasive attacker, after upgrade & 100 & 0.0 & --\\\bottomrule
+\end{tabular}
+\captionof{table}{Ablation, adding one component at a time (recall and FPR in \%).}
+\column{0.42\textwidth}
+\begin{tikzpicture}
+\begin{axis}[ybar,bar width=10pt,width=\linewidth,height=4.2cm,ymin=0,ymax=110,symbolic x coords={Multi-hop,Adaptive},xtick=data,legend style={font=\tiny,at={(0.5,-0.3)},anchor=north,legend columns=2},nodes near coords,nodes near coords style={font=\tiny},tick label style={font=\scriptsize},ylabel={Recall (\%)},ylabel style={font=\scriptsize},enlarge x limits=0.4]
+\addplot[fill=maroon] coordinates {(Multi-hop,100) (Adaptive,100)};
+\addplot[fill=gray] coordinates {(Multi-hop,6.7) (Adaptive,8.7)};
+\legend{MAPIS,Stateless at $\le$5\% FPR}
+\end{axis}
+\end{tikzpicture}
+\end{columns}
+\vspace{0.1cm}
+\footnotesize
+\textbf{Analysis.} Almost all of the gain comes from the session information in the classifier input (FPR 33.6\% $\rightarrow$ 0.1\%). The rule fusion adds nothing on this test set; it helped earlier (+2.4 points of recall, run B) and guards against items the model has not seen. At a matched 5\% false-alarm budget the baseline catches 6.7\% of multi-hop attacks, so the gain is about 93 points. Canonical matching, fragment matching and adversarial data lifted evasive-attack recall from 64.6\% to 100\%.
+\end{frame}
+
+% ------------------------------------------------------------------ 14 qualitative and live agents
+\begin{frame}{7. Qualitative result and live-agent check}
+\begin{columns}[T]
+\column{0.4\textwidth}
+\centering
+\includegraphics[height=5.6cm]{images/console_decomposed.png}\\[-2pt]
+{\tiny Operator console, decomposed attack (test environment, rule-based fallback detector)}
+\column{0.58\textwidth}
+\textbf{Decomposed attack}\\[2pt]
+{\footnotesize No message contains an instruction. The email to the planted address is held (QUARANTINE). Trace: file $\rightarrow$ memory write $\rightarrow$ memory read $\rightarrow$ email. The user-authorized twin passes.}\\[6pt]
+\textbf{Live LLM agent (AgentDojo, qwen2.5 7B)}\\[2pt]
+\footnotesize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Defence & Attack success & Benign utility\\\midrule
+None & 15.3\% (22/144) & 28.2\% (11/39)\\
+\textbf{MAPIS} & \textbf{0.0\% (0/144)} & 25.6\% (10/39)\\
+Stateless & 0.0\% (0/144) & 20.5\% (8/39)\\\bottomrule
+\end{tabular}\\[4pt]
+\scriptsize AgentDojo injections are explicit text, so the stateless model also stops them: this shows MAPIS works inside a live agent at low cost, not the multi-hop gain.\\[6pt]
+\footnotesize \textbf{Limits.} MultiHop and Adaptive are template-generated; one seed had multi-hop FPR 5.3\% (mean 2.2\%); training data include AgentDojo-style injections; LLM baselines used a 7B model.
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ 15 conclusion
+\begin{frame}{8. Conclusion, future work and member contributions}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Conclusion}
+\begin{itemize}\setlength\itemsep{2pt}\footnotesize
+\item Session memory separates an attack from the same action the user requested: FPR 33.6\% $\rightarrow$ 0.2\% (seed 42) at higher recall.
+\item MAPIS: 97.7\% recall, 0.5\% FPR, 98.5\% accuracy, 63 ms per event (3 seeds).
+\item All four project targets met; honest limits stated.
+\end{itemize}
+\textbf{Future work}
+\begin{itemize}\setlength\itemsep{2pt}\footnotesize
+\item Team-written independent test set; real agent traffic.
+\item Larger live agents and stronger LLM judges.
+\item Attacks aimed at the classifier itself; production hardening.
+\end{itemize}
+\column{0.48\textwidth}
+\textbf{Member contributions}\\[2pt]
+\footnotesize
+\begin{tabular}{@{}p{2.3cm}p{4.3cm}@{}}
+\toprule
+Vishnu Vardhan & testbed, orchestration, FastAPI tap, runtime integration\\
+Nithya Sai & MAPIS-Bench, attack taxonomy, adaptive attacks, labelling\\
+Sreekar Reddy & session design, classifier, training, calibration\\
+Beena Reddy & tiered response, forensic trace, dashboard, evaluation\\\bottomrule
+\end{tabular}\\[4pt]
+\scriptsize Every member presents one part and answers questions on any part.
+\end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------ backup: references
+\begin{frame}[allowframebreaks]{References}
+\tiny
+\bibliographystyle{ieeetr}
+\bibliography{refs}
+\end{frame}
+
+\end{document}
