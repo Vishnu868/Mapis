@@ -356,6 +356,14 @@ exact 153 sessions (run 11 Oct, results\benchmark_llm_mapis.json, seed-42 models
 MAPIS: 0 FPs on authorized (15), resisted (7), designated (3), clean (15), normal-task (10); all four mechanisms 100 %. Stateless: flags 93 % of authorized and 100 % of designated twins, 50 % of InjecAgent-DH twins, 60 % of multi-hop/adaptive benign; decomposed 50 / 70.
 Small-sample note (state once): n = 20 per dataset, so a 100 % / 0 % cell has a Wilson upper bound of 5 % (FPR) - the 3-seed full-test numbers in 4m remain the headline; this table is only the like-for-like comparison with the LLM baselines.
 
+### 4r. Final evidence work (19 Oct 2026) - code done, laptop run pending
+- **MAPIS-StateAttack** (`scripts/generate_stateattack.py`, `data/mapis_bench/mapis_bench_stateattack_v1.jsonl`, benchmark set `stateattack`, TEST ONLY, not in training sources): 168 sessions (56 attacks, 112 authorized/resisted twins) aimed at the session record: window_flood (6-14 untrusted filler hops after the plant), claim_split (claim in 3 pieces), agent_origin (item first appears in an agent message), transform (reversed / base64 / halves), launder (memory key, read back later).
+  Rules-only sandbox (no model): recall 39.3 %, FPR 0 %; every item carried via tool output/memory caught (window flood too: taint persists); NOT caught by rules: agent_origin 0 %, transform 12.5 %, non-standard account format `acct-9921-0045-7781`, no-item override/physical (model-dependent). Code deliberately NOT changed after seeing these (keeps the set honest). Model numbers pending.
+- `scripts/calibrate_mapis.py`: hold cut-off picked on validation (every family FPR <= 2 %), test at 0.50 vs calibrated (targets seed-2 multi-hop FPR 5.3 %).
+- `scripts/run_final_checks.ps1`: calibration + StateAttack per seed, rule ablation (mapis / mapis-model / mapis-no-provenance) on adaptive, multihop, stateattack (+independent), independent benchmark if present. `run_pipeline.ps1 -Seeds 5 -ExtraSeedsOnly -FromSeed 4` adds seeds 44/45.
+- Independent set: a cold-start subagent attempt to write it was stopped; it must be written by the team (independence), files in data/independent/.
+- `docs/MAPIS_A_to_Z.html` (source docs/explainer_src/): complete explanation + slide-by-slide guide of slides_latex deck.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
