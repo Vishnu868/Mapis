@@ -4,11 +4,12 @@
 #   .\scripts\run_pipeline.ps1 -Seeds 3        # + 2 extra training seeds for MAPIS and stateless -> results\seeds, aggregated mean +/- std
 #   .\scripts\run_pipeline.ps1 -SkipLlamaGuard # skip the Llama Guard step (its result does not change between runs)
 #   .\scripts\run_pipeline.ps1 -SkipBefore    # do not record the "before" numbers of the existing artifacts\mapis_detector (use when a new model already overwrote it)
+#   .\scripts\run_pipeline.ps1 -Seeds 5 -ExtraSeedsOnly -FromSeed 4   # add seeds 4 and 5 to existing 42, 2, 3
 #   .\scripts\run_pipeline.ps1 -Seeds 3 -ExtraSeedsOnly   # only train/benchmark seeds 2..N and aggregate (after a -Seeds 1 run you were happy with)
 #   .\scripts\run_pipeline.ps1 -Live          # live LLM agents on AgentDojo with/without MAPIS (needs Ollama or LLM_* variables, see scripts/live_agentdojo.py)
 #   .\scripts\run_pipeline.ps1 -LLMBaselines  # history-aware LLM judge + NeMo Guardrails (needs LLM_BASE_URL / LLM_MODEL / LLM_API_KEY)
 #   .\scripts\run_pipeline.ps1 -Base          # DeBERTa-v3-base instead of small (slower, more accurate); outputs go to artifacts\base\ and results\base\
-param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "", [switch]$Base, [switch]$Live, [switch]$LLMBaselines, [int]$LLMSample = 60, [switch]$SkipBefore, [switch]$ExtraSeedsOnly)
+param([int]$Seeds = 1, [switch]$SkipLlamaGuard, [string]$Model = "", [switch]$Base, [switch]$Live, [switch]$LLMBaselines, [int]$LLMSample = 60, [switch]$SkipBefore, [switch]$ExtraSeedsOnly, [int]$FromSeed = 2)
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force results\logs | Out-Null
 $sets = "multihop,adaptive,realharm,v1,decomposed,bipia"
@@ -24,7 +25,7 @@ function Step($name, $cmd, [bool]$Optional = $false) {
 }
 
 function Run-ExtraSeeds {
-for ($s = 2; $s -le $Seeds; $s++) {
+for ($s = $FromSeed; $s -le $Seeds; $s++) {
     $seed = 40 + $s
     Step "11_seed${s}_train_stateful"  "python -m backend.ml.train --run --seed $seed --output-dir artifacts/seed$s/mapis_detector $modelArg"
     Step "11_seed${s}_train_stateless" "python -m backend.ml.train --run --seed $seed --no-context --output-dir artifacts/seed$s/mapis_stateless $modelArg"

@@ -31,7 +31,8 @@ DATASETS = {"v1": ROOT / "data/mapis_bench/mapis_bench_v1.jsonl", "decomposed": 
             "bipia": ROOT / "data/mapis_bench/mapis_bench_bipia_v1.jsonl", "multihop": ROOT / "data/mapis_bench/mapis_bench_multihop_v1.jsonl",
             "realharm": ROOT / "data/mapis_bench/mapis_bench_realharm_v1.jsonl",
             "independent": ROOT / "data/mapis_bench/mapis_bench_independent_v1.jsonl",
-            "adaptive": ROOT / "data/mapis_bench/mapis_bench_adaptive_v1.jsonl"}
+            "adaptive": ROOT / "data/mapis_bench/mapis_bench_adaptive_v1.jsonl",
+            "stateattack": ROOT / "data/mapis_bench/mapis_bench_stateattack_v1.jsonl"}
 NOT_RUNTIME = {"attacker_instruction", "tool_response_template"}  # derived annotations, not events an agent would emit
 
 
@@ -165,7 +166,7 @@ def main() -> None:
             held, lat = system.run(s)
             y = 0 if s["is_attack"] else 1
             flags.append(held); labels.append(y); lats += lat
-            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "MAPIS-MultiHop": "MAPIS-MultiHop", "InjecAgent-DH": "RealHarm: InjecAgent direct harm", "ASB": "RealHarm: ASB", "MAPIS-Independent": "Independent (hand-written)", "MAPIS-Adaptive": "MAPIS-Adaptive (evasive attacker)", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
+            set_name = {"MAPIS-Decomposed": "MAPIS-Decomposed", "MAPIS-MultiHop": "MAPIS-MultiHop", "InjecAgent-DH": "RealHarm: InjecAgent direct harm", "ASB": "RealHarm: ASB", "MAPIS-Independent": "Independent (hand-written)", "MAPIS-Adaptive": "MAPIS-Adaptive (evasive attacker)", "MAPIS-StateAttack": "MAPIS-StateAttack (targets session state, test-only)", "BIPIA": "BIPIA (unseen dataset)"}.get(s["source_dataset"], "MAPIS-Bench v1")
             by_set[set_name][0].append(y); by_set[set_name][1].append(held)
             if s.get("benign_kind"):  # benign sessions reported separately by kind
                 by_set[f"benign: {s['benign_kind']}"][0].append(y); by_set[f"benign: {s['benign_kind']}"][1].append(held)
