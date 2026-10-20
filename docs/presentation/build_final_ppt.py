@@ -18,6 +18,9 @@ GREEN = RGBColor(0x2B, 0x7A, 0x4B)
 FONT = "Calibri"
 
 prs = Presentation(SRC)
+_blank = next(l for l in prs.slide_layouts if l.name == "Title Only")
+while len(prs.slides) < 17:  # official template has 15 slides; extend it (baselines + live agents, Thank You)
+    prs.slides.add_slide(_blank)
 slides = list(prs.slides)
 W = prs.slide_width
 
@@ -230,7 +233,7 @@ rows = [["Component", "Status", "Evidence"],
         ["Testbed: LangGraph and AutoGen", "DONE", "backend/agents/graph.py, autogen_testbed.py"],
         ["FastAPI tap, Redis store, SQLite log", "DONE", "backend/api, backend/core/store.py, db.py"],
         ["Stateful shield: session record + 4 signals", "DONE", "backend/core/shield.py, session.py, features.py"],
-        ["Classifier and training pipeline", "DONE", "backend/ml/, 3 training seeds"],
+        ["Classifier and training pipeline", "DONE", "backend/ml/, 5 training seeds"],
         ["Four tiers, channel suspension, quarantine review", "DONE", "Operator console, /inspect API"],
         ["Forensic trace and operator dashboard", "DONE", "frontend/ (live monitor, inspector, results)"],
         ["Benchmark sets and generators", "DONE", "scripts/generate_*.py, data/mapis_bench"],
@@ -424,6 +427,11 @@ refs = ["[1] Greshake et al., “Not what you've signed up for: Compromising rea
         "[10] G-Safeguard: topology-guided security lens for multi-agent systems, ACL 2025; Meta, LlamaFirewall (AlignmentCheck), 2025."]
 bullets(s, 0.5, 1.1, 9.0, 5.8, ["•  " + r if False else r for r in refs], size=11, gap=5)
 notes(s, "References 1 to 8 are from the zeroth and first review. References 9 and 10 are the related work added during the project.")
+
+s = slides[16]; clear(s)
+tb(s, 0.5, 2.6, 9.0, 1.2, "Thank You", size=44, bold=True, color=MAROON, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+tb(s, 0.5, 3.9, 9.0, 0.6, "Questions?  ·  github.com/Vishnu868/Mapis", size=18, color=GREY, align=PP_ALIGN.CENTER)
+notes(s, "Close and invite questions.")
 
 prs.save(OUT)
 print("saved", OUT)
