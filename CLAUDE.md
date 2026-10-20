@@ -369,6 +369,16 @@ Small-sample note (state once): n = 20 per dataset, so a 100 % / 0 % cell has a 
 - Independent set: a cold-start subagent attempt to write it was stopped; it must be written by the team (independence), files in data/independent/.
 - `docs/MAPIS_A_to_Z.html` (source docs/explainer_src/): complete explanation + slide-by-slide guide of slides_latex deck.
 
+### 4s. FIVE-SEED results (20 Oct 2026, seeds 42/2/3/4/5 via -ExtraSeedsOnly -FromSeed 4; Drive results\seeds\summary.json) - updates the 3-seed 4m headline
+| System (session level, 2,304 test sessions) | Recall | FPR | Accuracy |
+|---|---|---|---|
+| **MAPIS** | **98.0 +/- 0.6 %** | **0.9 +/- 0.8 %** | **98.5 %** (F1 0.986) |
+| Stateless DeBERTa (same data, event only) | 94.1 +/- 0.9 % | 33.2 +/- 3.5 % | 82.0 % |
+Per set MAPIS: multi-hop 100 +/- 0 % recall / **FPR 3.0 +/- 3.0 %** (default cut-off; the validation-calibrated cut-off of 4r brings every seed <= 5 %); adaptive 100 / 0.4; RealHarm InjecAgent-DH 99.4 / 0, ASB 100 / 0; decomposed 100 / 0; v1 100 / 0; BIPIA 95.8 +/- 1.4 / 1.4. Stateless per set: multi-hop 86.5 / 51.1, adaptive 86.6 / 43.0, InjecAgent-DH 100 / 50, decomposed 65 / 60, BIPIA 94.5 / 2.2. Reading unchanged from 4m: at default thresholds the stateless model buys recall with ~33-51 % false alarms; at <= 5 % FPR it collapses on multi-hop/adaptive (4n). The 3-seed 4m table and this 5-seed table agree within std; **use 5-seed (98.0/0.9/98.5) as the headline going forward.**
+
+### 4t. Team-written independent test set (20 Oct 2026, data/independent/*.json from Prompt_Injection_Story_Set_1.docx; scripts/dataset_build/convert_team_stories.py -> data/mapis_bench/mapis_bench_independent_v1.jsonl, benchmark set `independent`, TEST ONLY)
+40 sessions = 20 attacks + 20 twins, written by the 4 team members in plain English (one per member x 5 topics: money/data/code/approval/safety), each attack with a twin (authorized 5, resisted 6, designated 5, normal 4). Classes 4 each; vectors tool_output/document/memory/cross-agent. NOT independent of the model author in the strict sense (Claude parsed the prose into JSON) but IS independent of the generators (hand-written scenarios, tools, wording). Cloud rules-only sandbox (no trained model): MAPIS recall 30 % / FPR 5 % - needs the trained model on the laptop. **Laptop command (quick, ~5 min, after the model is loaded):** `python scripts/benchmark.py --systems mapis,mapis-stateless,protectai,llamaguard --sets independent --out results/benchmark_independent.json` then upload results\benchmark_independent.json.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
