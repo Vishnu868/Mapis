@@ -28,12 +28,12 @@ The dashboard is for the operator or security administrator of the team that run
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.55\textwidth]{console_decomposed.png}
-\caption{Live monitor on the decomposed attack (screenshot from a test environment with the rule-based fallback detector; the final demonstration uses the trained model).}
+\caption{Live monitor with the trained model: the decomposed attack is held at the email action, with the trace file $\rightarrow$ memory write $\rightarrow$ memory read $\rightarrow$ email.}
 \end{figure}
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.55\textwidth]{console_inspector.png}
-\caption{Session inspector replaying a multi-hop attack (same test environment).}
+\caption{Session inspector replaying a held-out multi-hop attack with the trained model; trust drops only at the final hops.}
 \end{figure}
 
 \section{Demonstration Script}

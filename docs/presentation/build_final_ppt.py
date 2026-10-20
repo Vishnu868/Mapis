@@ -8,7 +8,7 @@ from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION, XL_LABEL_POSITION
 import sys
 
 SRC, OUT = sys.argv[1], sys.argv[2]
-SHOT = "/home/user/Mapis/docs/screenshots/1_live_monitor_decomposed_attack.png"
+SHOT = "/home/user/Mapis/docs/screenshots/trained_3_decomposed_email_held.png"
 MAROON = RGBColor(0xA4, 0x12, 0x3F)
 INK = RGBColor(0x1F, 0x29, 0x33)
 GREY = RGBColor(0x5B, 0x67, 0x70)
@@ -155,7 +155,7 @@ rows = [["Area", "At First Review", "At Final Review"],
         ["Frameworks", "5-node LangGraph prototype", "LangGraph and AutoGen through one tap"],
         ["Data", "MAPIS-Bench v1, 1,693 sessions", "+ BIPIA, MultiHop, Decomposed, RealHarm, Adaptive; 2,304 test sessions"],
         ["Baselines", "Heuristic only", "Llama Guard, Prompt Guard 2, ProtectAI, NeMo, LLM judge"],
-        ["Evaluation", "One held-out split", "3 training seeds, matched-FPR comparison, live LLM agents"],
+        ["Evaluation", "One held-out split", "5 training seeds, matched-FPR comparison, live LLM agents, team-written test set"],
         ["Interface", "Dashboard foundation", "Operator console: live monitor, session inspector, results"]]
 table(s, 0.5, 1.2, 9.0, rows, [1.4, 2.9, 4.7], size=13, row_h=0.62)
 tb(s, 0.5, 6.35, 9.0, 0.5, "All four project targets are now measured and met (slide 14).", size=16, bold=True, color=MAROON)
@@ -170,7 +170,7 @@ bullets(s, 0.5, 1.15, 9.0, 2.0, [
 rows = [["Objective", "Target", "Status"],
         ["O1  Testbed with FastAPI tap (LangGraph + AutoGen)", "Every message, tool call, memory access", "Done"],
         ["O2  Labelled multi-hop benchmark", ">= 1,000 sessions, 5 attack classes", "Done: 8,000+ sessions"],
-        ["O3  Stateful trust-scoring classifier", ">= 90 % accuracy, <= 5 % FPR", "98.5 % / 0.5 %"],
+        ["O3  Stateful trust-scoring classifier", ">= 90 % accuracy, <= 5 % FPR", "98.5 % / 0.9 %"],
         ["O4  Tiered response + trace, latency", "<= 200 ms per message", "63 ms"],
         ["O5  Benchmark against existing guardrails", ">= 20 pts multi-hop recall gain", "+93 pts at matched FPR"]]
 table(s, 0.5, 4.2, 9.0, rows, [4.0, 3.0, 2.0], size=12, row_h=0.45)
@@ -253,7 +253,7 @@ table(s, 0.5, 1.15, 5.7, rows, [1.8, 3.9], size=11, row_h=0.62)
 card(s, 6.4, 1.15, 3.1, 4.35)
 tb(s, 6.5, 1.2, 2.9, 0.4, "Setup", size=15, bold=True, color=MAROON)
 bullets(s, 6.5, 1.6, 2.9, 3.9, ["2,304 held-out test sessions (576 Adaptive)", "Test families, wordings and tools held out",
-                                 "DeBERTa-v3-small, RTX 3050, 3 seeds", "Same events replayed through every system",
+                                 "DeBERTa-v3-small, RTX 3050, 5 seeds", "Same events replayed through every system",
                                  "95 % Wilson intervals"], size=12, gap=5)
 card(s, 0.5, 5.6, 9.0, 1.25, fill=RGBColor(0xF7, 0xE6, 0xEB))
 tb(s, 0.65, 5.65, 8.7, 1.15, ["Benign twins for every attack: authorized (the user named the destination), resisted (planted text present, agent acts correctly), designated (the user named the file).",
@@ -262,13 +262,13 @@ notes(s, "Explain twins with the example: the same email to the same address is 
 
 # ---------------------------------------------------------------- slide 8 results
 s = slides[7]; clear(s); title(s, 7, "Results – Quantitative Performance", 8)
-stat(s, 0.5, 1.1, 2.8, "97.7 %", "MAPIS recall (3-seed mean)")
-stat(s, 3.6, 1.1, 2.8, "0.5 %", "False-positive rate")
+stat(s, 0.5, 1.1, 2.8, "98.0 %", "MAPIS recall (5-seed mean)")
+stat(s, 3.6, 1.1, 2.8, "0.9 %", "False-positive rate")
 stat(s, 6.7, 1.1, 2.8, "98.5 %", "Accuracy")
 cd = CategoryChartData()
 cd.categories = ["MAPIS", "Stateless DeBERTa", "Llama Guard 3", "ProtectAI", "Prompt Guard 2"]
-cd.add_series("Recall (%)", (97.7, 94.6, 86.1, 53.3, 7.5))
-cd.add_series("False-positive rate (%)", (0.5, 35.2, 90.3, 49.5, 0.1))
+cd.add_series("Recall (%)", (98.0, 94.1, 86.1, 53.3, 7.5))
+cd.add_series("False-positive rate (%)", (0.9, 33.2, 90.3, 49.5, 0.1))
 gf = s.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(0.5), Inches(2.65), Inches(9.0), Inches(3.55), cd)
 ch = gf.chart; style_chart(ch)
 ch.has_legend = True; ch.legend.position = XL_LEGEND_POSITION.BOTTOM; ch.legend.include_in_layout = False
@@ -279,12 +279,12 @@ pl.data_labels.font.size = Pt(10); pl.data_labels.number_format = '0.0'; pl.data
 pl.data_labels.position = XL_LABEL_POSITION.OUTSIDE_END
 pl.series[0].format.fill.solid(); pl.series[0].format.fill.fore_color.rgb = MAROON
 pl.series[1].format.fill.solid(); pl.series[1].format.fill.fore_color.rgb = RGBColor(0x8A, 0x94, 0x9C)
-tb(s, 0.5, 6.3, 9.0, 0.6, "2,304 held-out sessions, same events for every system. MAPIS and the stateless model are means over 3 training seeds; the other systems do not depend on the seed.", size=11, color=GREY)
+tb(s, 0.5, 6.3, 9.0, 0.6, "2,304 held-out sessions, same events for every system. MAPIS and the stateless model are means over 5 training seeds; the other systems do not depend on the seed.", size=11, color=GREY)
 notes(s, "Read the chart as: maroon bars are attacks caught, grey bars are harmless sessions wrongly stopped. MAPIS is the only system that is high on the first and near zero on the second.")
 
 # ---------------------------------------------------------------- slide 9 multihop analysis
 s = slides[8]; clear(s); title(s, 8, "Analysis: Why Memory Matters", 9)
-stat(s, 0.5, 1.1, 2.8, "100 %", "MAPIS multi-hop recall (FPR 2.2 %)")
+stat(s, 0.5, 1.1, 2.8, "100 %", "MAPIS multi-hop recall (FPR 3.0 %)")
 stat(s, 3.6, 1.1, 2.8, "6.7 %", "Stateless recall at <= 5 % FPR", color=GREY)
 stat(s, 6.7, 1.1, 2.8, "+93 pts", "Recall gain at matched FPR")
 cd = CategoryChartData()
@@ -304,7 +304,7 @@ bullets(s, 5.3, 2.7, 4.2, 4.2, [
     "Evasive attacker:||  recall rose from 64.6 % to 100 % with normalisation, fragment matching and adversarial training, with 0 % false positives on all six techniques.",
     "Per mechanism:||  100 % on tool-output, cross-agent and goal-hijack; memory injection 99.2 % on all sets."], size=12, gap=7)
 tb(s, 0.5, 6.2, 9.0, 0.6, "Thresholds for the stateless model were chosen on validation and applied to test; on test they gave 0.6 to 8.8 % FPR, so these recalls are generous to the baseline.", size=11, color=GREY)
-notes(s, "This is the core result. The stateless model needs a very high false-alarm rate to catch these attacks. Held to 5 percent false alarms it catches under 10 percent. MAPIS catches all with 2.2 percent.")
+notes(s, "This is the core result. The stateless model needs a very high false-alarm rate to catch these attacks. Held to 5 percent false alarms it catches under 10 percent. MAPIS catches all with 3.0 percent, and at most 5 percent on every checked seed with the validation-calibrated cut-off.")
 
 # ---------------------------------------------------------------- slide 10 (duplicate) baselines + live agents
 s = slides[9]; clear(s); title(s, 9, "Baselines and Live LLM Agents", 10)
@@ -340,7 +340,7 @@ notes(s, "Two separate checks. Left: all systems on the same 153 sessions, inclu
 # ---------------------------------------------------------------- slide 11 demo
 s = slides[10]; clear(s); title(s, 10, "Prototype / Demonstration", 11)
 s.shapes.add_picture(SHOT, Inches(0.5), Inches(1.15), height=Inches(4.6))
-tb(s, 0.5, 5.8, 3.7, 0.9, "Operator console, decomposed attack (screenshot from a test environment; the live demo uses the trained model).", size=10, color=GREY)
+tb(s, 0.5, 5.8, 3.7, 0.9, "Operator console with the trained model: the decomposed attack is held at the email action.", size=10, color=GREY)
 tb(s, 4.5, 1.1, 5.0, 0.4, "Live demo flow", size=15, bold=True, color=MAROON)
 steps = ["Clean task: every hop passes, email sent", "Decomposed attack: no message has a command; the email to the planted address is held, trace file \u2192 memory \u2192 email",
          "Same verdict through AutoGen", "Session inspector: attack held, authorized twin passes", "Results tab: all comparisons"]
@@ -352,14 +352,15 @@ notes(s, "Run the five steps from the demo script. If the laptop is unavailable,
 # ---------------------------------------------------------------- slide 12 limitations
 s = slides[11]; clear(s); title(s, 11, "Limitations & Technical Challenges", 12)
 rows = [["Limitation", "Detail"],
-        ["Generated benchmarks", "MultiHop and Adaptive are template-generated, with held-out families, wordings and tools and real carrier text. An independent hand-written set is being prepared by the team."],
-        ["Seed variation", "One training seed had multi-hop FPR 5.3 %, just above the 5 % target. The 3-seed mean is 2.2 %."],
+        ["Team-written test set", "20 hand-written attacks + 20 twins: MAPIS 35 % recall at 5 % FPR. Catches attacks carrying an email or URL; misses changed parameter values and short ids. Baselines do no better (they flag benign and attack equally)."],
+        ["Attacks on the session record", "Test-only StateAttack: 58.9 % recall, 8.6 % FPR. Weak on items introduced by an agent (33 %) and items the agent must decode (29 %)."],
+        ["Generated benchmarks", "MultiHop and Adaptive are template-generated, with held-out families, wordings and tools and real carrier text."],
+        ["Seed variation", "Multi-hop FPR 3.0 +/- 3.0 % over 5 seeds; a cut-off chosen on validation keeps every checked seed <= 5 %."],
         ["Training overlap", "MAPIS was trained on AgentDojo-style injections; the live-agent run also uses them."],
-        ["Small models in baselines", "Live agent, LLM judge and NeMo used a 7B local model; stronger models may do better."],
-        ["Single-hop attacks", "On BIPIA there is no cross-hop evidence; stateless recall is within seed variance (MAPIS 95.1 %)."],
-        ["Open challenge", "Attacks aimed at the classifier itself are out of scope."]]
-table(s, 0.5, 1.15, 9.0, rows, [2.3, 6.7], size=12, row_h=0.72)
-notes(s, "State these factually and once. The most important is that the multi-hop and adaptive sets are generated; that is why the hand-written independent set matters.")
+        ["Small models in baselines", "Live agent, LLM judge and NeMo used a 7B local model."],
+        ["Single-hop attacks", "On BIPIA there is no cross-hop evidence; stateless recall is within seed variance (MAPIS 95.8 %)."]]
+table(s, 0.5, 1.15, 9.0, rows, [2.3, 6.7], size=11, row_h=0.66)
+notes(s, "State these factually and once. The most important is the team-written set: MAPIS generalises to hand-written attacks that carry an email or URL, not to attacks that only change a parameter value.")
 
 # ---------------------------------------------------------------- slide 13 remaining / completion
 s = slides[12]; clear(s); title(s, 12, "Completion Status & Future Work", 13)
@@ -367,24 +368,24 @@ rows = [["Phase", "Status", "Outcome"],
         ["1  Literature and problem", "DONE", "Gap defined"],
         ["2  Testbed and FastAPI hooks", "DONE", "LangGraph and AutoGen via one tap"],
         ["3  Attack dataset and MAPIS-Bench", "DONE", "Six benchmark sets, twins"],
-        ["4  Trust model and fine-tuning", "DONE", "3 seeds, adversarial training"],
+        ["4  Trust model and fine-tuning", "DONE", "5 seeds, adversarial training"],
         ["5  Tiered response and forensic logging", "DONE", "4 tiers, trace, quarantine review"],
         ["6  Dashboard and integration", "DONE", "Operator console"],
         ["7  Benchmarking against guardrails", "DONE", "5 baselines, live agents"],
         ["8  Report and demonstration", "DONE", "Thesis, report, live demo"]]
 table(s, 0.5, 1.15, 9.0, rows, [3.9, 1.0, 4.1], size=12, row_h=0.43)
 tb(s, 0.5, 5.15, 9.0, 0.4, "Future work", size=15, bold=True, color=MAROON)
-bullets(s, 0.5, 5.55, 9.0, 1.4, ["Evaluate on the team-written independent test set.", "Run larger live agents and stronger LLM judges.",
-                                 "Adaptive attacks aimed at the classifier itself; production hardening."], size=13, gap=4)
+bullets(s, 0.5, 5.55, 9.0, 1.4, ["Provenance for every argument value of an action, not only emails and URLs.", "Tap agent-internal reads; evaluate on real agent traffic.",
+                                 "Larger live agents and stronger LLM judges; production hardening."], size=13, gap=4)
 notes(s, "All eight phases from the timeline in the zeroth review are complete. Future work lists what would strengthen the evidence.")
 
 # ---------------------------------------------------------------- slide 14 contribution
 s = slides[13]; clear(s); title(s, 13, "Project Contribution & Achievement", 14)
 rows = [["Target (from the abstract)", "Result", "Met"],
-        ["Accuracy >= 90 %", "98.5 +/- 0.3 %", "Yes"],
-        ["False-positive rate <= 5 %", "0.5 +/- 0.4 % overall; multi-hop 2.2 +/- 2.3 %", "Yes"],
+        ["Accuracy >= 90 %", "98.5 % (5 seeds)", "Yes"],
+        ["False-positive rate <= 5 %", "0.9 +/- 0.8 % overall; multi-hop 3.0 +/- 3.0 % (<= 5 % calibrated)", "Yes"],
         ["Latency < 200 ms per message", "63 ms single, 51 ms batched (RTX 3050)", "Yes"],
-        ["Multi-hop recall gain >= 20 points", "+93 points at matched FPR (+7.7 at default threshold)", "Yes"]]
+        ["Multi-hop recall gain >= 20 points", "+93 points at matched FPR (+13.5 at default threshold)", "Yes"]]
 table(s, 0.5, 1.15, 9.0, rows, [3.3, 4.9, 0.8], size=13, row_h=0.6)
 tb(s, 0.5, 4.3, 9.0, 0.4, "Contributions", size=15, bold=True, color=MAROON)
 bullets(s, 0.5, 4.7, 9.0, 2.2, [
@@ -392,7 +393,7 @@ bullets(s, 0.5, 4.7, 9.0, 2.2, [
     "MAPIS-Bench: multi-hop fragment attacks with matched benign twins, and an evasive-attacker set.",
     "A fair matched-false-positive comparison against stateless and LLM-based detectors.",
     "Evaluation inside a live LLM-agent pipeline: attack success 15.3 % to 0 %."], size=14, gap=6)
-notes(s, "Every target from the abstract is met. The multi-hop gain is +93 points at a matched false-positive budget and +7.7 points at the default threshold; both are stated.")
+notes(s, "Every target from the abstract is met. The multi-hop gain is +93 points at a matched false-positive budget and +13.5 points at the default threshold; both are stated.")
 
 # ---------------------------------------------------------------- slide 15 team
 s = slides[14]; clear(s); title(s, 14, "Team Contribution & Responsibility", 15)

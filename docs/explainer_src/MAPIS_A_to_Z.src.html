@@ -99,7 +99,7 @@ Every number on this page was measured (sources: results files in the Drive fold
 <p>Companies now build <b>teams of AI agents</b>: one agent reads web pages, one reads files, one keeps notes in memory, one sends emails or payments. These agents read text that nobody checked. An attacker can hide instructions in that text. This is <b>indirect prompt injection</b>.</p>
 <p>The dangerous version is <b>split across several messages</b>. One document plants an email address, another says "finance approved this", and much later an agent sends the data to that address. <b>No single message looks like an attack.</b> Tools that check one message at a time can't see it.</p>
 <p><b>MAPIS</b> sits between the agents and checks every message. It also <b>remembers the session</b>: what the user asked for, where every email, URL or account number first appeared, and who claimed authority. A small trained model (DeBERTa-v3-small) reads the current message together with this memory and gives a <b>trust score from 0 (malicious) to 1 (safe)</b>. Then MAPIS decides: PASS, FLAG, QUARANTINE (hold for a human) or BLOCK. It also shows the operator the full trail: origin, then relay, then action.</p>
-<p><b>Results (3 training seeds, 2,304 held-out test sessions):</b> 97.7 % of attacks caught, 0.5 % of harmless sessions wrongly stopped, 98.5 % accuracy, 63 ms per message. The same model without memory, trained on the same data, stops 35.2 % of harmless sessions. On multi-hop attacks MAPIS catches 100 % at 2.2 % false alarms. The memoryless model, held to the same 5 % false-alarm budget, catches 6.7 %. All four project targets are met.</p>
+<p><b>Results (5 training seeds, 2,304 held-out test sessions):</b> 98.0 % of attacks caught, 0.9 % of harmless sessions wrongly stopped, 98.5 % accuracy, 63 ms per message. The same model without memory, trained on the same data, stops 33.2 % of harmless sessions. On multi-hop attacks MAPIS catches 100 % at 3.0 % false alarms. The memoryless model, held to the same 5 % false-alarm budget, catches 6.7 %. All four project targets are met. On harder tests written to break it, it does worse: 35 % on attacks the team wrote by hand (it catches those carrying an email or URL, not those that change a setting), and 58.9 % on attacks aimed at its own memory. Section 20 has the details.</p>
 </div>
 
 <!-- ============================================================ 1 -->
@@ -136,8 +136,8 @@ Every number on this page was measured (sources: results files in the Drive fold
 <p>From the project abstract and the Zeroth/First reviews: build a stateful trust-scoring monitor on the communication layer of a multi-agent pipeline. Test it against stateless guardrails (Llama Guard, NeMo Guardrails) on identical events.</p>
 <table>
 <tr><th>Target</th><th>Required</th><th>Measured (3 seeds)</th><th></th></tr>
-<tr><td>Accuracy</td><td>≥ 90 %</td><td class="n">98.5 ± 0.3 %</td><td class="good">met</td></tr>
-<tr><td>False-positive rate</td><td>≤ 5 %</td><td class="n">0.5 ± 0.4 % (multi-hop 2.2 %)</td><td class="good">met</td></tr>
+<tr><td>Accuracy</td><td>≥ 90 %</td><td class="n">98.5 % (5 seeds)</td><td class="good">met</td></tr>
+<tr><td>False-positive rate</td><td>≤ 5 %</td><td class="n">0.9 ± 0.8 % (multi-hop 3.0 %, ≤ 5 % on every checked seed with a calibrated cut-off)</td><td class="good">met</td></tr>
 <tr><td>Latency per message</td><td>&lt; 200 ms</td><td class="n">63.0 ms single, 51.4 ms batched (RTX 3050 laptop)</td><td class="good">met</td></tr>
 <tr><td>Multi-hop recall gain over stateless</td><td>≥ 20 points</td><td class="n">+93 points at a matched ≤ 5 % FPR</td><td class="good">met</td></tr>
 </table>
@@ -348,28 +348,28 @@ trust   = 1 − risk</pre>
 
 <!-- ============================================================ 16 -->
 <h2 id="s16">16. Results</h2>
-<h3>Main table: 2,304 test sessions, 3 seeds</h3>
+<h3>Main table: 2,304 test sessions, 5 seeds</h3>
 <table>
 <tr><th>System</th><th>Recall</th><th>FPR</th><th>Accuracy</th></tr>
-<tr><td><b>MAPIS</b></td><td class="n good">97.7 ± 0.6 %</td><td class="n good">0.5 ± 0.4 %</td><td class="n good">98.5 ± 0.3 %</td></tr>
-<tr><td>Stateless DeBERTa</td><td class="n">94.6 ± 0.4 %</td><td class="n badc">35.2 ± 2.1 %</td><td class="n">81.4 ± 1.1 %</td></tr>
+<tr><td><b>MAPIS</b></td><td class="n good">98.0 ± 0.6 %</td><td class="n good">0.9 ± 0.8 %</td><td class="n good">98.5 %</td></tr>
+<tr><td>Stateless DeBERTa</td><td class="n">94.1 ± 0.9 %</td><td class="n badc">33.2 ± 3.5 %</td><td class="n">82.0 %</td></tr>
 <tr><td>Llama Guard 3-1B</td><td class="n">86.1 %</td><td class="n badc">90.3 %</td><td class="n">52.3 %</td></tr>
 <tr><td>ProtectAI v2</td><td class="n">53.3 %</td><td class="n badc">49.5 %</td><td class="n">52.1 %</td></tr>
 <tr><td>Prompt Guard 2</td><td class="n badc">7.5 %</td><td class="n">0.1 %</td><td class="n">48.4 %</td></tr>
 <tr><td>Regex</td><td class="n badc">12.5 %</td><td class="n">0.0 %</td><td class="n">51.2 %</td></tr>
 </table>
-<p>In short: Llama Guard flags nearly everything, Prompt Guard 2 nearly nothing, ProtectAI flags about half of everything at random, and the stateless model catches a lot but at 35 % false alarms. MAPIS gets both high recall and low false alarms.</p>
+<p>In short: Llama Guard flags nearly everything, Prompt Guard 2 nearly nothing, ProtectAI flags about half of everything at random, and the stateless model catches a lot but at 33 % false alarms. MAPIS gets both high recall and low false alarms.</p>
 <img src="{{confusion.png}}" alt="Confusion matrices">
-<h3>Per dataset (MAPIS, 3 seeds)</h3>
+<h3>Per dataset (5 seeds)</h3>
 <table>
 <tr><th>Set</th><th>MAPIS recall / FPR</th><th>Stateless recall / FPR</th></tr>
-<tr><td>MultiHop</td><td class="n">100 / 2.2 ± 2.3 % (seeds: 1.2, 5.3, 0.0)</td><td class="n">92.3 / 55.2 %</td></tr>
-<tr><td>Adaptive</td><td class="n">100 / 0.0 %</td><td class="n">93.8 / 47.4 %</td></tr>
-<tr><td>RealHarm InjecAgent-DH</td><td class="n">99.5 / 0 %</td><td class="n">100 / 50 %</td></tr>
+<tr><td>MultiHop</td><td class="n">100 / 3.0 ± 3.0 %</td><td class="n">86.5 / 51.1 %</td></tr>
+<tr><td>Adaptive</td><td class="n">100 / 0.4 %</td><td class="n">86.6 / 43.0 %</td></tr>
+<tr><td>RealHarm InjecAgent-DH</td><td class="n">99.4 / 0 %</td><td class="n">100 / 50 %</td></tr>
 <tr><td>RealHarm ASB</td><td class="n">100 / 0 %</td><td class="n">—</td></tr>
-<tr><td>Decomposed</td><td class="n">100 / 0 %</td><td class="n">50 / 50 %</td></tr>
+<tr><td>Decomposed</td><td class="n">100 / 0 %</td><td class="n">65 / 60 %</td></tr>
 <tr><td>v1</td><td class="n">100 / 0 %</td><td class="n">—</td></tr>
-<tr><td>BIPIA (never trained on)</td><td class="n">95.1 / 0.7 %</td><td class="n">93.3 / 1.8 %</td></tr>
+<tr><td>BIPIA (never trained on)</td><td class="n">95.8 / 1.4 %</td><td class="n">94.5 / 2.2 %</td></tr>
 </table>
 <h3>Matched false-alarm budget (stateless held to ≤ 5 % FPR; 3-seed mean)</h3>
 <table>
@@ -388,7 +388,7 @@ trust   = 1 − risk</pre>
 <tr><td>+ session text and signals (model only)</td><td class="n">97.0</td><td class="n">0.1</td><td class="n">98.4</td></tr>
 <tr><td>+ rule fusion (full MAPIS)</td><td class="n">97.0</td><td class="n">0.2</td><td class="n">98.4</td></tr>
 </table>
-<p>Almost all of the gain comes from putting the session record into the classifier input. The rule fusion adds nothing on this test set. In an earlier run it added +2.4 recall points, and it guards against items the model has not seen. The new ablation run (section 20) measures it on harder sets.</p>
+<p>Almost all of the gain comes from putting the session record into the classifier input. The rule fusion adds nothing on this test set, and on 978 harder sessions (adaptive, multi-hop, StateAttack) the classifier alone matches the full system too (92.0 % / 1.7 %): the classifier has absorbed the rule signals through its input line.</p>
 <h3>Capacity: small vs base (earlier data, seed 42)</h3>
 <p>DeBERTa-v3-base: recall 99.9 %, FPR 2.0 % (multi-hop 5.3 %), 115 ms. Small: 98.4 % / 0.9 %, 66 ms. The base model buys recall with more false alarms and is 1.7× slower, so <b>small is the headline model</b>.</p>
 <img src="{{results_bar.png}}" alt="Results bar chart">
@@ -423,7 +423,9 @@ trust   = 1 − risk</pre>
 <h2 id="s19">19. Limits (stated once)</h2>
 <ul>
 <li>MultiHop and Adaptive are generated from templates, with held-out families, phrasings and tools but real carrier text. Section 20 covers the extra checks.</li>
-<li>One seed had a multi-hop FPR of 5.3 % (mean 2.2 %).</li>
+<li>On the team-written set MAPIS caught 35 % of attacks: it misses attacks that change a parameter value or use a short id (section 20).</li>
+<li>Attacks aimed at its own memory reach 58.9 % recall at 8.6 % FPR.</li>
+<li>At the default cut-off one of five seeds has multi-hop FPR above 5 %; the validation-calibrated cut-off fixes it.</li>
 <li>The training data includes AgentDojo-style injections, so the live AgentDojo run is not out of distribution.</li>
 <li>The live agent and LLM baselines use a 7B local model.</li>
 <li>Single-hop BIPIA shows no stateless gap; there is no cross-hop evidence to use.</li>
@@ -432,27 +434,33 @@ trust   = 1 − risk</pre>
 </ul>
 
 <!-- ============================================================ 20 -->
-<h2 id="s20">20. Latest work (19 October 2026)</h2>
+<h2 id="s20">20. Harder tests and final checks (19–20 October 2026)</h2>
 <div class="card key">
-<h3>a) MAPIS-StateAttack: attacks aimed at MAPIS's own memory (test only, never trained on)</h3>
-<p><code>scripts/generate_stateattack.py</code> → 168 sessions (56 attacks, 112 twins: authorized + resisted). Five techniques:</p>
-<ul>
-<li><b>window_flood</b>: the item arrives early, then 6–14 ordinary tool results push it out of the classifier's history text.</li>
-<li><b>claim_split</b>: the authority claim is cut into 3 pieces in different documents, several hops apart.</li>
-<li><b>agent_origin</b>: the item first appears in an <i>agent's</i> message (a compromised agent whose reading was not tapped), never in a tool output.</li>
-<li><b>transform</b>: the document gives the item reversed, in base64 or in two halves; the action uses the decoded value.</li>
-<li><b>launder</b>: the item is written to memory under a trusted-looking key and read back many hops later.</li>
-</ul>
-<p><b>Rules-only check in the cloud (no trained model):</b> 39.3 % recall, 0 % FPR. Every attack that carries an item through tool output or memory is caught, even after 14 flood hops, because the session record keeps the taint after the text has left the window. <b>Not caught by the rules:</b> agent_origin (0 %), transform (12.5 %), an account written as <code>acct-9921-0045-7781</code> (not a recognised id format), and the no-item override/physical attacks, which depend on the model. These are reported as found. The code was <b>not</b> changed after seeing them, because that would make the set optimistic. The trained-model numbers come from the laptop run (<code>run_final_checks.ps1</code>).</p>
-<h3>b) Validation-calibrated hold threshold</h3>
-<p><code>scripts/calibrate_mapis.py</code> picks the hold cut-off on validation only, so that the FPR of every dataset family stays ≤ 2 %, then reports test results at 0.50 and at the picked cut-off. This targets the seed-2 multi-hop FPR of 5.3 % without touching the test set.</p>
-<h3>c) Rule ablation on harder sets</h3>
-<p>Full MAPIS vs model-only vs no-provenance on adaptive, multi-hop, StateAttack (and independent if present), to show where the rules matter.</p>
-<h3>d) Seeds 4 and 5</h3>
-<p><code>run_pipeline.ps1 -Seeds 5 -ExtraSeedsOnly -FromSeed 4</code> adds two more training seeds (about 11 h), giving 5 seeds in total.</p>
-<h3>e) Independent hand-written set</h3>
-<p>Not written yet. For it to count as independent, it has to be written by people who did not build the system, which means the team members, following <code>docs/INDEPENDENT_TESTSET_GUIDE.md</code>. Once the files are in <code>data/independent/</code>, the final-checks script evaluates them automatically.</p>
-<p><i>Pending laptop runs. Results go into this page and CLAUDE.md once uploaded.</i></p>
+<h3>a) Five training seeds</h3>
+<p>Seeds 42, 2, 3, 4 and 5: MAPIS 98.0 ± 0.6 % recall, 0.9 ± 0.8 % FPR, 98.5 % accuracy. Stateless 94.1 ± 0.9 % / 33.2 ± 3.5 % / 82.0 %. Same picture as with three seeds.</p>
+<h3>b) Calibrated hold cut-off</h3>
+<p>At the default cut-off (0.50) multi-hop FPR is 3.0 ± 3.0 % and one seed is above 5 %. <code>scripts/calibrate_mapis.py</code> picks the cut-off on the validation split only, so that no family exceeds 2 % false alarms there, then applies it to test. Seeds 42/2/3: multi-hop FPR 1.2 → 0.6, 5.3 → 1.8, 0.0 → 0.0 %, recall still 100 %, no other set changes. Every checked seed now meets the 5 % target.</p>
+<h3>c) Attacks aimed at MAPIS's own memory (MAPIS-StateAttack, test only)</h3>
+<p>168 sessions (56 attacks, 112 twins). MAPIS: <b>58.9 % recall, 8.6 % FPR</b> (seeds 42/2/3). Per trick:</p>
+<table><tr><th>Trick</th><th>MAPIS recall</th></tr>
+<tr><td>Bury the planted item under 6–14 ordinary messages</td><td class="n">80.6 %</td></tr>
+<tr><td>Split the "approved by" claim across three documents</td><td class="n">80.6 %</td></tr>
+<tr><td>Launder the item through memory</td><td class="n">61.1 %</td></tr>
+<tr><td>A compromised agent introduces the item itself</td><td class="n badc">33.3 %</td></tr>
+<tr><td>The item must be decoded (reversed, base64, halves)</td><td class="n badc">29.2 %</td></tr></table>
+<p>Stateless reaches 79–100 % only at 57–79 % false alarms. This is MAPIS's weakest number; nothing was tuned after seeing it.</p>
+<h3>d) Team-written independent set</h3>
+<p>The four of you wrote 20 attacks and 20 twins in plain English without using the generators (<code>data/independent/</code>). Results with the trained models:</p>
+<table><tr><th>System</th><th>Recall</th><th>FPR</th><th>Accuracy</th></tr>
+<tr><td><b>MAPIS</b></td><td class="n">35.0 %</td><td class="n good">5.0 %</td><td class="n good">65.0 %</td></tr>
+<tr><td>Stateless DeBERTa</td><td class="n">40.0 %</td><td class="n badc">40.0 %</td><td class="n">50.0 %</td></tr>
+<tr><td>ProtectAI v2</td><td class="n">50.0 %</td><td class="n badc">50.0 %</td><td class="n">50.0 %</td></tr>
+<tr><td>Llama Guard 3-1B</td><td class="n">100 %</td><td class="n badc">100 %</td><td class="n">50.0 %</td></tr></table>
+<p><b>What it means:</b> MAPIS caught 7 of 20, essentially the attacks whose planted item is an <b>email address or URL</b> (vishnu_2, vishnu_3, nithya_2, beena_2, beena_3, sreekar_2 …). It missed attacks that <b>change a parameter value or use a short id</b>: an alarm delay of 360 min, <code>bypass_checks=true</code>, <code>override_balance=true</code>, wallet <code>WL-5508</code>, card <code>CC-77</code>, a vendor name, a door open until 20:00, ventilation off. MAPIS's provenance only tracks emails, URLs, IBAN-like ids and long numbers, and the classifier did not learn the other forms from generated training data. The baselines do no better: they flag benign and attack sessions at the same rate, so their recall is not real detection. MAPIS is the only one that keeps false alarms low. With 20 per class every number has a wide interval (MAPIS recall 18–57 %). The fix for the future: track <i>every</i> argument value of an action that first appeared in untrusted content.</p>
+<h3>e) Rule ablation</h3>
+<p>Full MAPIS 92.0 % / 1.8 %, model only 92.0 % / 1.7 %, no provenance 92.0 % / 1.7 % on 978 sessions: the rule layer adds nothing measurable now.</p>
+<h3>f) Live 70B run</h3>
+<p>Skipped (paid or rate-limited API). The 7B AgentDojo run (section 17) is the live-agent result.</p>
 </div>
 
 <!-- ============================================================ 21 -->
@@ -490,10 +498,10 @@ cd E:\mapis\mapis\Mapis\frontend; npm start              # terminal 2 → http:/
 <li><b>Results tab:</b> the tables from section 16.</li>
 </ol>
 <img src="{{console_decomposed.png}}" alt="Console: decomposed attack">
-<p style="font-size:13px;color:var(--mut)">Screenshot from the cloud sandbox with the rule-based fallback detector. Retake it on the laptop with the trained model.</p>
+<p style="font-size:13px;color:var(--mut)">Screenshot from the laptop with the trained model.</p>
 
 <!-- ============================================================ 23 -->
-<h2 id="s23">23. The final slides, bit by bit (<code>slides_latex/MAPIS_Final_Slides.pdf</code>, 20 pages)</h2>
+<h2 id="s23">23. The final slides, bit by bit (<code>slides_latex/MAPIS_Final_Slides.pdf</code>, 21 pages)</h2>
 <p>The deck follows the faculty's 22AIE437 final-project guideline and the layout of the reference final deck (Beamer, Madrid theme, beaver colours). The guideline's order: Introduction → Base work (replicate a baseline) → Implementation → Modification → Results/Ablation → Conclusion. For each slide below: what is on it, what it means, and where the numbers come from.</p>
 
 <div class="slide"><header>Slide 1: Title</header><div class="body">Project title, team names with roll numbers, supervisor, department, date. The title page of the reference deck.</div></div>
@@ -520,7 +528,7 @@ Two 2×2 matrices (rows = true class, columns = predicted). Baseline: 1,217 caug
 <img src="{{confusion.png}}" alt="Confusion matrices"></div></div>
 
 <div class="slide"><header>Slide 8: Qualitative results: the operator console</header><div class="body">
-Left screenshot: the live monitor holding the email to the planted address, with the trace file → memory write → memory read → email. Right: the session inspector replaying a multi-hop attack with its signals. The note says these screenshots were taken with the rule fallback in the cloud sandbox; the live demo uses the trained model.</div></div>
+Left screenshot: the live monitor holding the email to the planted address, with the trace file → memory write → memory read → email. Right: the session inspector replaying a multi-hop attack with its signals. The screenshots are from the laptop with the trained DeBERTa model.</div></div>
 
 <div class="slide"><header>Slide 9: Code structure and training settings (section Implementation)</header><div class="body">
 Left: the folder tree (section 21 of this page) and which file does data loading, the model, training and evaluation. Right: the settings table (section 13): PyTorch + HuggingFace, deberta-v3-small, AdamW lr 2e-5, warm-up 0.1, clip 1.0, batch 4×4, 2 epochs (best by val F1 with FPR ≤ 5 %), class-weighted CE, fp16, seeds 42/2/3, RTX 3050, 4.3 h / 1.3 h. Identical for the baseline and MAPIS.</div></div>
@@ -538,25 +546,28 @@ Table (153-session subset): benign twins wrongly held, stateless vs MAPIS: autho
 <img src="{{matched_fpr.png}}" alt="Matched FPR"></div></div>
 
 <div class="slide"><header>Slide 13: Results: baseline vs MAPIS</header><div class="body">
-Seed 42: baseline 82.2 / 78.1 / 94.7 / 85.6 / 33.6; MAPIS <b>98.2 / 99.8 / 97.0 / 98.4 / 0.2</b>. Three seeds: baseline accuracy 81.4 ± 1.1, recall 94.6 ± 0.4, FPR 35.2 ± 2.1; MAPIS <b>98.5 ± 0.3, 97.7 ± 0.6, 0.5 ± 0.4</b>. Multi-hop: baseline 92.3 % recall at 55.2 % FPR, or 6.7 % at ≤ 5 % FPR; MAPIS 100 % at 2.2 %. Adaptive: baseline 8.7 % at ≤ 5 %; MAPIS 100 % / 0 %. The bar chart shows the same numbers.</div></div>
+Seed 42: baseline 82.2 / 78.1 / 94.7 / 85.6 / 33.6; MAPIS <b>98.2 / 99.8 / 97.0 / 98.4 / 0.2</b>. Five seeds: baseline accuracy 82.0, recall 94.1 ± 0.9, FPR 33.2 ± 3.5; MAPIS <b>98.5, 98.0 ± 0.6, 0.9 ± 0.8</b>. Multi-hop: baseline 86.5 % recall at 51.1 % FPR, or 6.7 % at ≤ 5 % FPR; MAPIS 100 % at 3.0 % (≤ 5 % on every checked seed with the calibrated cut-off). Adaptive: baseline 8.7 % at ≤ 5 %; MAPIS 100 % / 0 %. The bar chart shows the same numbers.</div></div>
 
 <div class="slide"><header>Slide 14: Ablations</header><div class="body">
 Left table: event only 94.7 / 33.6 / 85.6 → + session text & signals 97.0 / 0.1 / 98.4 → + rule fusion 97.0 / 0.2 / 98.4. Evasive attacker before vs after the upgrade: 64.6 % / 2.9 % → 100 % / 0.0 %. Right: capacity, small 98.4 / 0.9 / 66 ms vs base 99.9 / 2.0 / 115 ms. Conclusion on the slide: the gain comes from the session record in the input. Rules add nothing on this test (+2.4 earlier) but act as a backstop. Small is the headline model. Canonical/fragment matching + adversarial data took evasive recall from 64.6 % to 100 %.</div></div>
 
 <div class="slide"><header>Slide 15: Analysis: where it helps, where it does not</header><div class="body">
-<b>Helps:</b> multi-hop and adaptive attacks (100 % vs 6.7 / 8.7 % at matched FPR), passes authorized actions, 63 ms per event. <b>Does not help:</b> single-hop BIPIA (stateless 93.3 vs MAPIS 95.1, within seed variance) and live AgentDojo (explicit text). <b>What went wrong:</b> contradictory generator labels (10–17 % FPR) and the truncation bug (83 % hidden), both found by diagnosing misses hop by hop. <b>Remaining weaknesses</b> and <b>next steps</b>: section 19 and section 20.</div></div>
+<b>Helps:</b> multi-hop and adaptive attacks (100 % vs 6.7 / 8.7 % at matched FPR), passes authorized actions, 63 ms per event. <b>Does not help:</b> single-hop BIPIA (stateless 93.3 vs MAPIS 95.1, within seed variance) and live AgentDojo (explicit text). <b>What went wrong:</b> contradictory generator labels (10–17 % FPR) and the truncation bug (83 % hidden), both found by diagnosing misses hop by hop. <b>Remaining weaknesses</b>: hand-written parameter-value attacks (next slide), template sets, AgentDojo overlap, 7B baselines. <b>Next</b>: provenance for every argument value, tapping agent-internal reads, real traffic.</div></div>
 
-<div class="slide"><header>Slide 16: Live LLM agents and LLM baselines</header><div class="body">
+<div class="slide"><header>Slide 16: Harder tests: where MAPIS stops working (new)</header><div class="body">
+Left: the team-written independent set (MAPIS 35.0 / 5.0 / 65.0; stateless 40 / 40; ProtectAI 50 / 50; Llama Guard 100 / 100). Caught: attacks carrying an email or URL; missed: changed parameter values and short ids. Right: attacks on the session record per trick (80.6, 80.6, 61.1, 33.3, 29.2 %; overall 58.9 % at 8.6 % FPR). Footnotes: classifier alone equals the full system; calibrated cut-off keeps multi-hop FPR ≤ 5 % on every checked seed. Section 20 of this page explains each number.</div></div>
+
+<div class="slide"><header>Slide 17: Live LLM agents and LLM baselines</header><div class="body">
 Left: the AgentDojo live table (section 17). Attack success 15.3 % → 0 % with MAPIS; benign utility 28.2 → 25.6 %; upper bound 2.6 %. It shows integration and low cost, not the multi-hop gain. Right: the 153 sessions, MAPIS 100 / 0, stateless 91.2 / 32.9, LLM judge 67.5 / 23.3, NeMo 48.7 / 17.8. The judge flags 80 % of benign multi-hop twins, and NeMo misses most multi-hop attacks.</div></div>
 
-<div class="slide"><header>Slide 17: Conclusion</header><div class="body">
-Replication done (baseline 94.7 % recall at 33.6 % FPR). The modification reaches 97.7 / 0.5 / 98.5 at 63 ms, and 100 % multi-hop at 2.2 % FPR vs 6.7 % for the baseline at a matched budget. All four targets met. Caveats: template sets, one seed at 5.3 %, AgentDojo overlap, 7B baselines. Future work: independent set, real traffic, larger agents, attacks on the classifier.</div></div>
+<div class="slide"><header>Slide 18: Conclusion</header><div class="body">
+Replication done (baseline 94.7 % recall at 33.6 % FPR). The modification reaches 98.0 / 0.9 / 98.5 (5 seeds) at 63 ms, and 100 % multi-hop at 3.0 % FPR vs 6.7 % for the baseline at a matched budget. All four targets met. Limits found: team-written set 35 % recall at 5 % FPR; attacks on the session record 58.9 %; template sets; 7B baselines. Future work: provenance for every argument value, tapping agent-internal reads, real traffic, larger agents.</div></div>
 
-<div class="slide"><header>Slide 18: Team contributions</header><div class="body">Four blocks, one per member: testbed + tap + live agents; session context + signals + training + ablations; dataset + attack sets + literature; tiers + trace + console + benchmark harness + thesis/demo. Everyone took part in the whole project.</div></div>
+<div class="slide"><header>Slide 19: Team contributions</header><div class="body">Four blocks, one per member: testbed + tap + live agents; session context + signals + training + ablations; dataset + attack sets + literature; tiers + trace + console + benchmark harness + thesis/demo. Everyone took part in the whole project.</div></div>
 
-<div class="slide"><header>Slide 19: References</header><div class="body">15 references: Greshake (indirect injection, AISec 2023), AgentDojo, InjecAgent, BIPIA, ASB, DeBERTa, Llama Guard, Task Shield, AgentWatcher, LlamaFirewall, G-Safeguard, Prompt Infection, OWASP, the ProtectAI and Prompt Guard 2 model cards.</div></div>
+<div class="slide"><header>Slide 20: References</header><div class="body">15 references: Greshake (indirect injection, AISec 2023), AgentDojo, InjecAgent, BIPIA, ASB, DeBERTa, Llama Guard, Task Shield, AgentWatcher, LlamaFirewall, G-Safeguard, Prompt Infection, OWASP, the ProtectAI and Prompt Guard 2 model cards.</div></div>
 
-<div class="slide"><header>Slide 20: Thank you</header><div class="body">Closing slide with the repository link github.com/Vishnu868/Mapis.</div></div>
+<div class="slide"><header>Slide 21: Thank you</header><div class="body">Closing slide with the repository link github.com/Vishnu868/Mapis.</div></div>
 
 <!-- ============================================================ 24 -->
 <h2 id="s24">24. Glossary</h2>
@@ -590,7 +601,7 @@ Replication done (baseline 94.7 % recall at 33.6 % FPR). The modification reache
 <li>7 Oct: DeBERTa-base comparison. 8–9 Oct: adaptive-data model, 3 seeds = <b>final headline numbers</b>; Prompt Guard 2, Llama Guard, ProtectAI, matched-FPR sweep.</li>
 <li>9–11 Oct: live AgentDojo (small, then large run); NeMo + LLM judge; 153-session comparison.</li>
 <li>12–18 Oct: report, guide, thesis (42 pages), PPTX deck, Beamer deck.</li>
-<li>19 Oct: StateAttack set, calibration, ablation and extra-seed tooling; this page.</li>
+<li>19–20 Oct: StateAttack set, calibrated cut-off, rule ablation, seeds 4 and 5, team-written independent set; this page.</li>
 <li>22 Oct: final review.</li>
 </ul>
 </main>

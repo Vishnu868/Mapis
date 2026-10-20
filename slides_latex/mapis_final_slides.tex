@@ -83,7 +83,7 @@
       \item Add \textbf{session memory} (provenance, goal, claims) and a tiered response (MAPIS).
       \item Compare at the same data, seeds and settings; target accuracy $\ge$90\%, FPR $\le$5\%, $<$200 ms, $\ge$20 points of multi-hop recall gain.
     \end{enumerate}
-    \textbf{Metrics}: accuracy, precision, recall, F1, false-positive rate, latency; 95\% Wilson intervals, three seeds.
+    \textbf{Metrics}: accuracy, precision, recall, F1, false-positive rate, latency; 95\% Wilson intervals, five seeds.
   \end{columns}
 \end{frame}
 
@@ -154,7 +154,7 @@
   \centering
   \includegraphics[height=0.70\textheight]{figures/console_decomposed.png}\hspace{4mm}
   \includegraphics[height=0.70\textheight]{figures/console_inspector.png}\\[1mm]
-  {\scriptsize Left: live monitor holds the email to the planted address, trace file $\rightarrow$ memory write $\rightarrow$ memory read $\rightarrow$ email. Right: session inspector replaying a multi-hop attack. Screenshots from a test environment with the rule-based fallback detector; the live demo uses the trained model.}
+  {\scriptsize Left: live monitor holds the email to the planted address, trace file $\rightarrow$ memory write $\rightarrow$ memory read $\rightarrow$ email. Right: session inspector replaying a multi-hop attack. Screenshots with the trained DeBERTa model on the laptop.}
 \end{frame}
 
 % =============================== IMPLEMENTATION ===============================
@@ -288,10 +288,10 @@ tests/           29 pytest tests
     Baseline: stateless DeBERTa (seed 42) & \NSLAcc & \NSLPrec & \NSLRec & \NSLF & \NSLFpr \\
     \textbf{MAPIS (seed 42)} & \textbf{\NMAPAcc} & \textbf{\NMAPPrec} & \textbf{\NMAPRec} & \textbf{\NMAPF} & \textbf{\NMAPFpr} \\
     \midrule
-    Baseline, 3 seeds & 81.4 $\pm$ 1.1 & -- & 94.6 $\pm$ 0.4 & -- & 35.2 $\pm$ 2.1 \\
-    \textbf{MAPIS, 3 seeds} & \textbf{98.5 $\pm$ 0.3} & -- & \textbf{97.7 $\pm$ 0.6} & -- & \textbf{0.5 $\pm$ 0.4} \\
+    Baseline, 5 seeds & 82.0 & -- & 94.1 $\pm$ 0.9 & -- & 33.2 $\pm$ 3.5 \\
+    \textbf{MAPIS, 5 seeds} & \textbf{98.5} & -- & \textbf{98.0 $\pm$ 0.6} & -- & \textbf{0.9 $\pm$ 0.8} \\
     \midrule
-    \multicolumn{6}{l}{\textit{Multi-hop attacks}: baseline 92.3\% recall at 55.2\% FPR; held to FPR $\le$5\%: 6.7\% recall. MAPIS: 100\% recall at 2.2\% FPR.} \\
+    \multicolumn{6}{l}{\textit{Multi-hop attacks}: baseline 86.5\% recall at 51.1\% FPR; held to FPR $\le$5\%: 6.7\%. MAPIS: 100\% at 3.0\% FPR ($\le$5\% all seeds, calibrated cut-off).} \\
     \multicolumn{6}{l}{\textit{Evasive attacker (Adaptive)}: baseline at FPR $\le$5\%: 8.7\%. MAPIS: 100\% recall, 0.0\% FPR on all six techniques.} \\
     \bottomrule
   \end{tabular}
@@ -340,9 +340,47 @@ tests/           29 pytest tests
     \item \textbf{Where it helps}: multi-hop and adaptive attacks, where the evidence is in the history (recall 100\% against 6.7\% and 8.7\% for the baseline at a matched 5\% false-alarm budget), and authorized actions, which MAPIS passes. 63 ms per event on a laptop GPU.
     \item \textbf{Where it does not}: single-hop BIPIA has no cross-hop evidence; stateless recall (93.3\%) is within seed variance of MAPIS (95.1\%). The live-agent run also does not separate the two, because AgentDojo injections are explicit text.
     \item \textbf{What went wrong on the way}: contradictory labels in our own generator (the same text malicious in attacks and benign in twins) gave 10 to 17\% multi-hop false positives; a truncation bug hid 83\% of injections; both were found by diagnosing misses hop by hop.
-    \item \textbf{Remaining weaknesses}: one seed had multi-hop FPR 5.3\% (mean 2.2\%); MultiHop and Adaptive are template-generated; training includes AgentDojo-style injections; LLM baselines ran on a 7B model.
-    \item \textbf{Next}: team-written independent test set, larger live agents, attacks aimed at the classifier itself.
+    \item \textbf{Remaining weaknesses}: hand-written attacks that change a parameter value (next slide); MultiHop and Adaptive are template-generated; training includes AgentDojo-style injections; LLM baselines ran on a 7B model.
+    \item \textbf{Next}: provenance for every argument value, tapping agent-internal reads, real agent traffic.
   \end{itemize}
+\end{frame}
+
+\begin{frame}{Harder tests: where MAPIS stops working}
+  \begin{columns}[T]
+    \column{0.5\textwidth}
+    \begin{table}\scriptsize\centering
+    \caption{Team-written independent set (20 attacks, 20 twins).}
+    \begin{tabular}{lccc}
+      \toprule
+      System & Recall & FPR & Acc. \\
+      \midrule
+      \textbf{MAPIS} & 35.0 & \textbf{5.0} & \textbf{65.0} \\
+      Stateless DeBERTa & 40.0 & 40.0 & 50.0 \\
+      ProtectAI v2 & 50.0 & 50.0 & 50.0 \\
+      Llama Guard 3-1B & 100 & 100 & 50.0 \\
+      \bottomrule
+    \end{tabular}
+    \end{table}
+    {\scriptsize Caught: attacks carrying an email or URL. Missed: changed parameter values and short ids (alarm delay, bypass flag, wallet id, vendor name). Baselines flag benign and attack sessions at the same rate. n = 20 per class.}
+    \column{0.48\textwidth}
+    \begin{table}\scriptsize\centering
+    \caption{Attacks on MAPIS's session record (test only, 3 seeds).}
+    \begin{tabular}{lc}
+      \toprule
+      Technique & MAPIS recall \\
+      \midrule
+      Evidence buried under filler hops & 80.6 \\
+      Authority claim split in 3 documents & 80.6 \\
+      Item laundered through memory & 61.1 \\
+      Item introduced by an agent & 33.3 \\
+      Item the agent must decode & 29.2 \\
+      \midrule
+      All (FPR 8.6\%) & 58.9 \\
+      \bottomrule
+    \end{tabular}
+    \end{table}
+    {\scriptsize Rule ablation: classifier alone = full system (92.0\% / 1.7\%). Calibrated cut-off: multi-hop FPR $\le$5\% on every checked seed.}
+  \end{columns}
 \end{frame}
 
 \begin{frame}{Live LLM agents (AgentDojo, qwen2.5 7B) and LLM baselines}
@@ -384,10 +422,10 @@ tests/           29 pytest tests
 \begin{frame}{Conclusion}
   \begin{itemize}
     \item \textbf{Replication}: the single-message DeBERTa baseline and four public detectors were run on identical sessions; the baseline reaches \NSLRec\% recall at \NSLFpr\% false positives.
-    \item \textbf{Modification}: session memory in the classifier input, four signals, tiers and a trace. MAPIS reaches \textbf{97.7\% recall, 0.5\% FPR, 98.5\% accuracy} (3 seeds) at \textbf{63 ms} per event; on multi-hop attacks 100\% recall at 2.2\% FPR against 6.7\% recall for the baseline at a matched budget.
-    \item \textbf{Targets}: accuracy $\ge$90\% (98.5), FPR $\le$5\% (0.5), latency $<$200 ms (63), multi-hop gain $\ge$20 points (+93 at matched FPR): all met.
-    \item \textbf{Caveats}: two benchmark sets are template-generated; one seed had multi-hop FPR 5.3\%; one training family overlaps AgentDojo; 7B-model baselines.
-    \item \textbf{Future work}: independent hand-written test set, real agent traffic, larger agents, attacks on the classifier itself.
+    \item \textbf{Modification}: session memory in the classifier input, four signals, tiers and a trace. MAPIS reaches \textbf{98.0\% recall, 0.9\% FPR, 98.5\% accuracy} (5 seeds) at \textbf{63 ms} per event; on multi-hop attacks 100\% recall at 3.0\% FPR against 6.7\% recall for the baseline at a matched budget.
+    \item \textbf{Targets}: accuracy $\ge$90\% (98.5), FPR $\le$5\% (0.9), latency $<$200 ms (63), multi-hop gain $\ge$20 points (+93 at matched FPR): all met.
+    \item \textbf{Limits found}: team-written set 35\% recall at 5\% FPR (misses parameter-value attacks); attacks on the session record 58.9\% recall; two sets template-generated; 7B-model baselines.
+    \item \textbf{Future work}: provenance for every argument value, tapping agent-internal reads, real agent traffic, larger agents.
   \end{itemize}
 \end{frame}
 

@@ -2,7 +2,7 @@
 
 Team A1: Dodla Nithya Sai, Vishnu Vardhan, Sreekar Reddy, Beena Reddy. Supervisor: Prof. Sripriyan. Final review: 22 October 2026.
 
-All numbers below were measured and come from `results/` (mirrored in Drive `mapis_results`). `CLAUDE.md` sections 4m–4q hold the full record.
+All numbers below were measured and come from `results/` (mirrored in Drive `mapis_results`). `CLAUDE.md` sections 4m–4v hold the full record.
 
 ## 1. Problem and idea
 
@@ -34,26 +34,26 @@ Test families, phrasings and tools are held out. The final test has 2,304 sessio
 
 ## 4. Results
 
-### 4.1 Headline (session level, 2,304 held-out sessions, mean ± std over 3 training seeds)
+### 4.1 Headline (session level, 2,304 held-out sessions, mean ± std over 5 training seeds: 42, 2, 3, 4, 5)
 
 | System | Recall | FPR | Accuracy |
 |---|---|---|---|
-| **MAPIS** | **97.7 ± 0.6 %** | **0.5 ± 0.4 %** | **98.5 ± 0.3 %** |
-| Stateless DeBERTa (same data, event only) | 94.6 ± 0.4 % | 35.2 ± 2.1 % | 81.4 ± 1.1 % |
+| **MAPIS** | **98.0 ± 0.6 %** | **0.9 ± 0.8 %** | **98.5 %** |
+| Stateless DeBERTa (same data, event only) | 94.1 ± 0.9 % | 33.2 ± 3.5 % | 82.0 % |
 | Llama Guard 3-1B | 86.1 % | 90.3 % | 52.3 % |
-| ProtectAI deberta-v3 injection v2 | 53.3 % | 49.5 % | — |
-| Prompt Guard 2 (86M) | 7.5 % | 0.1 % | — |
+| ProtectAI deberta-v3 injection v2 | 53.3 % | 49.5 % | 52.1 % |
+| Prompt Guard 2 (86M) | 7.5 % | 0.1 % | 48.4 % |
 
-MAPIS per set (recall / FPR):
-- Multi-hop: 100 % / 2.2 ± 2.3 % (per seed 1.2 / 5.3 / 0.0).
-- Adaptive: 100 % / 0.0 %, on all six techniques and all seeds.
-- InjecAgent direct harm: 99.5 % / 0 %. ASB: 100 % / 0 %.
+MAPIS per set (recall / FPR, 5 seeds):
+- Multi-hop: 100 % / 3.0 ± 3.0 % at the default hold cut-off (0.50). With a cut-off chosen on the validation split only (`scripts/calibrate_mapis.py`), every seed checked stays ≤ 5 % (seeds 42/2/3: 1.2→0.6, 5.3→1.8, 0.0→0.0 %) with recall unchanged.
+- Adaptive: 100 % / 0.4 %, all six techniques.
+- InjecAgent direct harm: 99.4 % / 0 %. ASB: 100 % / 0 %.
 - Decomposed: 100 / 0. v1: 100 / 0.
-- BIPIA (never trained on): 95.1 % / 0.7 %.
+- BIPIA (never trained on): 95.8 % / 1.4 % (stateless 94.5 % / 2.2 %).
 
 ### 4.2 Stateless detection at a matched false-positive budget
 
-At the default threshold the stateless model buys 92 % multi-hop recall with a 55 % FPR, because it flags the user-authorized twins. Holding it to ≤ 5 % FPR (threshold chosen on validation, applied to test; 3-seed means):
+At the default threshold the stateless model buys 86.5 % multi-hop recall with a 51 % FPR (5 seeds), because it flags the user-authorized twins. Holding it to ≤ 5 % FPR (threshold chosen on validation, applied to test; 3-seed means):
 
 | Set | Stateless recall | MAPIS recall |
 |---|---|---|
@@ -85,28 +85,47 @@ The judge finds the multi-hop attacks but flags 80 % of the benign multi-hop twi
 
 MAPIS removed all 22 successful attacks at a cost of 1 of 39 benign tasks. AgentDojo injections are explicit text in tool outputs, so a message-level detector also stops them. This run shows MAPIS working inside a live agent pipeline; it does not separate MAPIS from the stateless model (§4.2 does).
 
-### 4.5 Cost
+### 4.5 Harder tests run after the headline (test-only sets, never trained on)
+
+**Attacks aimed at MAPIS's own session record (MAPIS-StateAttack, 56 attacks / 112 twins, seeds 42/2/3).** MAPIS: 58.9 % recall, 8.6 % FPR. Per technique: evidence buried under 6–14 filler hops 80.6 %, authority claim split over three documents 80.6 %, item laundered through memory 61.1 %, item first introduced by an agent (an untapped or compromised agent) 33.3 %, item the agent must decode (reversed, base64, halves) 29.2 %. Stateless DeBERTa: 78.6–100 % recall at 57–79 % FPR (it flags 79–100 % of authorized twins). This is the weakest MAPIS result and is above the 5 % FPR target; the code was not changed after seeing it.
+
+**Team-written independent set (20 attacks + 20 twins, written in plain English by the four team members without using the generators).**
+
+| System | Recall | FPR | Accuracy |
+|---|---|---|---|
+| MAPIS | 35.0 % | 5.0 % (1 of 20, a designated twin) | 65.0 % |
+| Stateless DeBERTa | 40.0 % | 40.0 % | 50.0 % |
+| ProtectAI v2 | 50.0 % | 50.0 % | 50.0 % |
+| Llama Guard 3-1B | 100 % | 100 % | 50.0 % |
+
+MAPIS caught 7 of 20, and they were essentially the attacks whose planted item is an email address or URL. It missed the attacks that change a parameter value or use a short id (an alarm delay of 360 min, `bypass_checks=true`, `override_balance=true`, a wallet `WL-5508`, a vendor name, a door left open until 20:00, ventilation off). Provenance tracks emails, URLs, IBAN-like ids and long numbers; these other items are not tracked, and the classifier did not learn them from the generated training data. None of the baselines does better: they either flag everything (Llama Guard) or flag benign and attack sessions at the same rate (stateless, ProtectAI), so only MAPIS keeps false positives low. n = 20 per class, so every number here has a wide interval (MAPIS recall 18–57 %).
+
+**Rule ablation (seed 42, adaptive + multi-hop + StateAttack, 978 sessions).** Full MAPIS 92.0 % / 1.8 %, model only 92.0 % / 1.7 %, without provenance 92.0 % / 1.7 %. The classifier has absorbed the rule signals through its input line; the fusion rules add nothing measurable on these sets.
+
+### 4.6 Cost
 
 63.0 ms per event single and 51.4 ms batched on an RTX 3050 laptop GPU (`results/evaluate.json`), against the 200 ms target.
 
-### 4.6 Targets
+### 4.7 Targets
 
 | Target | Result |
 |---|---|
-| Accuracy ≥ 90 % | 98.5 % |
-| FPR ≤ 5 % | 0.5 % overall; multi-hop mean 2.2 % (one seed 5.3 %) |
+| Accuracy ≥ 90 % | 98.5 % (5 seeds) |
+| FPR ≤ 5 % | 0.9 % overall; multi-hop 3.0 % mean at the default cut-off, ≤ 5 % on every checked seed with the validation-calibrated cut-off |
 | < 200 ms per message | 63 ms |
-| ≥ 20 points recall gain on multi-hop | +93 points at matched FPR (+7.7 at the default threshold) |
+| ≥ 20 points recall gain on multi-hop | +93 points at matched FPR (+13.5 at the default threshold) |
 
 ## 5. Limits
 
-- MultiHop and Adaptive are template-generated (held-out families, phrasings and tools; real carrier text). The team's independent hand-written set (`docs/INDEPENDENT_TESTSET_GUIDE.md`) is the remaining external check.
-- Seed 2 multi-hop FPR is 5.3 % [3–10], marginally above the 5 % target. The 3-seed mean is below it.
-- MAPIS was trained on AgentDojo-style injections, which the live run also uses.
-- The live agent is a 7B local model (28 % benign utility). The LLM judge and NeMo ran on the same 7B model.
+- On the team-written independent set MAPIS caught 35 % of attacks: it generalises to hand-written attacks that carry an email or URL, not to attacks that change a parameter value or use a short id. Extending provenance to arbitrary argument values (any value in an action that first appeared in untrusted content) is the main next step.
+- Attacks aimed at the session record (StateAttack) reach 58.9 % recall at 8.6 % FPR; items introduced by a compromised agent and items the agent must decode are the weak spots.
+- MultiHop and Adaptive are template-generated (held-out families, phrasings and tools; real carrier text).
+- One seed of five has a multi-hop FPR above 5 % at the default cut-off; the validation-calibrated cut-off fixes it.
+- MAPIS was trained on AgentDojo-style injections, which the live run also uses. The live agent is a 7B local model (28 % benign utility); the LLM judge and NeMo ran on the same 7B model.
 - On single-hop BIPIA there is no cross-hop evidence, so stateless recall is within seed variance of MAPIS.
+- The fusion rules add nothing measurable once the classifier has the session signals.
 - Related work already covers parts of this space (Prompt Infection, G-Safeguard, LlamaFirewall AlignmentCheck). MAPIS's contribution is the combination: a small classifier with stateful session signals at a framework-agnostic tap, fragment attacks with matched benign twins, a provenance trace and a tiered response.
 
 ## 6. Reproduction
 
-`CLAUDE.md` §6 and `NEXT_STEPS.md` have the exact commands. In short: `.\scripts\run_pipeline.ps1 -Seeds 3`, then `python scripts/stateless_sweep.py`, `.\scripts\run_pipeline.ps1 -Live` and `-LLMBaselines`. Tests: `python -m pytest -q` (29 tests).
+`CLAUDE.md` §6 and `NEXT_STEPS.md` have the exact commands. In short: `.\scripts\run_pipeline.ps1 -Seeds 5`, `.\scripts\run_final_checks.ps1`, then `python scripts/stateless_sweep.py`, `.\scripts\run_pipeline.ps1 -Live` and `-LLMBaselines`. Tests: `python -m pytest -q` (29 tests).
