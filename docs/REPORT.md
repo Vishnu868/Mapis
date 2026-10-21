@@ -18,6 +18,7 @@ MAPIS is a stateful, trust-scoring monitor on the communication layer. Every mes
 - **Model.** DeBERTa-v3-small, temperature-calibrated. The event text goes first, then a one-line signal summary, then the session history. Long events are chunked and the minimum trust is taken. Noisy-OR fusion with the rule signals.
 - **Tiered response.** PASS ≥ 0.75, FLAG 0.50–0.75 (raises session sensitivity), QUARANTINE 0.25–0.50 (held), BLOCK < 0.25 (dropped, channel suspended), with a forensic trace origin → relay → action. Dashboard in `frontend/` (live monitor, session inspector, results).
 - **Evasion defences.** `canonical()` normalises Unicode, zero-width characters, `hxxp`, `[.]`, "at/dot" spellings and grouped IBANs. Fragment matching assembles items split across hops.
+- **Action-argument tampering checks** (`tamper_risk`, added 21 Oct, no retraining). Every argument of a state-changing tool call is compared with what the user said: privilege/safety flags, roles or command switches the user never asked for; values that contradict the user's own (same-shape id, number next to the same word, opposite on/off, different time); destination-type arguments whose value appeared only in untrusted or agent-relayed text. Fused through the provenance weight; on by default in the shield (benchmark name `mapis-v2`).
 
 ## 3. Data (MAPIS-Bench)
 
@@ -45,11 +46,13 @@ Test families, phrasings and tools are held out. The final test has 2,304 sessio
 | Prompt Guard 2 (86M) | 7.5 % | 0.1 % | 48.4 % |
 
 MAPIS per set (recall / FPR, 5 seeds):
-- Multi-hop: 100 % / 3.0 ± 3.0 % at the default hold cut-off (0.50). With a cut-off chosen on the validation split only (`scripts/calibrate_mapis.py`), every seed checked stays ≤ 5 % (seeds 42/2/3: 1.2→0.6, 5.3→1.8, 0.0→0.0 %) with recall unchanged.
-- Adaptive: 100 % / 0.4 %, all six techniques.
+- Multi-hop: 100 % / 3.0 ± 3.0 % at the default hold cut-off (0.50). With a cut-off chosen on the validation split only (`scripts/calibrate_mapis.py`), every seed checked stays ≤ 5 % (seeds 42/2/3: 1.2→0.6, 5.3→1.8, 0.0→0.0 %) with recall unchanged. At the default cut-off two of five seeds exceed 5 % (5.3 and 7.7 %); seeds 4 and 5 were not calibrated.
+- Adaptive: 100 % / 0.4 % (0.0 % in four seeds, 1.8 % in one), all six techniques.
 - InjecAgent direct harm: 99.4 % / 0 %. ASB: 100 % / 0 %.
 - Decomposed: 100 / 0. v1: 100 / 0.
 - BIPIA (never trained on): 95.8 % / 1.4 % (stateless 94.5 % / 2.2 %).
+
+The tampering checks (§4.5) change no decision on these 2,304 sessions in any seed, so this table holds for the final system.
 
 ### 4.2 Stateless detection at a matched false-positive budget
 
@@ -85,22 +88,37 @@ The judge finds the multi-hop attacks but flags 80 % of the benign multi-hop twi
 
 MAPIS removed all 22 successful attacks at a cost of 1 of 39 benign tasks. AgentDojo injections are explicit text in tool outputs, so a message-level detector also stops them. This run shows MAPIS working inside a live agent pipeline; it does not separate MAPIS from the stateless model (§4.2 does).
 
-### 4.5 Harder tests run after the headline (test-only sets, never trained on)
+### 4.5 Harder tests, the gap they found, and the fix (test-only sets, never trained on)
 
-**Attacks aimed at MAPIS's own session record (MAPIS-StateAttack, 56 attacks / 112 twins, seeds 42/2/3).** MAPIS: 58.9 % recall, 8.6 % FPR. Per technique: evidence buried under 6–14 filler hops 80.6 %, authority claim split over three documents 80.6 %, item laundered through memory 61.1 %, item first introduced by an agent (an untapped or compromised agent) 33.3 %, item the agent must decode (reversed, base64, halves) 29.2 %. Stateless DeBERTa: 78.6–100 % recall at 57–79 % FPR (it flags 79–100 % of authorized twins). This is the weakest MAPIS result and is above the 5 % FPR target; the code was not changed after seeing it.
+Two sets were built to find where MAPIS fails: **MAPIS-StateAttack** (56 attacks / 112 twins aimed at the session record) and a **team-written independent set** (20 attacks + 20 twins in plain English by the four team members, without the generators).
 
-**Team-written independent set (20 attacks + 20 twins, written in plain English by the four team members without using the generators).**
+**First result (MAPIS as trained, 5 seeds).** Team-written set: 40 % recall (35–45 %), 7.0 % FPR. StateAttack: 55.7 % recall, 10.2 % FPR. MAPIS caught the attacks whose planted item is an email or URL. The 13 team-set misses of seed 42: 7 changed a value the user gave (alarm delay 360 min instead of 10, wallet `WL-5508` instead of `PS-7731`, card `CC-77`, a door open until 20:00, ventilation off), 4 added a privilege/safety flag (`bypass_checks=true`, `override_balance=true`, a role grant, `--disable-auth`), 2 used a destination relayed by another agent.
+
+**Fix: action-argument tampering checks (§2), measured with the trained models on all 5 seeds (2,512 test sessions per seed, `scripts/run_v2_checks.ps1`, `results/v2/`).**
+
+| Mean of five seeds | Before | With the checks |
+|---|---|---|
+| Team-written set, recall | 40.0 % | **95.0 % (every seed)** |
+| Team-written set, FPR | 7.0 % | 7.0 % |
+| StateAttack, recall | 55.7 % | **80.4 %** |
+| StateAttack, FPR | 10.2 % | 10.2 % |
+| Six headline sets (2,304) | §4.1 | unchanged |
+
+No new false positive on any session in any seed. StateAttack per technique (before → after): buried evidence 76.7 → 90.0 %, split claim 78.3 → 91.7 %, laundered through memory 63.3 → 86.7 %, item introduced by an agent 25.0 → 90.0 %, item the agent must decode 25.0 → 25.0 %. Document-poisoning vector 78.6 → 100 %. The one remaining team-set miss (ventilation off while the user said keep it on) was caused by an on/off matching bug fixed after the run; across all 2,512 test sessions the fix changes only that attack (rules-only check). **Caveat:** the checks were designed after reading the team-set misses, so 95 % there is not an independent estimate; a fresh hand-written set is needed to confirm it. n = 20 per class (95 % recall: Wilson 76–99 %).
+
+Team-written set, seed 42, all systems:
 
 | System | Recall | FPR | Accuracy |
 |---|---|---|---|
-| MAPIS | 35.0 % | 5.0 % (1 of 20, a designated twin) | 65.0 % |
+| **MAPIS with tampering checks** | **95.0 %** | **5.0 %** | **95.0 %** |
+| MAPIS before the checks | 35.0 % | 5.0 % (1 of 20, a designated twin) | 65.0 % |
 | Stateless DeBERTa | 40.0 % | 40.0 % | 50.0 % |
 | ProtectAI v2 | 50.0 % | 50.0 % | 50.0 % |
 | Llama Guard 3-1B | 100 % | 100 % | 50.0 % |
 
-MAPIS caught 7 of 20, and they were essentially the attacks whose planted item is an email address or URL. It missed the attacks that change a parameter value or use a short id (an alarm delay of 360 min, `bypass_checks=true`, `override_balance=true`, a wallet `WL-5508`, a vendor name, a door left open until 20:00, ventilation off). Provenance tracks emails, URLs, IBAN-like ids and long numbers; these other items are not tracked, and the classifier did not learn them from the generated training data. None of the baselines does better: they either flag everything (Llama Guard) or flag benign and attack sessions at the same rate (stateless, ProtectAI), so only MAPIS keeps false positives low. n = 20 per class, so every number here has a wide interval (MAPIS recall 18–57 %).
+The baselines flag benign and attack sessions at the same rate. On StateAttack the stateless model reaches 78.6–100 % recall only at 57–79 % FPR (seeds 42/2/3).
 
-**Rule ablation (seed 42, adaptive + multi-hop + StateAttack, 978 sessions).** Full MAPIS 92.0 % / 1.8 %, model only 92.0 % / 1.7 %, without provenance 92.0 % / 1.7 %. The classifier has absorbed the rule signals through its input line; the fusion rules add nothing measurable on these sets.
+**Rule ablation (seed 42, adaptive + multi-hop + StateAttack, 978 sessions, before the tampering checks).** Full MAPIS 92.0 % / 1.8 %, model only 92.0 % / 1.7 %, without provenance 92.0 % / 1.7 %. The classifier has absorbed the four original rule signals through its input line; the tampering checks are the exception (they compare argument values with the user's request, which the classifier input does not).
 
 ### 4.6 Cost
 
@@ -111,21 +129,21 @@ MAPIS caught 7 of 20, and they were essentially the attacks whose planted item i
 | Target | Result |
 |---|---|
 | Accuracy ≥ 90 % | 98.5 % (5 seeds) |
-| FPR ≤ 5 % | 0.9 % overall; multi-hop 3.0 % mean at the default cut-off, ≤ 5 % on every checked seed with the validation-calibrated cut-off |
+| FPR ≤ 5 % | 0.9 % overall; multi-hop 3.0 % mean at the default cut-off, ≤ 1.8 % on the three seeds checked with the validation-calibrated cut-off |
 | < 200 ms per message | 63 ms |
-| ≥ 20 points recall gain on multi-hop | +93 points at matched FPR (+13.5 at the default threshold) |
+| ≥ 20 points recall gain on multi-hop | +93 points at matched FPR, 3 seeds (+13.5 at the default threshold) |
 
 ## 5. Limits
 
-- On the team-written independent set MAPIS caught 35 % of attacks: it generalises to hand-written attacks that carry an email or URL, not to attacks that change a parameter value or use a short id. Extending provenance to arbitrary argument values (any value in an action that first appeared in untrusted content) is the main next step.
-- Attacks aimed at the session record (StateAttack) reach 58.9 % recall at 8.6 % FPR; items introduced by a compromised agent and items the agent must decode are the weak spots.
+- The tampering checks were designed after reading the team-set misses, so their 95 % there is not an independent estimate; a fresh hand-written set is the next step.
+- StateAttack reaches 80.4 % recall but at 10.2 % FPR (above the 5 % target; mostly memory-laundering twins); items the agent must decode stay at 25 %.
 - MultiHop and Adaptive are template-generated (held-out families, phrasings and tools; real carrier text).
-- One seed of five has a multi-hop FPR above 5 % at the default cut-off; the validation-calibrated cut-off fixes it.
+- Two seeds of five have a multi-hop FPR above 5 % at the default cut-off; the validation-calibrated cut-off fixes it for the three seeds checked.
 - MAPIS was trained on AgentDojo-style injections, which the live run also uses. The live agent is a 7B local model (28 % benign utility); the LLM judge and NeMo ran on the same 7B model.
 - On single-hop BIPIA there is no cross-hop evidence, so stateless recall is within seed variance of MAPIS.
-- The fusion rules add nothing measurable once the classifier has the session signals.
+- The four original rule signals add nothing measurable once the classifier has the session signals; only the tampering checks add recall.
 - Related work already covers parts of this space (Prompt Infection, G-Safeguard, LlamaFirewall AlignmentCheck). MAPIS's contribution is the combination: a small classifier with stateful session signals at a framework-agnostic tap, fragment attacks with matched benign twins, a provenance trace and a tiered response.
 
 ## 6. Reproduction
 
-`CLAUDE.md` §6 and `NEXT_STEPS.md` have the exact commands. In short: `.\scripts\run_pipeline.ps1 -Seeds 5`, `.\scripts\run_final_checks.ps1`, then `python scripts/stateless_sweep.py`, `.\scripts\run_pipeline.ps1 -Live` and `-LLMBaselines`. Tests: `python -m pytest -q` (29 tests).
+`CLAUDE.md` §6 and `NEXT_STEPS.md` have the exact commands. In short: `.\scripts\run_pipeline.ps1 -Seeds 5`, `.\scripts\run_final_checks.ps1`, `.\scripts\run_v2_checks.ps1`, then `python scripts/stateless_sweep.py`, `.\scripts\run_pipeline.ps1 -Live` and `-LLMBaselines`. Tests: `python -m pytest -q` (33 tests).

@@ -113,9 +113,10 @@ def subsample(samples: list[dict], n: int) -> list[dict]:
 def build(name: str, model: str, stateless_model: str):
     cfg = Settings(redis_url="", model_path=model)
     if name == "mapis":
-        return ShieldSystem("mapis", MapisShield(cfg, MemoryStore()))
+        # reference configuration of the 5-seed headline (before the tampering checks)
+        return ShieldSystem("mapis", MapisShield(cfg, MemoryStore(), features_enabled=("instruction", "drift", "provenance", "behaviour")))
     if name == "mapis-v2":  # + action-argument tampering checks (changed values, privilege flags, relayed destinations)
-        return ShieldSystem("mapis-v2", MapisShield(cfg, MemoryStore(), features_enabled=("instruction", "drift", "provenance", "behaviour", "tamper")))
+        return ShieldSystem("mapis-v2", MapisShield(cfg, MemoryStore()))
     if name == "mapis-model":  # the learned stateful classifier alone, no rule backstop
         return ShieldSystem(name, MapisShield(cfg, MemoryStore(), features_enabled=()))
     if name == "mapis-no-provenance":  # ablation: model + instruction cue, no cross-hop provenance

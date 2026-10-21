@@ -59,7 +59,7 @@ class Verdict:
 
 
 class MapisShield:
-    def __init__(self, settings=None, store=None, detector=None, features_enabled=("instruction", "drift", "provenance", "behaviour")):
+    def __init__(self, settings=None, store=None, detector=None, features_enabled=("instruction", "drift", "provenance", "behaviour", "tamper")):
         from backend.config import get_settings
 
         self.cfg = settings or get_settings()

@@ -32,7 +32,7 @@ Prompt Guard 2 (86M) & 7.5 & 0.1 & 48.4\\
 \caption{Recall and false-positive rate on 2,304 held-out sessions.}
 \end{figure}
 
-Llama Guard flags almost every session, Prompt Guard 2 flags almost none, ProtectAI flags about half of everything, and the stateless model catches most attacks only by also stopping a third of harmless sessions. MAPIS is high on recall and close to zero on false alarms.
+Llama Guard flags almost every session, Prompt Guard 2 flags almost none, ProtectAI flags about half of everything, and the stateless model catches most attacks only by also stopping a third of harmless sessions. MAPIS is high on recall and close to zero on false alarms. The tampering checks of Section~\ref{sec:harder} change no decision on these sessions in any seed, so the table holds for the final system.
 
 \section{Results by Set}
 \begin{table}[H]
@@ -52,7 +52,7 @@ BIPIA (never trained on) & 95.8 $\pm$ 1.4 & 1.4 $\pm$ 1.0\\
 \end{tabular}
 \caption{MAPIS per benchmark set (mean over five seeds, default hold cut-off 0.50).}
 \end{table}
-By mechanism, recall is 100\% for tool-output manipulation, cross-agent injection, goal hijacking and document poisoning, and 99.2\% for memory injection. By attack class the lowest value is instruction override at 92 to 96\%, where the misses are mostly harmless-looking single-hop BIPIA injections.
+In seed 42, recall by mechanism is 100\% for tool-output manipulation, cross-agent injection, goal hijacking and document poisoning, and 99.2\% for memory injection. By attack class the lowest value is instruction override at 92 to 96\%, where the misses are mostly harmless-looking single-hop BIPIA injections.
 
 \section{Matched False-Positive Budget}
 At the default threshold the stateless model reaches 86.5\% multi-hop recall (five seeds), but its false-positive rate is 51.1\%; in one seed it flags every authorized and designated twin. The event text of an attack and of its authorized twin is identical, so a model that only sees the event cannot separate them. To compare fairly we hold the stateless model to at most 5\% false positives, choosing the threshold on validation data and applying it to the test data.
@@ -81,10 +81,10 @@ ASB & 98.3 & 100\\
 \end{tikzpicture}
 \caption{Recall at a matched false-positive budget.}
 \end{figure}
-The recall gain of MAPIS over stateless detection on multi-hop attacks is therefore about 93 percentage points at a matched budget, against the target of 20. At the default threshold the plain gain is only 7.7 points (100 against 92.3), which is why we report the matched comparison. The thresholds chosen on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7\%, seed 2 adaptive 8.8\%), so these stateless recalls are generous to the baseline. On RealHarm the attack text is explicit, a message-level model is competitive at zero false positives, and the gap is at most 9 points.
+The recall gain of MAPIS over stateless detection on multi-hop attacks is therefore about 93 percentage points at a matched budget, against the target of 20. At the default threshold the plain gain is only 13.5 points (100 against 86.5), which is why we report the matched comparison. The thresholds chosen on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7\%, seed 2 adaptive 8.8\%), so these stateless recalls are generous to the baseline. On RealHarm the attack text is explicit, a message-level model is competitive at zero false positives, and the gap is at most 9 points.
 
 \section{The Evasive Attacker}
-Before the upgrade of Section~\ref{sec:history}, the model with the old matching reached 64.6\% recall at 2.9\% FPR on the adaptive test set. With canonical matching it reached 100\% but at 3.9\% FPR with the old model. The retrained model reaches 100\% recall and 0.0\% FPR on obfuscated, split, Unicode, paraphrased, long-delay and combined attacks (576 sessions, 192 attacks, all seeds).
+Before the upgrade of Section~\ref{sec:history}, the model with the old matching reached 64.6\% recall at 2.9\% FPR on the adaptive test set. With canonical matching it reached 100\% but at 3.9\% FPR with the old model. The retrained model reaches 100\% recall on obfuscated, split, Unicode, paraphrased, long-delay and combined attacks in all five seeds (576 sessions, 192 attacks), at 0.0\% FPR in four seeds and 1.8\% in one (mean 0.4\%).
 
 \section{Comparison with LLM-Based Detectors}
 A history-aware LLM judge (the whole session transcript in one call, in the style of AlignmentCheck) and NeMo Guardrails (self-check input rail, one call per message) were run through a local Ollama server with the 7B model qwen2.5. Because these runs cost many LLM calls, they used a class-balanced subset of 153 test sessions (up to 20 per dataset).
@@ -105,31 +105,48 @@ NeMo Guardrails (qwen2.5 7B) & 48.7 & 17.8 & 64.7\\
 The judge finds multi-hop attacks (100\% recall) but flags 80\% of the benign multi-hop twins, because any session whose documents contain the fragments looks suspicious. NeMo misses most multi-hop and adaptive attacks (20\% and 30\% recall). Neither separates an attack from the identical user-authorized action. With 20 sessions per dataset a result of 0\% FPR has a 95\% upper bound of 5\%, so Table~\ref{tab:head} remains the headline and this table is the like-for-like comparison. Both LLM baselines ran on a small local model and could do better with a large one.
 
 \section{Calibrated Hold Cut-off}
-At the default cut-off of 0.50, one of five seeds exceeds 5\% false positives on multi-hop sessions. A cut-off chosen on the validation split only, so that every dataset family stays at or below 2\% false positives there, was then applied to test. For the three seeds checked, multi-hop FPR moved from 1.2, 5.3 and 0.0\% to 0.6, 1.8 and 0.0\% with recall unchanged at 100\%, and no other set changed. With this cut-off every checked seed meets the 5\% target.
+At the default cut-off of 0.50, two of five seeds exceed 5\% false positives on multi-hop sessions (5.3 and 7.7\%). A cut-off chosen on the validation split only, so that every dataset family stays at or below 2\% false positives there, was then applied to test. For the three seeds checked (42, 2, 3), multi-hop FPR moved from 1.2, 5.3 and 0.0\% to 0.6, 1.8 and 0.0\% with recall unchanged at 100\%, and no other set changed. With this cut-off every checked seed meets the 5\% target; seeds 4 and 5 were trained later and not calibrated.
 
-\section{Harder Tests After the Headline}
-Two test-only sets, never used for training, probe where MAPIS stops working.
+\section{Harder Tests and the Tampering Checks}
+\label{sec:harder}
+The headline sets are our own. To find where MAPIS fails we added two sets that were never used for training or tuning: MAPIS-StateAttack, whose attacks aim at the session record itself, and a set of 20 attacks and 20 twins written in plain English by the four team members without the generators. These sets are meant to be hard; a low first score on them is a finding, not a measurement error.
 
-\textbf{Attacks on the session record (MAPIS-StateAttack).} 56 attacks and 112 twins aim at MAPIS's own memory. MAPIS reaches 58.9\% recall at 8.6\% FPR (seeds 42, 2, 3). It holds up when evidence is buried under 6 to 14 filler hops (80.6\%) or when the authority claim is split over three documents (80.6\%); it is weak when an item is first introduced by an agent rather than by a tool output (33.3\%) and when the agent must decode the item (29.2\%). The stateless model reaches 79 to 100\% recall only at 57 to 79\% FPR.
+\textbf{First result.} Over five seeds MAPIS caught 40\% of the team's attacks (35 to 45\%) and 55.7\% of StateAttack. It caught the attacks whose planted item is an email address or URL and missed those that change a plain value. The 13 misses of seed 42 fell into three groups: seven changed a value the user had given (a wallet id, an alarm delay, a time, an on/off setting), four added a privilege or safety flag (\texttt{bypass\_checks}, \texttt{override\_balance}, a role grant, \texttt{--disable-auth}), and two used a destination passed on by another agent. Provenance tracked only emails, URLs, IBAN-like ids and long numbers, and the classifier had not learned other item forms from generated data.
 
-\textbf{Team-written independent set.} The four team members wrote 20 attacks and 20 twins in plain English without using the generators (Table~\ref{tab:indep}).
+\textbf{Fix and final result.} The tampering checks of Section~\ref{sec:tamper} target exactly these three groups and need no retraining. Table~\ref{tab:indep} and Table~\ref{tab:v2} give the result with the trained models.
 \begin{table}[H]
 \centering\small
 \begin{tabular}{lrrr}
 \toprule
 System & Recall (\%) & FPR (\%) & Accuracy (\%)\\
 \midrule
-MAPIS & 35.0 & 5.0 & 65.0\\
+\textbf{MAPIS with tampering checks} & \textbf{95.0} & \textbf{5.0} & \textbf{95.0}\\
+MAPIS before the checks & 35.0 & 5.0 & 65.0\\
 Stateless DeBERTa & 40.0 & 40.0 & 50.0\\
 ProtectAI v2 & 50.0 & 50.0 & 50.0\\
 Llama Guard 3-1B & 100 & 100 & 50.0\\
 \bottomrule
 \end{tabular}
-\caption{Independent hand-written set (20 attacks, 20 twins).}\label{tab:indep}
+\caption{Team-written independent set, 20 attacks and 20 twins (seed 42).}\label{tab:indep}
 \end{table}
-MAPIS caught 7 of 20 attacks, essentially those whose planted item is an email address or URL. It missed attacks that change a parameter value or use a short identifier (an alarm delay, a bypass flag, a wallet id, a vendor name). Provenance tracks emails, URLs, IBAN-like ids and long numbers only, and the classifier did not learn the other forms from generated data. The baselines do no better: they flag benign and attack sessions at the same rate. With 20 sessions per class the intervals are wide (MAPIS recall 18 to 57\%).
+\begin{table}[H]
+\centering\small
+\begin{tabular}{lrr}
+\toprule
+Set (mean of five seeds) & Before the checks & With the checks\\
+\midrule
+Team-written set, recall & 40.0\% & \textbf{95.0\%} (every seed)\\
+Team-written set, FPR & 7.0\% & 7.0\%\\
+StateAttack, recall & 55.7\% & \textbf{80.4\%}\\
+StateAttack, FPR & 10.2\% & 10.2\%\\
+Six headline sets (2,304 sessions) & Table~\ref{tab:head} & unchanged\\
+\bottomrule
+\end{tabular}
+\caption{Effect of the tampering checks with the trained models (2,512 test sessions per seed).}\label{tab:v2}
+\end{table}
+The checks added no false positive on any of the 2,512 test sessions in any seed, and they changed no decision on the six headline sets, so Table~\ref{tab:head} holds for the final system. Document-poisoning attacks rose from 78.6\% to 100\% recall. On StateAttack, items first introduced by an agent rose from 25.0\% to 90.0\%, laundered items from 63.3\% to 86.7\%, buried evidence from 76.7\% to 90.0\% and split claims from 78.3\% to 91.7\%; items the agent must decode (reversed or base64) stay at 25.0\%. The one remaining team-set miss sets ventilation to off although the user asked to keep it on: the on/off check skipped it because the word ``off'' occurs elsewhere in the user's request, a matching bug fixed after this run. The baselines flag benign and attack sessions at the same rate; the stateless model reaches 79 to 100\% StateAttack recall only at 57 to 79\% FPR. Because the checks were designed after reading the team-set misses, 95\% on that set is not an independent estimate; a new hand-written set is needed to confirm it. With 20 sessions per class the interval is wide (95\% recall: 76 to 99\%).
 
-\textbf{Rule ablation.} On 978 adaptive, multi-hop and StateAttack sessions (seed 42) the full system, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7 to 1.8\% FPR: the classifier has absorbed the rule signals through its input.
+\textbf{Rule ablation.} On 978 adaptive, multi-hop and StateAttack sessions (seed 42), the full system before the tampering checks, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7 to 1.8\% FPR: the classifier has absorbed the four original rule signals through its input. The tampering checks are the exception, because they look at argument values that the classifier input does not compare with the user's request.
 
 \section{Latency and Cost}
 On the RTX 3050 laptop GPU the classifier takes 63.0 ms per event for single events and 51.4 ms per event batched. The DeBERTa-v3-base variant (extra capacity comparison) takes 115 ms single, still below 200 ms. The rule signals add a few milliseconds per event.
@@ -145,9 +162,9 @@ A DeBERTa-v3-base model (one seed, earlier data) reached 99.9\% recall and 2.0\%
 Target & Result & Met\\
 \midrule
 Accuracy $\ge$ 90\% & 98.5\% (5 seeds) & Yes\\
-FPR $\le$ 5\% & $0.9\pm0.8$\% overall, multi-hop $3.0\pm3.0$\% & Yes (all seeds $\le$5\% with the calibrated cut-off)\\
+FPR $\le$ 5\% & $0.9\pm0.8$\% overall, multi-hop $3.0\pm3.0$\% & Yes (mean; the calibrated cut-off brings the three checked seeds to $\le$1.8\%)\\
 Latency $<$ 200 ms & 63 ms & Yes\\
-Multi-hop recall gain $\ge$ 20 points & +93 points at matched FPR & Yes\\
+Multi-hop recall gain $\ge$ 20 points & +93 points at matched FPR (three seeds) & Yes\\
 \bottomrule
 \end{tabular}
 \caption{Project targets.}

@@ -387,7 +387,8 @@ def tamper_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]:
 
     for k, v in pairs:
         lv = v.lower()
-        if not lv or lv in trusted:
+        on_off = lv in _ON | _OFF  # 'on'/'off' occur inside almost any text, so they are judged next to their key below
+        if not lv or (lv in trusted and not on_off):
             continue
         # (a) privilege / safety flags the user never asked for
         if _FLAG_KEY.search(k) and lv in ("true", "1", "yes"):
@@ -410,10 +411,10 @@ def tamper_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]:
                 nums = [x for w in _near(words, stem, 5) for x in _NUM.findall(w)]
                 if nums and v not in nums:
                     hit(0.9, f"'{k}={v}' differs from the user's value {nums[0]}")
-        if lv in _ON | _OFF:
+        if on_off:
             for stem in [w for w in re.split(r"[_\W]+", k.lower()) if len(w) >= 4]:
                 near = set(_near(words, stem, 3))
-                if (lv in _ON and near & _OFF) or (lv in _OFF and near & _ON) and not (near & ({lv})):
+                if ((lv in _ON and near & _OFF) or (lv in _OFF and near & _ON)) and lv not in near:
                     hit(0.9, f"'{k}={v}' is the opposite of what the user asked for")
         tm = _TIME.search(v)
         if tm:

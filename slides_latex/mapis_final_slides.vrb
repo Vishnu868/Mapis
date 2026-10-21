@@ -15,7 +15,7 @@ backend/baselines.py  Llama Guard, Prompt Guard 2,
 scripts/         data generators, benchmark,
                  stateless_sweep, live AgentDojo
 frontend/        React operator console
-tests/           29 pytest tests
+tests/           33 pytest tests
 \end{verbatim}
     \normalsize\small
     Data loading: \texttt{prepare\_phase4\_training\_data.py} (replays every session through \texttt{session.py}). Model: \texttt{detector.py}. Training: \texttt{train.py}. Evaluation: \texttt{benchmark.py}, \texttt{evaluate.py}.
@@ -32,7 +32,7 @@ tests/           29 pytest tests
       Epochs & 2 (best by val F1, FPR $\le$5\%) \\
       Loss & class-weighted CE \\
       Precision & fp16, fp32 master weights \\
-      Seeds & 42, 2, 3 \\
+      Seeds & 42, 2, 3, 4, 5 \\
       Hardware & RTX 3050 Laptop GPU \\
       Time & 4.3 h stateful, 1.3 h stateless \\
       \bottomrule

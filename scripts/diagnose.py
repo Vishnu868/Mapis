@@ -28,9 +28,10 @@ def main() -> None:
     ap.add_argument("--kind", choices=["benign", "attack"], default="benign")
     ap.add_argument("--model", default="artifacts/mapis_detector")
     ap.add_argument("--limit", type=int, default=10)
+    ap.add_argument("--system", default="mapis-v2", help="mapis-v2 (final, with tampering checks) or mapis (reference)")
     args = ap.parse_args()
 
-    shield = build("mapis", args.model, "").shield
+    shield = build(args.system, args.model, "").shield
     shown = total = 0
     for s in load(args.sets.split(","), args.split):
         if s["is_attack"] != (args.kind == "attack"):

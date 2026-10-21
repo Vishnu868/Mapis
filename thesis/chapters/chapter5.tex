@@ -12,7 +12,7 @@ Maximum length & 512 tokens\\
 Batch size & 4, gradient accumulation 4\\
 Learning rate, epochs, warm-up & $2\times10^{-5}$, 2, 0.1\\
 Precision & fp16 with fp32 master weights\\
-Seeds & 42, 2, 3 (three runs reported)\\
+Seeds & 42, 2, 3, 4, 5 (five runs reported)\\
 Hardware & RTX 3050 Laptop GPU\\
 Training time & about 4.3 h (stateful), 1.3 h (stateless)\\
 \bottomrule
@@ -41,7 +41,7 @@ API & FastAPI: \texttt{/inspect}, \texttt{/pipeline/run}, events, quarantine rev
 Testbed & \texttt{testbed.py}, \texttt{graph.py} (LangGraph), \texttt{autogen\_testbed.py} (AutoGen)\\
 Evaluation & \texttt{benchmark.py}, \texttt{evaluate.py}, \texttt{stateless\_sweep.py}, \texttt{live\_agentdojo.py}, \texttt{baselines.py}\\
 Interface & React operator console in \texttt{frontend/}\\
-Tests & 29 pytest tests: shield, API, train/serve parity, AutoGen tap, multi-hop attacks against twins\\
+Tests & 33 pytest tests: shield, API, train/serve parity, AutoGen tap, multi-hop attacks against twins, tampering checks\\
 \bottomrule
 \end{tabular}
 \caption{Implementation overview.}
@@ -58,4 +58,5 @@ The final system was reached through measured failures. We record them because e
 \item \textbf{Multi-hop false positives of 10 to 17\%.} Two causes: contradictory labels in our generator (the same text labelled malicious in attacks and benign in twins) and memorised tool names. We changed the label policy, added eight further override and physical action kinds as training families, and drew carrier text from a larger pool. The multi-hop false-positive rate fell to about 2\%.
 \item \textbf{Evasive attacker.} Against the adaptive set the first model reached 64.6\% recall. Canonicalisation, fragment matching and adversarial training raised it to 100\% on all six techniques.
 \item \textbf{A stale old-code run.} One run silently used old code because a pull failed. The pipeline now aborts at its first step if the code is out of date.
+\item \textbf{Plain values on the team-written set.} MAPIS caught only 35 to 45\% of the team's attacks: provenance did not follow changed values, privilege flags or destinations relayed by an agent. The tampering checks of Section~\ref{sec:tamper} raised this to 95\% without retraining (Section~\ref{sec:harder}).
 \end{enumerate}

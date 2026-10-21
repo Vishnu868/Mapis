@@ -27,6 +27,7 @@ For each session MAPIS stores a compact record, in Redis with a time-to-live and
 \item \emph{trusted} items that the user named;
 \item untrusted authority claims (``approved by management'') and instruction cues;
 \item per-agent baselines: tools used and message lengths;
+\item the text the user supplied (including a file the user named) and, separately, the text seen in untrusted content or relayed by an agent, used by the tampering checks;
 \item the session sensitivity and the set of suspended channels.
 \end{itemize}
 The record is updated after every event. The same module (\texttt{session.py}) is used when the training data are built and at run time, and a unit test checks that both produce identical text.
@@ -52,6 +53,16 @@ Behaviour anomaly & A tool or outbound action outside the agent's baseline; a me
 
 \subsection{Evasion defences}
 An attacker who knows MAPIS can hide an item. Before matching, \texttt{canonical()} normalises Unicode (NFKC), removes zero-width characters, and collapses forms such as \texttt{hxxp}, \texttt{[.]}, ``(at)'', spelled ``at/dot'', spaced \texttt{@} and grouped IBANs. Fragment matching registers bare domains, hosts and id-like tokens, so an action that assembles an item from pieces matches the fragments (the session signal \texttt{reuse=} names the fragment).
+
+\subsection{Action-argument tampering checks}
+\label{sec:tamper}
+Provenance follows items with a recognisable shape (emails, URLs, IBAN-like ids, long numbers). An attacker can instead change a plain value. Three checks, the function \texttt{tamper\_risk} of the module \texttt{features.py}, compare the arguments of every state-changing tool call with what the user actually said:
+\begin{itemize}
+\item \textbf{privilege and safety flags}: a flag such as \texttt{bypass\_checks=true}, a privileged role (admin, owner, write) or a command switch such as \texttt{--disable-auth} that appears in neither the user's text nor a file the user named;
+\item \textbf{changed values}: an id of the same shape as one the user gave but different (wallet \texttt{WL-5508} instead of \texttt{PS-7731}), a number next to the same word with a different value (an alarm delay of 360 instead of 10 minutes), an on/off setting opposite to the user's, or a different time;
+\item \textbf{relayed destinations}: a recipient, account, vendor, card, repository or URL argument whose value the user never gave but which appeared in untrusted content or in another agent's message.
+\end{itemize}
+Each check reports a risk of 0.85 to 0.9 that is fused through the provenance weight, which places the action in QUARANTINE or lower. The classifier input is unchanged, so the checks need no retraining. Section~\ref{sec:harder} reports their effect.
 
 \section{Fusion and Response}
 The final trust fuses the model trust $t_m$ with the rule risks $r_k$ by a noisy-OR and scales the result by the session sensitivity $\sigma$:

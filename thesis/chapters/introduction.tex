@@ -31,11 +31,11 @@ Existing LLM guardrails evaluate each message in isolation and cannot detect ind
 
 \section{Contributions}
 \begin{enumerate}
-\item A stateful, provenance-aware monitor (MAPIS) at a framework-neutral tap, combining a fine-tuned DeBERTa-v3-small classifier with four session signals and a four-tier response.
+\item A stateful, provenance-aware monitor (MAPIS) at a framework-neutral tap, combining a fine-tuned DeBERTa-v3-small classifier with four session signals, action-argument tampering checks and a four-tier response.
 \item MAPIS-Bench: six benchmark sets, including multi-hop fragment attacks with matched benign twins and an evasive-attacker set.
 \item A fair comparison method: stateless detection evaluated at a threshold that gives at most 5\% false positives, chosen on validation data.
 \item An evaluation against five baselines on identical sessions, and inside a live LLM-agent pipeline.
-\item An operator console with live monitoring, session replay and a results view, and an open repository with 29 automated tests.
+\item An operator console with live monitoring, session replay and a results view, and an open repository with 33 automated tests.
 \end{enumerate}
 
 \section{Organisation of the Thesis}
