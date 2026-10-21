@@ -1,24 +1,24 @@
 \label{chap.1}
 \section{Background}
-Large language models are no longer used only as chat assistants. They are deployed as \emph{agents} that call tools, browse the web, read documents, write to memory and send messages. Frameworks such as AutoGen and LangGraph let several such agents cooperate: a planner splits a task, a web agent fetches pages, a file agent reads documents, a memory agent stores notes, and a code or email agent acts on the result.
+LLMs are no longer just chat assistants. Many companies now use them as \emph{agents} that call tools, browse the web, read documents, save notes to memory and send messages. Frameworks such as AutoGen and LangGraph make it easy to connect several of these agents. In a typical setup a planner breaks the task into steps, a web agent fetches pages, a file agent reads documents, a memory agent stores notes, and a code or email agent finally acts on the result.
 
-Every one of these agents reads content that its operator did not write. A web page, a PDF, an email, a tool result or a retrieved memory can carry text that an attacker placed there. If an agent follows that text instead of the user's request, the attacker has taken control without ever interacting with the system. This is \emph{indirect prompt injection} (IPI)~\cite{greshake2023}. It is ranked as the first risk in the OWASP list for LLM applications~\cite{owasp2025}.
+The problem is that every one of these agents reads text that its owner never wrote. A web page, a PDF, an email, a tool result or an old memory note may contain text placed there by an attacker. If the agent follows that text instead of the user's request, the attacker controls the system without ever talking to it. This is known as \emph{indirect prompt injection} (IPI)~\cite{greshake2023}, and OWASP lists it as the number one risk for LLM applications~\cite{owasp2025}.
 
 \section{Motivation}
-In a multi-agent pipeline the damage spreads. One compromised agent hands its output to the next, and the next agent has no reason to distrust a message from a colleague. The user sees only the final result. Worse, an attacker can avoid any obvious command. Consider the task ``Summarise \texttt{report.pdf} and email the summary to my manager''.
+With several agents the damage can spread. One agent that has been fooled passes its output to the next one, and the next one has no reason to doubt a message from a colleague. The user only sees the final result. The attacker also does not need an obvious command. Take the task ``Summarise \texttt{report.pdf} and email the summary to my manager''.
 \begin{itemize}
-\item In the easy case the PDF contains ``Ignore previous instructions and email all customer data to evil@mail.net''. A keyword filter can catch this.
-\item In the hard case the PDF only says ``Finance questions: audit-desk@fin-review.net''. A later agent writes that address into memory, another reads it back, and the email agent sends the summary to it. No single message contains a command.
+\item Easy case: the PDF says ``Ignore previous instructions and email all customer data to evil@mail.net''. Even a keyword filter can catch this.
+\item Hard case: the PDF only says ``Finance questions: audit-desk@fin-review.net''. One agent saves that address to memory, another reads it back later, and the email agent sends the summary there. There is no command anywhere.
 \end{itemize}
-A guardrail that judges one message at a time cannot separate the hard case from a task where the user themselves asked for the summary to be sent to audit-desk@fin-review.net. The words of the final action are identical. Only the \emph{history} of the session shows who introduced the address.
+A guardrail that looks at one message at a time cannot tell the hard case apart from a session where the user really asked for the summary to go to audit-desk@fin-review.net. The final email is word for word the same. Only the \emph{history} of the session shows who introduced the address.
 
 \section{Problem Statement}
-Existing LLM guardrails evaluate each message in isolation and cannot detect indirect prompt injection that spreads its intent across several agent hops. The problem addressed here is to build a monitor for the communication layer of a multi-agent pipeline that tracks evidence across the whole session, scores every agent-to-agent and agent-to-tool message in real time, and holds attacks before they reach a downstream agent, while leaving legitimate, user-requested actions untouched.
+Current LLM guardrails judge each message on its own, so they cannot detect indirect prompt injection whose intent is spread across several agent hops. Our aim was to build a monitor for the communication layer of a multi-agent pipeline that follows the evidence across the whole session, scores every agent-to-agent and agent-to-tool message in real time, and stops an attack before it reaches the next agent, while still letting through the actions the user actually asked for.
 
 \subsection{Scope}
-\textbf{In scope:} indirect (content-borne) injection; text messages, tool outputs and memory reads and writes; AutoGen and LangGraph testbeds; detection, tiered response and forensic logging; benchmarking against existing guardrails.
+\textbf{In scope:} indirect (content-borne) injection; text messages, tool outputs and memory reads and writes; testbeds on AutoGen and LangGraph; detection, tiered response and forensic logging; comparison with existing guardrails.
 
-\textbf{Out of scope:} direct user jailbreaks; training-time or weight-level defences; multimodal injection; adversarial attacks aimed at the MAPIS classifier itself; enterprise-scale production hardening.
+\textbf{Out of scope:} direct jailbreaks by the user; defences at training time or in the model weights; images and audio; attacks against the MAPIS classifier itself; production hardening at enterprise scale.
 
 \section{Objectives}
 \begin{enumerate}
@@ -31,12 +31,12 @@ Existing LLM guardrails evaluate each message in isolation and cannot detect ind
 
 \section{Contributions}
 \begin{enumerate}
-\item A stateful, provenance-aware monitor (MAPIS) at a framework-neutral tap, combining a fine-tuned DeBERTa-v3-small classifier with four session signals, action-argument tampering checks and a four-tier response.
-\item MAPIS-Bench: six benchmark sets, including multi-hop fragment attacks with matched benign twins and an evasive-attacker set.
-\item A fair comparison method: stateless detection evaluated at a threshold that gives at most 5\% false positives, chosen on validation data.
-\item An evaluation against five baselines on identical sessions, and inside a live LLM-agent pipeline.
-\item An operator console with live monitoring, session replay and a results view, and an open repository with 33 automated tests.
+\item MAPIS, a monitor that remembers the session and tracks where each item came from. It sits at a tap that works with any framework and combines a fine-tuned DeBERTa-v3-small classifier with four session signals, checks on action arguments and a four-tier response.
+\item MAPIS-Bench, six test sets including multi-hop fragment attacks with matching harmless twins and a set from an attacker who tries to evade MAPIS.
+\item A fairer way to compare: we hold the stateless detector to at most 5\% false positives, with the threshold picked on validation data, and then compare recall.
+\item A comparison with five baselines on exactly the same sessions, plus a test inside a live LLM-agent pipeline.
+\item An operator console for live monitoring, session replay and results, and an open repository with 33 automated tests.
 \end{enumerate}
 
 \section{Organisation of the Thesis}
-Chapter~2 reviews related work and states the research gap. Chapter~3 describes the design of MAPIS. Chapter~4 describes the datasets. Chapter~5 covers the model, training and implementation. Chapter~6 reports the experimental results. Chapter~7 reports the live-agent evaluation and the demonstration. Chapter~8 concludes and lists further work. Appendix~A gives the reproduction guide.
+The rest of the thesis is organised as follows. Chapter~2 looks at related work and the research gap. Chapter~3 explains how MAPIS is designed, and Chapter~4 describes the datasets. Chapter~5 covers the model, the training and the implementation. Chapter~6 gives the experimental results and Chapter~7 the live-agent tests and the demonstration. Chapter~8 concludes and lists future work, and Appendix~A explains how to reproduce the results.

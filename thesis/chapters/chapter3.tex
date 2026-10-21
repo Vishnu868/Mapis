@@ -1,6 +1,6 @@
 \label{chap.3}
 \section{Overview}
-MAPIS is a stateful, trust-scoring monitor on the communication layer of a multi-agent pipeline. Figure~\ref{fig:arch} shows the message path.
+MAPIS is a monitor that sits on the communication layer of a multi-agent pipeline, remembers the session and gives each message a trust score. Figure~\ref{fig:arch} shows the path a message takes.
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}[node distance=0.55cm, box/.style={draw, rounded corners, align=center, minimum width=3.6cm, minimum height=0.95cm, font=\small}, hot/.style={box, fill=maroon!10, draw=maroon}, ar/.style={-{Stealth[length=2.5mm]}, thick}]
@@ -17,10 +17,10 @@ MAPIS is a stateful, trust-scoring monitor on the communication layer of a multi
 \end{figure}
 
 \section{The Tap}
-The tap is a FastAPI endpoint (\texttt{POST /inspect}). The testbed calls it before delivering any message, so MAPIS does not depend on one framework. For LangGraph the call sits in the graph before every delivery. For AutoGen 0.2 it is registered through AutoGen's \texttt{register\_hook} on the \texttt{process\_message\_before\_send} event, and a withheld message ends the chat. The same deterministic five-agent testbed (planner, web, file, memory, code/email) runs on both and offers clean, overt-attack and decomposed-attack scenarios.
+The tap is a FastAPI endpoint (\texttt{POST /inspect}) that the testbed calls before it delivers any message, so MAPIS is not tied to one framework. In LangGraph the call is placed in the graph before every delivery. In AutoGen 0.2 we register it with \texttt{register\_hook} on the \texttt{process\_message\_before\_send} event, and if a message is withheld the chat ends. Both frameworks run the same deterministic testbed with five agents (planner, web, file, memory, code/email) and three scenarios: a clean task, an obvious attack and a decomposed attack.
 
 \section{Session Record}
-For each session MAPIS stores a compact record, in Redis with a time-to-live and an in-memory fallback:
+For every session MAPIS keeps a small record, stored in Redis with a time-to-live (or in memory if Redis is not running). It holds:
 \begin{itemize}
 \item the user's goal, taken from the first user message, which is the trust anchor;
 \item \emph{tainted} items: emails, URLs and hosts, IBAN-like ids and long numbers, and fragments of them, first seen in untrusted content (tool, tool response, memory read, memory write);
@@ -30,10 +30,10 @@ For each session MAPIS stores a compact record, in Redis with a time-to-live and
 \item the text the user supplied (including a file the user named) and, separately, the text seen in untrusted content or relayed by an agent, used by the tampering checks;
 \item the session sensitivity and the set of suspended channels.
 \end{itemize}
-The record is updated after every event. The same module (\texttt{session.py}) is used when the training data are built and at run time, and a unit test checks that both produce identical text.
+The record is updated after every event. We use the same module (\texttt{session.py}) to build the training data and at run time, and a unit test makes sure both produce exactly the same text.
 
 \section{Classifier Input}
-The classifier reads three parts in a fixed order (module \texttt{context.py}): the current event first, so that truncation only trims history; one line of session signals; and the session history, namely the goal, the most recent hops clipped to 110 characters and up to three older untrusted hops. Events longer than 900 characters are cut into chunks (stride 450) and the event's trust is the minimum over chunks.
+The classifier input has three parts, always in the same order (module \texttt{context.py}). First comes the current event, so that if the text is too long only the history gets cut. Then comes one line of session signals, and then the history itself: the goal, the latest hops cut to 110 characters, and up to three older untrusted hops. Events longer than 900 characters are split into chunks with a stride of 450, and the event gets the lowest trust of its chunks.
 
 \section{The Four Signals}
 \begin{table}[H]
@@ -52,24 +52,24 @@ Behaviour anomaly & A tool or outbound action outside the agent's baseline; a me
 \end{table}
 
 \subsection{Evasion defences}
-An attacker who knows MAPIS can hide an item. Before matching, \texttt{canonical()} normalises Unicode (NFKC), removes zero-width characters, and collapses forms such as \texttt{hxxp}, \texttt{[.]}, ``(at)'', spelled ``at/dot'', spaced \texttt{@} and grouped IBANs. Fragment matching registers bare domains, hosts and id-like tokens, so an action that assembles an item from pieces matches the fragments (the session signal \texttt{reuse=} names the fragment).
+An attacker who knows how MAPIS works can try to hide the item. So before matching, \texttt{canonical()} normalises Unicode (NFKC), removes zero-width characters and undoes tricks such as \texttt{hxxp}, \texttt{[.]}, ``(at)'', ``at'' and ``dot'' written out, spaces around \texttt{@} and IBANs written in groups. Fragment matching also stores bare domains, hosts and id-like tokens, so if an action puts an item back together from pieces it still matches (the session signal \texttt{reuse=} shows which piece).
 
 \subsection{Action-argument tampering checks}
 \label{sec:tamper}
-Provenance follows items with a recognisable shape (emails, URLs, IBAN-like ids, long numbers). An attacker can instead change a plain value. Three checks, the function \texttt{tamper\_risk} of the module \texttt{features.py}, compare the arguments of every state-changing tool call with what the user actually said:
+Provenance only follows items that have a recognisable shape, such as emails, URLs, IBAN-like ids and long numbers. An attacker can simply change a plain value instead. We therefore added three checks, the function \texttt{tamper\_risk} in \texttt{features.py}, that compare the arguments of every state-changing tool call with what the user actually said:
 \begin{itemize}
 \item \textbf{privilege and safety flags}: a flag such as \texttt{bypass\_checks=true}, a privileged role (admin, owner, write) or a command switch such as \texttt{--disable-auth} that appears in neither the user's text nor a file the user named;
 \item \textbf{changed values}: an id of the same shape as one the user gave but different (wallet \texttt{WL-5508} instead of \texttt{PS-7731}), a number next to the same word with a different value (an alarm delay of 360 instead of 10 minutes), an on/off setting opposite to the user's, or a different time;
 \item \textbf{relayed destinations}: a recipient, account, vendor, card, repository or URL argument whose value the user never gave but which appeared in untrusted content or in another agent's message.
 \end{itemize}
-Each check reports a risk of 0.85 to 0.9 that is fused through the provenance weight, which places the action in QUARANTINE or lower. The classifier input is unchanged, so the checks need no retraining. Section~\ref{sec:harder} reports their effect.
+Each check gives a risk of 0.85 to 0.9, which goes through the provenance weight and puts the action into QUARANTINE or lower. The classifier input does not change, so no retraining is needed. Section~\ref{sec:harder} shows what the checks achieved.
 
 \section{Fusion and Response}
-The final trust fuses the model trust $t_m$ with the rule risks $r_k$ by a noisy-OR and scales the result by the session sensitivity $\sigma$:
+To get the final trust, the model trust $t_m$ is combined with the rule risks $r_k$ using a noisy-OR, and the result is scaled by the session sensitivity $\sigma$:
 \begin{equation}
 r = 1 - t_m\prod_{k}\bigl(1 - w_k r_k\bigr), \qquad t = 1 - \min\bigl(1,\ (1+\sigma)\,r\bigr).
 \end{equation}
-The event therefore loses trust when the model or any weighted rule signal reports risk. The weights are $w_{\text{provenance}}=0.8$, $w_{\text{instruction}}=0.5$, $w_{\text{drift}}=0.15$ and $w_{\text{behaviour}}=0.15$. User and system messages always receive $t=1$, and a message on a suspended channel receives $t=0$.
+In words, an event loses trust as soon as the model or any weighted rule reports a risk. The weights are $w_{\text{provenance}}=0.8$, $w_{\text{instruction}}=0.5$, $w_{\text{drift}}=0.15$ and $w_{\text{behaviour}}=0.15$. Messages from the user or the system always get $t=1$, and any message on a suspended channel gets $t=0$.
 
 \begin{table}[H]
 \centering\small
@@ -85,4 +85,4 @@ $< 0.25$ & BLOCK & Drop and suspend the channel\\
 \end{tabular}
 \caption{Tiered response.}
 \end{table}
-The end user never sees MAPIS: a held action simply does not happen. Every non-PASS verdict carries a forensic trace listing the origin (the untrusted source that introduced the item), the relay hops and the action. The fail mode is closed.
+The end user never sees MAPIS. When an action is held, it simply does not happen. Every verdict other than PASS comes with a forensic trace that shows the origin (the untrusted source that brought in the item), the hops that relayed it, and the action that would have used it. If something fails, MAPIS fails closed.

@@ -1,6 +1,6 @@
 \label{chap.7}
 \section{Live LLM Agents on AgentDojo}
-The scripted testbed shows the mechanism but not behaviour with a real model. We therefore ran AgentDojo v1.2.1 (banking, Slack, workspace and travel suites) with a real tool-calling agent, qwen2.5 7B served locally through Ollama. MAPIS taps every message: the user query, each tool call before it executes and each tool output before the model reads it. A withheld call is not executed and the agent is told it was withheld; a withheld output is replaced. The attack was \texttt{important\_instructions\_no\_names}, with 8 user tasks and 4 injection tasks per suite, giving 39 benign and 144 attacked runs per defence and no run errors.
+The scripted testbed shows how MAPIS works, but not how it behaves with a real model. So we also ran AgentDojo v1.2.1 (banking, Slack, workspace and travel suites) with a real tool-calling agent, qwen2.5 7B served locally through Ollama. MAPIS sees every message: the user query, each tool call before it runs, and each tool output before the model reads it. If a call is withheld it is not executed and the agent is told so; if an output is withheld it is replaced. We used the attack \texttt{important\_instructions\_no\_names} with 8 user tasks and 4 injection tasks per suite, which gives 39 benign and 144 attacked runs per defence, with no run errors.
 \begin{table}[H]
 \centering\small
 \begin{tabular}{lrrr}
@@ -14,12 +14,12 @@ Stateless DeBERTa & 20.5 (8/39) & 16.0 (23/144) & 0.0 (0/144)\\
 \end{tabular}
 \caption{Live-agent results (seed-42 models). The 95\% Wilson upper bound for MAPIS attack success is 2.6\%.}
 \end{table}
-MAPIS removed all 22 successful attacks at the cost of one of 39 benign tasks. Utility under attack falls for both defences because withholding a poisoned tool output also withholds data the user task needed. The differences in utility rest on small counts and are not significant; the difference in attack success (22/144 against 0/144) is.
+MAPIS stopped all 22 successful attacks and lost one of the 39 benign tasks. Utility under attack drops for both defences, because when a poisoned tool output is withheld, the data the user's task needed is withheld with it. The utility differences rest on small counts and are not significant, but the difference in attack success (22/144 against 0/144) is.
 
-This run does not separate MAPIS from the stateless model: AgentDojo injections are explicit text in tool outputs, which a message-level detector also catches. It shows that MAPIS works inside a live agent pipeline at low utility cost. MAPIS was trained on AgentDojo-style injections, and the agent is a small 7B model that solves only 28\% of benign tasks.
+This run does not show a difference between MAPIS and the stateless model, because AgentDojo injections are explicit text in tool outputs, which a message-level detector also catches. What it does show is that MAPIS works inside a live agent pipeline at a low cost in utility. Note that MAPIS was trained on AgentDojo-style injections, and that the agent is a small 7B model that solves only 28\% of the benign tasks.
 
 \section{Operator Dashboard}
-The dashboard is for the operator or security administrator of the team that runs the agent system, not for the end user. It has three tabs.
+The dashboard is meant for the operator or security admin of the team running the agent system, not for the end user. It has three tabs.
 \begin{description}
 \item[Live monitor] Run a clean, overt-attack or decomposed scenario on LangGraph or AutoGen, watch every hop scored with its tier, see the trust timeline and the alerts with their forensic traces, and release or reject quarantined messages.
 \item[Session inspector] Replay any held-out benchmark session hop by hop through the live shield, with the tier, trust, action arguments, reasons and session signals. It is used to explain why one session was held and its benign twin passed.
