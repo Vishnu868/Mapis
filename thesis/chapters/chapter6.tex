@@ -54,8 +54,8 @@ BIPIA (never trained on) & 95.8 $\pm$ 1.4 & 1.4 $\pm$ 1.0\\
 \end{table}
 By mechanism, recall is 100\% for tool-output manipulation, cross-agent injection, goal hijacking and document poisoning, and 99.2\% for memory injection. By attack class the lowest value is instruction override at 92 to 96\%, where the misses are mostly harmless-looking single-hop BIPIA injections.
 
-\section{Why Memory Matters: Matched False-Positive Budget}
-At the default threshold the stateless model reaches 92.3\% multi-hop recall, but its false-positive rate is 55.2\%: it flags 100\% of authorized and designated twins in one seed. The event text of an attack and of its authorized twin is identical, so a model that only sees the event cannot separate them. To compare fairly we hold the stateless model to at most 5\% false positives, choosing the threshold on validation data and applying it to the test data.
+\section{Matched False-Positive Budget}
+At the default threshold the stateless model reaches 86.5\% multi-hop recall (five seeds), but its false-positive rate is 51.1\%; in one seed it flags every authorized and designated twin. The event text of an attack and of its authorized twin is identical, so a model that only sees the event cannot separate them. To compare fairly we hold the stateless model to at most 5\% false positives, choosing the threshold on validation data and applying it to the test data.
 \begin{table}[H]
 \centering\small
 \begin{tabular}{lrr}
@@ -140,7 +140,7 @@ A DeBERTa-v3-base model (one seed, earlier data) reached 99.9\% recall and 2.0\%
 \section{Targets}
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lll}
+\begin{tabular}{p{4.2cm}p{6.6cm}p{3.2cm}}
 \toprule
 Target & Result & Met\\
 \midrule

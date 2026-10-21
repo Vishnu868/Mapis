@@ -34,4 +34,18 @@ cd frontend ; npm install ; npm start            # dashboard
 \end{lstlisting}
 
 \section{Result Files}
-\texttt{results/benchmark.json} (seed 42, all systems), \texttt{results/seeds/summary.json} (mean and standard deviation over five seeds), \texttt{results/stateless\_sweep*.json} (matched false-positive comparison), \texttt{results/benchmark\_llamaguard.json}, \texttt{benchmark\_promptguard.json}, \texttt{benchmark\_protectai.json}, \texttt{benchmark\_llm.json} and \texttt{benchmark\_llm\_mapis.json} (153-session comparison), \texttt{results/live\_agentdojo.json} (live agents) \texttt{results/evaluate.json} (event-level metrics and latency), \texttt{results/calibration/} (calibrated cut-off), \texttt{results/stateattack/} (attacks on the session record), \texttt{results/ablation\_seed42.json} (rule ablation) and \texttt{results/benchmark\_independent.json} (team-written independent set).
+\begin{itemize}
+\item \texttt{results/benchmark.json}: seed 42, all systems
+\item \texttt{results/seeds/summary.json}: mean and standard deviation over five seeds
+\item \texttt{results/stateless\_sweep*.json}: matched false-positive comparison
+\item \texttt{results/benchmark\_llamaguard.json}: Llama Guard
+\item \texttt{results/benchmark\_promptguard.json}: Prompt Guard 2
+\item \texttt{results/benchmark\_protectai.json}: ProtectAI
+\item \texttt{benchmark\_llm.json}, \texttt{benchmark\_llm\_mapis.json}: 153-session comparison with LLM baselines
+\item \texttt{results/live\_agentdojo.json}: live agents
+\item \texttt{results/evaluate.json}: event-level metrics and latency
+\item \texttt{results/calibration/}: calibrated cut-off
+\item \texttt{results/stateattack/}: attacks on the session record
+\item \texttt{results/ablation\_seed42.json}: rule ablation
+\item \texttt{results/benchmark\_independent.json}: team-written independent set
+\end{itemize}

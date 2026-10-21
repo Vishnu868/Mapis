@@ -26,7 +26,9 @@
 \usepackage{fancyhdr}
 \usepackage{titletoc}
 \usepackage{titlesec}
-\titlespacing*{\chapter}{0pt}{-30pt}{22pt}
+\setcounter{tocdepth}{1}
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries\raggedright}{\chaptertitlename\ \thechapter}{8pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-45pt}{18pt}
 \usepackage{booktabs}
 \usepackage{xcolor}
 \usepackage{float}
@@ -190,7 +192,7 @@
 \chapter{Conclusion and Scope for Further Research}
 \input{chapters/conclusion}
 \appendix
-\chapter{Reproduction Guide and Repository Map}
+\chapter{Reproduction Guide}
 \input{chapters/appendix}
 
 %\addcontentsline{toc}{chapter}{\textbf{References}}

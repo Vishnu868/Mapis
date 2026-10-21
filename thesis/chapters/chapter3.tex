@@ -17,7 +17,7 @@ MAPIS is a stateful, trust-scoring monitor on the communication layer of a multi
 \end{figure}
 
 \section{The Tap}
-The tap is a FastAPI endpoint (\texttt{POST /inspect}). The testbed calls it before delivering any message, so MAPIS does not depend on one framework. For LangGraph the call sits in the graph before every delivery. For AutoGen 0.2 it is registered through \texttt{register\_hook("process\_message\_before\_send")}, and a withheld message ends the chat. The same deterministic five-agent testbed (planner, web, file, memory, code/email) runs on both and offers clean, overt-attack and decomposed-attack scenarios.
+The tap is a FastAPI endpoint (\texttt{POST /inspect}). The testbed calls it before delivering any message, so MAPIS does not depend on one framework. For LangGraph the call sits in the graph before every delivery. For AutoGen 0.2 it is registered through AutoGen's \texttt{register\_hook} on the \texttt{process\_message\_before\_send} event, and a withheld message ends the chat. The same deterministic five-agent testbed (planner, web, file, memory, code/email) runs on both and offers clean, overt-attack and decomposed-attack scenarios.
 
 \section{Session Record}
 For each session MAPIS stores a compact record, in Redis with a time-to-live and an in-memory fallback:
