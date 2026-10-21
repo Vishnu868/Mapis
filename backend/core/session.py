@@ -51,4 +51,9 @@ def commit(state: dict, window: list[dict], hop: dict[str, Any], risk: float = 0
         state["cues"] = state.get("cues", 0) + (1 if F.instruction_risk(hop)[0] > 0 else 0)
         state["claims"] = state.get("claims", 0) + F.authority_claims(hop)
     F.register_indicators(hop, state, risk, trusted_source=designated and risk < 0.25)
+    text = " ".join(str(hop.get(k) or "") for k in ("content", "tool_response"))
+    if hop["role"] in TRUSTED_ROLES or (designated and risk < 0.25):
+        state["trusted_text"] = (state.get("trusted_text", "") + " " + text)[-20000:]
+    elif hop["role"] in UNTRUSTED_ROLES or (hop["role"] == "assistant" and not hop.get("tool_name")):
+        state["seen_text"] = (state.get("seen_text", "") + " " + text)[-20000:]
     F.update_baselines(hop, state)

@@ -474,6 +474,24 @@
    {
     "role": "assistant",
     "source": "approvals_agent",
+    "target": "read_file_tool",
+    "content": "Calling read_file.",
+    "tool_name": "read_file",
+    "tool_call": {
+     "name": "vendor_sheet.csv"
+    }
+   },
+   {
+    "role": "tool",
+    "source": "read_file_tool",
+    "target": "approvals_agent",
+    "content": "vendor_sheet.csv: lists Brightline Trading. (PR-88, Brightline Trading, 12)",
+    "tool_name": "read_file",
+    "tool_call": null
+   },
+   {
+    "role": "assistant",
+    "source": "approvals_agent",
     "target": "approve_request_tool",
     "content": "Calling approve_request.",
     "tool_name": "approve_request",

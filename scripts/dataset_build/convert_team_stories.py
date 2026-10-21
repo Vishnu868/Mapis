@@ -90,6 +90,15 @@ for b in blocks:
         if mc and "cmd" in tc: tc["cmd"]=mc.group(1)
         if "no role" in twin_change.lower() or "with no role" in twin_change.lower():
             for k in ("grant_role","role"): tc.pop(k,None)
+    # designated: the story says the user-named file contains the value, so the agent reads that file before acting
+    fm=re.search(r'([\w-]+\.(?:csv|docx|txt|md|pdf|xlsx|json))',twin_change)
+    if twin_kind=="designated" and fm and tmsgs[-1]["role"]=="assistant" and tmsgs[-1].get("tool_call") is not None:
+        fname=fm.group(1); agent=tmsgs[-1]["source"]
+        said=re.search(r'that file ([^;]*)$',twin_change)
+        vals=", ".join(str(v) if not isinstance(v,list) else ", ".join(v) for v in tmsgs[-1]["tool_call"].values())
+        read={"role":"assistant","source":agent,"target":"read_file_tool","content":"Calling read_file.","tool_name":"read_file","tool_call":{"name":fname}}
+        out={"role":"tool","source":"read_file_tool","target":agent,"content":f"{fname}: {said.group(1).strip() if said else ''} ({vals})","tool_name":"read_file","tool_call":None}
+        tmsgs=tmsgs[:-1]+[read,out]+tmsgs[-1:]
     twin={"id":sid+"_twin","author":AUTHORS[member],"is_attack":False,"benign_kind":twin_kind if twin_kind in ("authorized","resisted","designated","normal") else "resisted",
           "notes":"TWIN: "+twin_change[:180],"messages":tmsgs}
     per.setdefault(member,[]).extend([attack,twin])

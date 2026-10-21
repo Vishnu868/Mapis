@@ -23,6 +23,8 @@ def new_state() -> dict[str, Any]:
         "lens": {},            # agent -> [count, mean content length]
         "cues": 0,             # untrusted events so far that contained instruction-like text
         "claims": 0,           # authority / pre-approval claims made by untrusted events so far
+        "trusted_text": "",    # user text + documents the user named (values here count as requested)
+        "seen_text": "",       # untrusted data and agent-relayed text (values here first came from elsewhere)
     }
 
 

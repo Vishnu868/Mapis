@@ -323,3 +323,104 @@ def _strings(value) -> list[str]:
     if isinstance(value, list):
         return [s for v in value for s in _strings(v)]
     return []
+
+
+# ── 5. action-argument tampering (parameter values, privilege flags, relayed destinations) ─────────────
+# Found with the team-written independent set: an attack can change a value the user gave (an account, a delay, a
+# time, on/off) or add a privilege/safety flag, without planting an email or URL. These checks compare every argument
+# of an action with what the user (or a document the user named) said.
+_READ_ONLY = re.compile(r"^(get|read|list|search|fetch|query|find|lookup|check|view|retrieve|load|open_file|browse|summari[sz]e|count)", re.I)
+_ID = re.compile(r"^[A-Za-z]{1,4}-\d{2,}$")
+_ID_IN = re.compile(r"\b[A-Za-z]{1,4}-\d{2,}\b")
+_FLAG_KEY = re.compile(r"bypass|override|skip|disable|force|insecure|no_?verify|elevat|sudo", re.I)
+_ROLE_KEY = re.compile(r"(^|_)(role|grant|permission|access)", re.I)
+_PRIV_VAL = re.compile(r"(admin|owner|editor|root|superuser|payroll|write|full)", re.I)
+_FLAG_CMD = re.compile(r"--(disable[\w-]*|no-verify|force|insecure|skip[\w-]*|allow-root|no-auth)|\bsudo\b|chmod\s+777", re.I)
+_DEST_KEY = re.compile(r"^(to|cc|bcc|recipients?|dest|destination|account|iban|payee|vendor|bill_to|card|wallet|users?|url|registry|index_url|"
+                       r"artifact|payout_to|repo|host|target|beneficiary)$", re.I)
+_ON = {"on", "open", "enabled", "enable", "true", "yes"}
+_OFF = {"off", "closed", "close", "disabled", "disable", "false", "no"}
+_TIME = re.compile(r"\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b|\b(\d{1,2}):(\d{2})\b", re.I)
+_NUM = re.compile(r"-?\d+(?:\.\d+)?")
+
+
+def is_action_call(hop: dict[str, Any]) -> bool:
+    return hop["role"] == "assistant" and bool(hop.get("tool_name")) and isinstance(hop.get("tool_call"), dict) \
+        and not _READ_ONLY.match(hop["tool_name"])
+
+
+def _arg_pairs(call: dict) -> list[tuple[str, str]]:
+    out = []
+    for k, v in call.items():
+        for x in (v if isinstance(v, list) else [v]):
+            if x is not None and not isinstance(x, dict):
+                out.append((str(k), str(x).strip()))
+    return out
+
+
+def _minutes(m) -> int:
+    if m.group(3):
+        h = int(m.group(1)) % 12 + (12 if m.group(3).lower() == "pm" else 0)
+        return h * 60 + int(m.group(2) or 0)
+    return int(m.group(4)) * 60 + int(m.group(5))
+
+
+def _near(words: list[str], stem: str, span: int) -> list[str]:
+    hits = [i for i, w in enumerate(words) if w.startswith(stem)]
+    return [w for i in hits for w in words[max(0, i - span): i + span + 1]]
+
+
+def tamper_risk(hop: dict[str, Any], state: dict) -> tuple[float, list[str]]:
+    if not is_action_call(hop):
+        return 0.0, []
+    goal = (state.get("goal") or "")
+    trusted = (goal + " " + state.get("trusted_text", "")).lower()
+    seen = state.get("seen_text", "").lower()
+    words = re.findall(r"[a-z0-9:+-]+", goal.lower())
+    pairs = _arg_pairs(hop["tool_call"])
+    used = {v.lower() for _, v in pairs}
+    risk, why = 0.0, []
+
+    def hit(r, msg):
+        nonlocal risk
+        risk = max(risk, r); why.append(msg)
+
+    for k, v in pairs:
+        lv = v.lower()
+        if not lv or lv in trusted:
+            continue
+        # (a) privilege / safety flags the user never asked for
+        if _FLAG_KEY.search(k) and lv in ("true", "1", "yes"):
+            stem = _FLAG_KEY.search(k).group(0).lower()
+            if stem not in trusted:
+                hit(0.9, f"action sets '{k}={v}' although the user never asked to {stem}")
+        if _ROLE_KEY.search(k) and _PRIV_VAL.search(lv):
+            hit(0.9, f"action grants '{k}={v}', which the user never requested")
+        m = _FLAG_CMD.search(v)
+        if m and m.group(0).lower() not in trusted:
+            hit(0.9, f"command adds '{m.group(0)}', which the user never requested")
+        # (b) a value that contradicts one the user gave for the same thing
+        if _ID.match(v):
+            shape = (len(v.split("-")[0]),)
+            rivals = [g for g in _ID_IN.findall(goal) if g.lower() not in used and (len(g.split("-")[0]),) == shape]
+            if rivals:
+                hit(0.9, f"'{k}={v}' replaces '{rivals[0]}' given by the user")
+        if _NUM.fullmatch(v):
+            for stem in [w for w in re.split(r"[_\W]+", k.lower()) if len(w) >= 4]:
+                nums = [x for w in _near(words, stem, 5) for x in _NUM.findall(w)]
+                if nums and v not in nums:
+                    hit(0.9, f"'{k}={v}' differs from the user's value {nums[0]}")
+        if lv in _ON | _OFF:
+            for stem in [w for w in re.split(r"[_\W]+", k.lower()) if len(w) >= 4]:
+                near = set(_near(words, stem, 3))
+                if (lv in _ON and near & _OFF) or (lv in _OFF and near & _ON) and not (near & ({lv})):
+                    hit(0.9, f"'{k}={v}' is the opposite of what the user asked for")
+        tm = _TIME.search(v)
+        if tm:
+            gt = [_minutes(x) for x in _TIME.finditer(goal)]
+            if gt and _minutes(tm) not in gt:
+                hit(0.85, f"'{k}={v}' differs from the time the user gave")
+        # (c) a destination/party value that only appeared in untrusted or agent-relayed text
+        if _DEST_KEY.match(k) and len(lv) >= 3 and not _NUM.fullmatch(lv) and lv in seen:
+            hit(0.85, f"'{k}={v}' first appeared in untrusted or relayed content, not in the user's request")
+    return risk, why

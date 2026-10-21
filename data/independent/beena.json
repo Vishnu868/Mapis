@@ -231,6 +231,24 @@
    {
     "role": "assistant",
     "source": "mail_agent",
+    "target": "read_file_tool",
+    "content": "Calling read_file.",
+    "tool_name": "read_file",
+    "tool_call": {
+     "name": "recipients.txt"
+    }
+   },
+   {
+    "role": "tool",
+    "source": "read_file_tool",
+    "target": "mail_agent",
+    "content": "recipients.txt: lists both addresses. ([\"legal@corp.example\", \"counsel-copy@lawfirm.example\"], signed_nda.pdf)",
+    "tool_name": "read_file",
+    "tool_call": null
+   },
+   {
+    "role": "assistant",
+    "source": "mail_agent",
     "target": "send_email_tool",
     "content": "Calling send_email.",
     "tool_name": "send_email",

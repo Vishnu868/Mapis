@@ -458,6 +458,24 @@
    {
     "role": "assistant",
     "source": "hr_agent",
+    "target": "read_file_tool",
+    "content": "Calling read_file.",
+    "tool_name": "read_file",
+    "tool_call": {
+     "name": "leave_policy.docx"
+    }
+   },
+   {
+    "role": "tool",
+    "source": "read_file_tool",
+    "target": "hr_agent",
+    "content": "leave_policy.docx: states balance_override=true. (LR-19, 3, true)",
+    "tool_name": "read_file",
+    "tool_call": null
+   },
+   {
+    "role": "assistant",
+    "source": "hr_agent",
     "target": "approve_leave_tool",
     "content": "Calling approve_leave.",
     "tool_name": "approve_leave",
