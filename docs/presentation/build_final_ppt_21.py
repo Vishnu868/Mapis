@@ -221,7 +221,7 @@ tb(s, L + 0.15, 6.1, CW - 0.3, 1.05, ["Research gap: a lightweight real-time mon
 notes(s, "MAPIS is not the first work on multi-agent injection. The new part is the combination: a small, fast classifier that reads the session, at a framework-neutral tap, tested with matched benign twins.")
 
 # ======================================================================= 5 architecture
-s = S[4]; clear(s); title(s, 4, "System Architecture & Methodology", 5)
+s = S[5]; clear(s); title(s, 5, "System Architecture & Methodology", 6)
 boxes = [("Agents", ["planner, web, file,", "memory, code/email", "LangGraph or AutoGen"]),
          ("MAPIS tap", ["FastAPI /inspect on every", "message, tool call,", "memory read / write"]),
          ("Session record", ["Redis or in-memory: user goal,", "where each item came from,", "authority claims, baselines"]),
@@ -255,7 +255,7 @@ bullets(s, L, 4.7, CW, 2.7, [
 notes(s, "Follow one message from left to right. The session record is what lets MAPIS tell a planted address from one the user named.")
 
 # ======================================================================= 6 how a message is scored (new)
-s = S[5]; clear(s); title(s, 5, "How One Message Is Scored", 6)
+s = S[6]; clear(s); title(s, 6, "How One Message Is Scored", 7)
 card(s, L, 1.2, 4.75, 4.15)
 tb(s, L + 0.15, 1.25, 4.5, 0.4, "What the classifier reads", size=15, bold=True, color=MAROON)
 tb(s, L + 0.15, 1.7, 4.5, 2.75, ["MAPIS CURRENT EVENT",
@@ -284,7 +284,7 @@ table(s, L, 5.6, CW, [
 notes(s, "The model gives its opinion, the rules add risk, and a noisy-OR combines them: one strong warning is enough, weak ones add up. A session that has already raised alarms is judged up to 1.6 times more strictly.")
 
 # ======================================================================= 7 implementation
-s = S[6]; clear(s); title(s, 6, "Implementation Status", 7)
+s = S[8]; clear(s); title(s, 8, "Implementation Status", 9)
 table(s, L, 1.2, CW, [
     ["Component", "Status", "Where in the code"],
     ["Testbed: LangGraph and AutoGen (5 agents, 3 scenarios)", "DONE", "backend/agents/graph.py, autogen_testbed.py, testbed.py"],
@@ -301,7 +301,7 @@ table(s, L, 1.2, CW, [
 notes(s, "Everything planned in the abstract is built and in the repository. The tests include a train/serve parity test.")
 
 # ======================================================================= 8 datasets (new)
-s = S[7]; clear(s); title(s, 7, "Datasets & Experimental Setup", 8)
+s = S[4]; clear(s); title(s, 4, "Datasets (MAPIS-Bench) & Splits", 5)
 table(s, L, 1.2, 6.25, [
     ["Set (sessions)", "Source", "Train", "Val", "Test"],
     ["v1 (1,693)", "AgentDojo + InjecAgent, public", "1,169", "242", "282"],
@@ -322,7 +322,7 @@ bullets(s, L + 0.15, 5.22, CW - 0.3, 2.1, [
 notes(s, "Public benchmarks are split into a trained part and a held-out part; we always report the held-out part. Decomposed, StateAttack and the team-written set were never trained on.")
 
 # ======================================================================= 9 model and training (new)
-s = S[8]; clear(s); title(s, 8, "Model & Training", 9)
+s = S[7]; clear(s); title(s, 7, "Model & Training", 8)
 table(s, L, 1.2, 4.6, [
     ["Setting", "Value"],
     ["Model", "DeBERTa-v3-small (6 layers, hidden 768, 44 M backbone)"],
