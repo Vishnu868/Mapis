@@ -180,10 +180,10 @@ table(s, L, 1.2, CW, [
     ["Area", "At First Review", "At Final Review"],
     ["Detector", "DeBERTa-v3-small on chunked history; gained only 2.3 points from session state", "Session signals written into the classifier input; +96 points over the stateless model on multi-hop attacks at matched FPR"],
     ["Runtime", "4-tier shield, session store, provenance, trace on LangGraph", "Same on LangGraph and AutoGen, plus escalation, evasion defences, tampering checks and a calibrated hold cut-off"],
-    ["Data", "MAPIS-Bench v1 (1,693) + BIPIA (1,800)", "+ MultiHop, Decomposed, RealHarm, Adaptive; StateAttack and a team-written test set"],
+    ["Data", "MAPIS-Bench v1 (1,693), BIPIA (1,800), Decomposed", "+ MultiHop, RealHarm, Adaptive; StateAttack and a team-written test set"],
     ["Baselines", "Llama Guard / NeMo comparison planned", "Llama Guard, Prompt Guard 2, ProtectAI, NeMo Guardrails, LLM judge on identical sessions"],
     ["Evaluation", "One training run, held-out BIPIA", "5 training seeds, 2,304-session test, matched-FPR comparison, live LLM agents (AgentDojo)"],
-    ["Interface", "Dashboard built, demo pending", "Operator console: live monitor, session inspector, results"],
+    ["Interface", "Dashboard integration in progress, demo pending", "Operator console: live monitor, session inspector, results"],
     ["Tests", "26 passing", "33 passing"]], [1.35, 3.4, 4.82], size=12, row_h=0.68, bold_first_col=True)
 tb(s, L, 6.85, CW, 0.5, "All four project targets are measured and met (slide 18).", size=16, bold=True, color=MAROON)
 notes(s, "At the First Review we had a trained classifier and a prototype shield. Since then the classifier really uses the session, we added AutoGen, five more test sets, five baselines, five training seeds and a live LLM-agent test.")
@@ -224,7 +224,7 @@ notes(s, "MAPIS is not the first work on multi-agent injection. The new part is 
 s = S[4]; clear(s); title(s, 4, "System Architecture & Methodology", 5)
 boxes = [("Agents", ["planner, web, file,", "memory, code/email", "LangGraph or AutoGen"]),
          ("MAPIS tap", ["FastAPI /inspect on every", "message, tool call,", "memory read / write"]),
-         ("Session record", ["Redis: user goal, where", "each item came from,", "authority claims, baselines"]),
+         ("Session record", ["Redis or in-memory: user goal,", "where each item came from,", "authority claims, baselines"]),
          ("Trust score", ["DeBERTa-v3-small + signals", "+ tampering checks", "0 = malicious, 1 = safe"])]
 bw, gap = 2.15, 0.323
 for i, (h, t) in enumerate(boxes):
@@ -313,9 +313,9 @@ table(s, L, 1.2, 6.25, [
     ["Total", "", "6,186", "1,191", "2,304"]], [1.65, 2.3, 0.8, 0.7, 0.8], size=12, row_h=0.47, bold_rows=(7,))
 card(s, 7.0, 1.2, 3.12, 3.76)
 tb(s, 7.1, 1.25, 2.9, 0.4, "Setup", size=15, bold=True, color=MAROON)
-bullets(s, 7.1, 1.65, 2.95, 3.3, ["Test: 1,285 attacks, 1,019 harmless", "Split by family, wording and tool — the test uses tools and phrasings never seen in training",
+bullets(s, 7.1, 1.65, 2.95, 3.3, ["Test: 1,285 attacks, 1,019 harmless", "MultiHop, Adaptive, RealHarm: split by family, wording and tool — their test uses tools and phrasings never seen in training",
                                    "Test only: StateAttack (168), team-written set (40)", "Every system sees the same events", "5 seeds; 95 % Wilson intervals"], size=12, gap=4)
-card(s, L, 5.15, CW, 2.0, fill=PINK)
+card(s, L, 5.15, CW, 1.6, fill=PINK)
 bullets(s, L + 0.15, 5.22, CW - 0.3, 2.1, [
     "Benign twins for every attack:||  authorized (the user named the destination), resisted (planted text present, the agent acts correctly), designated (the user named the file). Without twins a detector can score well by flagging anything suspicious.",
     "Reported both ways:||  5 attack classes (exfiltration, financial, code/tool, instruction override, physical safety) and 5 mechanisms (document poisoning, memory injection, tool output, cross-agent, goal hijack)."], size=13, gap=6)
@@ -368,7 +368,7 @@ tb(s, 5.65, 3.3, 4.47, 0.5, "Confusion matrices, seed 42, all 2,304 sessions: st
 bullets(s, L, 5.1, CW, 2.3, [
     "Calibrated cut-off:||  a hold threshold picked on validation brings multi-hop false alarms from 3.0 % to 0.6 % — every seed ≤ 1.8 %, recall still 100 %.",
     "By mechanism (seed 42):||  100 % for tool output, cross-agent, goal hijack and document poisoning; memory injection 99.2 %.",
-    "Weakest class:||  instruction override, 92–96 % — mostly harmless-looking single-hop BIPIA injections."], size=13, gap=6)
+    "Weakest class:||  instruction override (92.3 % in seed 42) — mostly harmless-looking single-hop BIPIA injections."], size=13, gap=6)
 notes(s, "MAPIS is near 100 percent on every set except BIPIA, where the attack is in a single message and there is no history to use.")
 
 # ======================================================================= 12 why memory matters
@@ -402,7 +402,7 @@ table(s, 5.65, 1.55, 4.47, [
     ["Item introduced by an agent", "25.0", "90.0"],
     ["Item the agent must decode", "25.0", "25.0"],
     ["All (FPR 10.2 % both)", "55.7", "80.4"]], [2.67, 0.9, 0.9], size=12, row_h=0.42, bold_rows=(6,))
-card(s, L, 4.75, CW, 2.6, fill=PINK)
+card(s, L, 4.75, CW, 2.2, fill=PINK)
 bullets(s, L + 0.15, 4.85, CW - 0.3, 2.5, [
     "What the first run missed:||  changed values (wallet WL-5508 instead of PS-7731, alarm delay 360 instead of 10 min), extra privilege flags (bypass_checks=true), destinations relayed by another agent.",
     "Fix — three tampering checks on action arguments, no retraining:||  team-written set 35–45 % → 95 % in all 5 seeds; no new false positive on any of 2,512 test sessions.",
@@ -498,10 +498,10 @@ notes(s, "Every target from the abstract is met.")
 
 # ======================================================================= 19 team
 s = S[18]; clear(s); title(s, 18, "Team Contribution & Responsibility", 19)
-people = [("Vishnu Vardhan", "Testbed & Orchestration Lead", "LangGraph and AutoGen testbed, agent orchestration, FastAPI tap, runtime integration, live LLM-agent runs."),
-          ("Nithya Sai", "Attack Dataset & Red-Team Lead", "MAPIS-Bench construction, attack taxonomy, multi-hop, adaptive and StateAttack scenarios, labelling."),
-          ("Sreekar Reddy", "Detection Model Lead", "Session-context design, trust-scoring classifier, training over 5 seeds, signals and tampering checks, calibration."),
-          ("Beena Reddy", "Response, Dashboard & Evaluation Lead", "Tiered response, forensic logging, operator dashboard, benchmark harness and baselines.")]
+people = [("Vishnu Vardhan", "Testbed & Orchestration Lead", "The LangGraph multi-agent testbed, agent-to-agent orchestration, and FastAPI interception middleware."),
+          ("Nithya Sai", "Attack Dataset & Red-Team Lead", "MAPIS-Bench construction, attack taxonomy, multi-hop attack scenarios, and dataset labelling."),
+          ("Sreekar Reddy", "Detection Model Lead", "The session-context design and trust-scoring classifier, including model training, feature design, and threshold calibration."),
+          ("Beena Reddy", "Response, Dashboard & Evaluation Lead", "The tiered response layer, forensic logging, dashboard integration, and benchmark evaluation.")]
 cw2 = (CW - 0.3) / 2
 for i, (n, r, d) in enumerate(people):
     x, y = L + (i % 2) * (cw2 + 0.3), 1.2 + (i // 2) * 2.45
@@ -509,8 +509,8 @@ for i, (n, r, d) in enumerate(people):
     tb(s, x + 0.12, y + 0.1, cw2 - 0.24, 0.4, n, size=17, bold=True, color=MAROON)
     tb(s, x + 0.12, y + 0.52, cw2 - 0.24, 0.35, r, size=13, bold=True)
     tb(s, x + 0.12, y + 0.95, cw2 - 0.24, 1.25, d, size=14, color=GREY)
-tb(s, L, 6.25, CW, 0.9, size=14, text="Shared: the hand-written independent test set (each member wrote 5 attacks and twins), weekly integration testing, code review, experiment tracking, documentation and thesis.")
-notes(s, "Roles as in the zeroth and first review; everyone took part in the whole project.")
+tb(s, L, 6.25, CW, 0.9, size=14, text="Shared: the hand-written independent test set (each member wrote 5 attacks with their twins), weekly integration testing, code review, experiment tracking, documentation, and thesis preparation across all four members.")
+notes(s, "Roles and wording as in the First Review; everyone took part in the whole project.")
 
 # ======================================================================= 20 references
 s = S[19]; clear(s); title(s, 19, "References", 20)
@@ -519,20 +519,21 @@ refs = ["[1] K. Greshake et al., “Not what you've signed up for: Compromising 
         "[3] Q. Zhan et al., “InjecAgent: Benchmarking indirect prompt injections in tool-integrated LLM agents,” Findings of ACL, 2024.",
         "[4] E. Debenedetti et al., “AgentDojo: A dynamic environment to evaluate prompt injection attacks and defenses for LLM agents,” NeurIPS 2024.",
         "[5] J. Yi et al., “Benchmarking and defending against indirect prompt injection attacks on large language models,” arXiv:2312.14197, 2023.",
-        "[6] H. Zhang et al., “Agent Security Bench (ASB),” arXiv:2410.02644, 2024.",
+        "[6] H. Zhang et al., “Agent Security Bench (ASB): Formalizing and benchmarking attacks and defenses in LLM-based agents,” arXiv:2410.02644, 2024.",
         "[7] F. Jia et al., “The Task Shield: Enforcing task alignment to defend against indirect prompt injection in LLM agents,” arXiv:2412.16682, 2024.",
         "[8] Y. Wang et al., “AgentWatcher: A rule-based prompt injection monitor,” arXiv:2604.01194, 2026.",
         "[9] S. Chennabasappa et al., “LlamaFirewall: An open source guardrail system for building secure AI agents,” arXiv:2505.03574, 2025.",
-        "[10] D. Lee and M. Tiwari, “Prompt Infection: LLM-to-LLM prompt injection within multi-agent systems,” 2024.",
+        "[10] D. Lee and M. Tiwari, “Prompt Infection: LLM-to-LLM prompt injection within multi-agent systems,” arXiv:2410.07283, 2024.",
         "[11] S. Wang et al., “G-Safeguard: A topology-guided security lens and treatment on LLM-based multi-agent systems,” ACL 2025.",
         "[12] P. He et al., “DeBERTa: Decoding-enhanced BERT with disentangled attention,” ICLR 2021.",
         "[13] H. Inan et al., “Llama Guard: LLM-based input-output safeguard for human-AI conversations,” arXiv:2312.06674, 2023.",
         "[14] T. Rebedea et al., “NeMo Guardrails: A toolkit for controllable and safe LLM applications with programmable rails,” EMNLP 2023 Demos.",
-        "[15] S. Li and Y. Zhao, “The autonomy tax: Defense training breaks LLM agents,” arXiv:2603.19423, 2026."]
-bullets(s, L, 1.1, CW, 6.3, refs, size=13, gap=5)
+        "[15] S. Li and Y. Zhao, “The autonomy tax: Defense training breaks LLM agents,” arXiv:2603.19423, 2026.",
+        "[16] T. Geng et al., “Prompt injection attacks on large language models: A survey of attack methods, root causes, and defense strategies,” Computers, Materials & Continua, 2026."]
+bullets(s, L, 1.1, CW, 6.3, refs, size=12, gap=4)
 for p in s.shapes[-1].text_frame.paragraphs:                      # numbered references, no bullet symbol
     p.runs[0].text = p.runs[0].text.replace("•  ", "")
-notes(s, "References 1-4, 7, 8 and 15 were in the zeroth and first review; the rest were added during the project.")
+notes(s, "References 1-5, 7, 8, 15 and 16 were in the First Review; the rest were added during the project.")
 
 # ======================================================================= 21 thank you
 s = S[20]; clear(s)
