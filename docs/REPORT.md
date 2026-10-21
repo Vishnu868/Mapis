@@ -46,7 +46,7 @@ Test families, phrasings and tools are held out. The final test has 2,304 sessio
 | Prompt Guard 2 (86M) | 7.5 % | 0.1 % | 48.4 % |
 
 MAPIS per set (recall / FPR, 5 seeds):
-- Multi-hop: 100 % / 3.0 ± 3.0 % at the default hold cut-off (0.50). With a cut-off chosen on the validation split only (`scripts/calibrate_mapis.py`), every seed checked stays ≤ 5 % (seeds 42/2/3: 1.2→0.6, 5.3→1.8, 0.0→0.0 %) with recall unchanged. At the default cut-off two of five seeds exceed 5 % (5.3 and 7.7 %); seeds 4 and 5 were not calibrated.
+- Multi-hop: 100 % / 3.0 ± 3.0 % at the default hold cut-off (0.50). At the default cut-off two of five seeds exceed 5 % (5.3 and 7.7 %). With a cut-off chosen on the validation split only (`scripts/calibrate_mapis.py`), every seed stays ≤ 1.8 % (1.2→0.6, 5.3→1.8, 0.0→0.0, 7.7→0.6, 0.6→0.0 %; mean 3.0→0.6 %) with recall unchanged.
 - Adaptive: 100 % / 0.4 % (0.0 % in four seeds, 1.8 % in one), all six techniques.
 - InjecAgent direct harm: 99.4 % / 0 %. ASB: 100 % / 0 %.
 - Decomposed: 100 / 0. v1: 100 / 0.
@@ -56,16 +56,16 @@ The tampering checks (§4.5) change no decision on these 2,304 sessions in any s
 
 ### 4.2 Stateless detection at a matched false-positive budget
 
-At the default threshold the stateless model buys 86.5 % multi-hop recall with a 51 % FPR (5 seeds), because it flags the user-authorized twins. Holding it to ≤ 5 % FPR (threshold chosen on validation, applied to test; 3-seed means):
+At the default threshold the stateless model buys 86.5 % multi-hop recall with a 51 % FPR (5 seeds), because it flags the user-authorized twins. Holding it to ≤ 5 % FPR (threshold chosen on validation, applied to test; 5-seed means):
 
 | Set | Stateless recall | MAPIS recall |
 |---|---|---|
-| Multi-hop | 6.7 % | 100 % |
-| Adaptive | 8.7 % | 100 % |
-| InjecAgent-DH | 90.7 % | 99.5 % |
-| ASB | 98.3 % | 100 % |
+| Multi-hop | 4.3 % | 100 % |
+| Adaptive | 6.1 % | 100 % |
+| InjecAgent-DH | 88.5 % | 99.4 % |
+| ASB | 97.8 % | 100 % |
 
-On multi-hop and adaptive attacks the gap is about 93 and 91 points, against the target of ≥ 20. The thresholds picked on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7 %, seed 2 adaptive 8.8 %), so these stateless recalls are generous to the baseline. On RealHarm the explicit injection text makes message-level detection competitive, and the gap is ≤ 9 points.
+On multi-hop and adaptive attacks the gap is about 96 and 94 points, against the target of ≥ 20. The thresholds picked on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7 %, seed 2 adaptive 8.8 %), so these stateless recalls are generous to the baseline. On RealHarm the explicit injection text makes message-level detection competitive, and the gap is ≤ 11 points.
 
 ### 4.3 LLM-based baselines (153 class-balanced sessions, up to 20 per dataset)
 
@@ -116,7 +116,7 @@ Team-written set, seed 42, all systems:
 | ProtectAI v2 | 50.0 % | 50.0 % | 50.0 % |
 | Llama Guard 3-1B | 100 % | 100 % | 50.0 % |
 
-The baselines flag benign and attack sessions at the same rate. On StateAttack the stateless model reaches 78.6–100 % recall only at 57–79 % FPR (seeds 42/2/3).
+The baselines flag benign and attack sessions at the same rate. On StateAttack the stateless model flags attacks and their twins at nearly the same rate in every seed (mean 69.3 % recall at 55.2 % FPR).
 
 **Rule ablation (seed 42, adaptive + multi-hop + StateAttack, 978 sessions, before the tampering checks).** Full MAPIS 92.0 % / 1.8 %, model only 92.0 % / 1.7 %, without provenance 92.0 % / 1.7 %. The classifier has absorbed the four original rule signals through its input line; the tampering checks are the exception (they compare argument values with the user's request, which the classifier input does not).
 
@@ -129,16 +129,16 @@ The baselines flag benign and attack sessions at the same rate. On StateAttack t
 | Target | Result |
 |---|---|
 | Accuracy ≥ 90 % | 98.5 % (5 seeds) |
-| FPR ≤ 5 % | 0.9 % overall; multi-hop 3.0 % mean at the default cut-off, ≤ 1.8 % on the three seeds checked with the validation-calibrated cut-off |
+| FPR ≤ 5 % | 0.9 % overall; multi-hop 3.0 % mean at the default cut-off, ≤ 1.8 % in every seed with the validation-calibrated cut-off |
 | < 200 ms per message | 63 ms |
-| ≥ 20 points recall gain on multi-hop | +93 points at matched FPR, 3 seeds (+13.5 at the default threshold) |
+| ≥ 20 points recall gain on multi-hop | +96 points at matched FPR (+13.5 at the default threshold) |
 
 ## 5. Limits
 
 - The tampering checks were designed after reading the team-set misses, so their 95 % there is not an independent estimate; a fresh hand-written set is the next step.
 - StateAttack reaches 80.4 % recall but at 10.2 % FPR (above the 5 % target; mostly memory-laundering twins); items the agent must decode stay at 25 %.
 - MultiHop and Adaptive are template-generated (held-out families, phrasings and tools; real carrier text).
-- Two seeds of five have a multi-hop FPR above 5 % at the default cut-off; the validation-calibrated cut-off fixes it for the three seeds checked.
+- Two seeds of five have a multi-hop FPR above 5 % at the default cut-off; the validation-calibrated cut-off fixes it in all five seeds.
 - MAPIS was trained on AgentDojo-style injections, which the live run also uses. The live agent is a 7B local model (28 % benign utility); the LLM judge and NeMo ran on the same 7B model.
 - On single-hop BIPIA there is no cross-hop evidence, so stateless recall is within seed variance of MAPIS.
 - The four original rule signals add nothing measurable once the classifier has the session signals; only the tampering checks add recall.

@@ -62,26 +62,26 @@ At the default threshold the stateless model reaches 86.5\% multi-hop recall (fi
 \toprule
 Set & Stateless recall at $\le$5\% FPR (\%) & MAPIS recall (\%)\\
 \midrule
-MAPIS-MultiHop & 6.7 & 100\\
-MAPIS-Adaptive & 8.7 & 100\\
-InjecAgent direct harm & 90.7 & 99.5\\
-ASB & 98.3 & 100\\
+MAPIS-MultiHop & 4.3 & 100\\
+MAPIS-Adaptive & 6.1 & 100\\
+InjecAgent direct harm & 88.5 & 99.4\\
+ASB & 97.8 & 100\\
 \bottomrule
 \end{tabular}
-\caption{Stateless recall at a matched false-positive budget (mean of three seeds).}
+\caption{Stateless recall at a matched false-positive budget (mean of five seeds).}
 \end{table}
 \begin{figure}[H]
 \centering
 \begin{tikzpicture}
 \begin{axis}[ybar, bar width=14pt, width=11cm, height=6cm, ymin=0, ymax=110, ylabel={Recall (\%)}, symbolic x coords={Multi-hop,Adaptive}, xtick=data, legend style={at={(0.5,-0.15)},anchor=north,legend columns=2,font=\small}, nodes near coords, nodes near coords style={font=\scriptsize}, enlarge x limits=0.5]
 \addplot[fill=maroon] coordinates {(Multi-hop,100) (Adaptive,100)};
-\addplot[fill=gray] coordinates {(Multi-hop,6.7) (Adaptive,8.7)};
+\addplot[fill=gray] coordinates {(Multi-hop,4.3) (Adaptive,6.1)};
 \legend{MAPIS, Stateless at $\le 5\%$ FPR}
 \end{axis}
 \end{tikzpicture}
 \caption{Recall at a matched false-positive budget.}
 \end{figure}
-The recall gain of MAPIS over stateless detection on multi-hop attacks is therefore about 93 percentage points at a matched budget, against the target of 20. At the default threshold the plain gain is only 13.5 points (100 against 86.5), which is why we report the matched comparison. The thresholds chosen on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7\%, seed 2 adaptive 8.8\%), so these stateless recalls are generous to the baseline. On RealHarm the attack text is explicit, a message-level model is competitive at zero false positives, and the gap is at most 9 points.
+The recall gain of MAPIS over stateless detection on multi-hop attacks is therefore about 96 percentage points at a matched budget, against the target of 20. At the default threshold the plain gain is only 13.5 points (100 against 86.5), which is why we report the matched comparison. The thresholds chosen on validation did not hold exactly on test (seed 3 multi-hop FPR 7.7\%, seed 2 adaptive 8.8\%), so these stateless recalls are generous to the baseline. On RealHarm the attack text is explicit, a message-level model is competitive at zero false positives, and the gap is at most 11 points.
 
 \section{The Evasive Attacker}
 Before the upgrade of Section~\ref{sec:history}, the model with the old matching reached 64.6\% recall at 2.9\% FPR on the adaptive test set. With canonical matching it reached 100\% but at 3.9\% FPR with the old model. The retrained model reaches 100\% recall on obfuscated, split, Unicode, paraphrased, long-delay and combined attacks in all five seeds (576 sessions, 192 attacks), at 0.0\% FPR in four seeds and 1.8\% in one (mean 0.4\%).
@@ -105,7 +105,7 @@ NeMo Guardrails (qwen2.5 7B) & 48.7 & 17.8 & 64.7\\
 The judge finds multi-hop attacks (100\% recall) but flags 80\% of the benign multi-hop twins, because any session whose documents contain the fragments looks suspicious. NeMo misses most multi-hop and adaptive attacks (20\% and 30\% recall). Neither separates an attack from the identical user-authorized action. With 20 sessions per dataset a result of 0\% FPR has a 95\% upper bound of 5\%, so Table~\ref{tab:head} remains the headline and this table is the like-for-like comparison. Both LLM baselines ran on a small local model and could do better with a large one.
 
 \section{Calibrated Hold Cut-off}
-At the default cut-off of 0.50, two of five seeds exceed 5\% false positives on multi-hop sessions (5.3 and 7.7\%). A cut-off chosen on the validation split only, so that every dataset family stays at or below 2\% false positives there, was then applied to test. For the three seeds checked (42, 2, 3), multi-hop FPR moved from 1.2, 5.3 and 0.0\% to 0.6, 1.8 and 0.0\% with recall unchanged at 100\%, and no other set changed. With this cut-off every checked seed meets the 5\% target; seeds 4 and 5 were trained later and not calibrated.
+At the default cut-off of 0.50, two of five seeds exceed 5\% false positives on multi-hop sessions (5.3 and 7.7\%). A cut-off chosen on the validation split only, so that every dataset family stays at or below 2\% false positives there, was then applied to test. Over the five seeds, multi-hop FPR moved from 1.2, 5.3, 0.0, 7.7 and 0.6\% to 0.6, 1.8, 0.0, 0.6 and 0.0\% (mean 3.0 to 0.6\%) with recall unchanged at 100\%, and no other set got worse. With this cut-off every seed meets the 5\% target.
 
 \section{Harder Tests and the Tampering Checks}
 \label{sec:harder}
@@ -144,7 +144,7 @@ Six headline sets (2,304 sessions) & Table~\ref{tab:head} & unchanged\\
 \end{tabular}
 \caption{Effect of the tampering checks with the trained models (2,512 test sessions per seed).}\label{tab:v2}
 \end{table}
-The checks added no false positive on any of the 2,512 test sessions in any seed, and they changed no decision on the six headline sets, so Table~\ref{tab:head} holds for the final system. Document-poisoning attacks rose from 78.6\% to 100\% recall. On StateAttack, items first introduced by an agent rose from 25.0\% to 90.0\%, laundered items from 63.3\% to 86.7\%, buried evidence from 76.7\% to 90.0\% and split claims from 78.3\% to 91.7\%; items the agent must decode (reversed or base64) stay at 25.0\%. The one remaining team-set miss sets ventilation to off although the user asked to keep it on: the on/off check skipped it because the word ``off'' occurs elsewhere in the user's request, a matching bug fixed after this run. The baselines flag benign and attack sessions at the same rate; the stateless model reaches 79 to 100\% StateAttack recall only at 57 to 79\% FPR. Because the checks were designed after reading the team-set misses, 95\% on that set is not an independent estimate; a new hand-written set is needed to confirm it. With 20 sessions per class the interval is wide (95\% recall: 76 to 99\%).
+The checks added no false positive on any of the 2,512 test sessions in any seed, and they changed no decision on the six headline sets, so Table~\ref{tab:head} holds for the final system. Document-poisoning attacks rose from 78.6\% to 100\% recall. On StateAttack, items first introduced by an agent rose from 25.0\% to 90.0\%, laundered items from 63.3\% to 86.7\%, buried evidence from 76.7\% to 90.0\% and split claims from 78.3\% to 91.7\%; items the agent must decode (reversed or base64) stay at 25.0\%. The one remaining team-set miss sets ventilation to off although the user asked to keep it on: the on/off check skipped it because the word ``off'' occurs elsewhere in the user's request, a matching bug fixed after this run. The baselines flag benign and attack sessions at the same rate; the stateless model flags StateAttack attacks and their twins at nearly the same rate in every seed (mean 69.3\% recall at 55.2\% FPR). Because the checks were designed after reading the team-set misses, 95\% on that set is not an independent estimate; a new hand-written set is needed to confirm it. With 20 sessions per class the interval is wide (95\% recall: 76 to 99\%).
 
 \textbf{Rule ablation.} On 978 adaptive, multi-hop and StateAttack sessions (seed 42), the full system before the tampering checks, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7 to 1.8\% FPR: the classifier has absorbed the four original rule signals through its input. The tampering checks are the exception, because they look at argument values that the classifier input does not compare with the user's request.
 
@@ -162,9 +162,9 @@ A DeBERTa-v3-base model (one seed, earlier data) reached 99.9\% recall and 2.0\%
 Target & Result & Met\\
 \midrule
 Accuracy $\ge$ 90\% & 98.5\% (5 seeds) & Yes\\
-FPR $\le$ 5\% & $0.9\pm0.8$\% overall, multi-hop $3.0\pm3.0$\% & Yes (mean; the calibrated cut-off brings the three checked seeds to $\le$1.8\%)\\
+FPR $\le$ 5\% & $0.9\pm0.8$\% overall, multi-hop $3.0\pm3.0$\% & Yes (every seed $\le$1.8\% with the calibrated cut-off)\\
 Latency $<$ 200 ms & 63 ms & Yes\\
-Multi-hop recall gain $\ge$ 20 points & +93 points at matched FPR (three seeds) & Yes\\
+Multi-hop recall gain $\ge$ 20 points & +96 points at matched FPR & Yes\\
 \bottomrule
 \end{tabular}
 \caption{Project targets.}

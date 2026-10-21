@@ -82,7 +82,7 @@ a.set_title("2,304 held-out sessions"); fig.tight_layout(); fig.savefig(F / "res
 
 # 4. matched-FPR chart
 fig, a = plt.subplots(figsize=(5.2, 3.2))
-cats = ["Multi-hop", "Adaptive"]; mp = [100, 100]; sl = [6.7, 8.7]
+cats = ["Multi-hop", "Adaptive"]; mp = [100, 100]; sl = [4.3, 6.1]
 a.bar([0 - .2, 1 - .2], mp, .38, color=MAROON, label="MAPIS"); a.bar([0 + .2, 1 + .2], sl, .38, color=GREY, label="Stateless, FPR $\\leq$ 5%")
 for i in range(2):
     a.text(i - .2, mp[i] + 1.5, str(mp[i]), ha="center"); a.text(i + .2, sl[i] + 1.5, str(sl[i]), ha="center")
