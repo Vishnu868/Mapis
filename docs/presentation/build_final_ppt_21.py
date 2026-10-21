@@ -422,7 +422,7 @@ bullets(s, L, 3.95, 4.6, 3.4, [
     "The judge finds the multi-hop attacks but flags 80 % of the benign twins.",
     "NeMo misses most multi-hop and adaptive attacks.",
     "Neither can separate an attack from the same action the user asked for.",
-    "Both used a small local 7B model; 20 sessions per set, so 0 % FPR has a 5 % upper bound."], size=12, gap=5)
+    "Both used a small local 7B model; 153 sessions (80 attacks, 73 harmless), so 0 % FPR has a 5 % upper bound."], size=12, gap=5)
 tb(s, 5.5, 1.12, 4.62, 0.4, "AgentDojo with a real tool-calling agent", size=14, bold=True, color=MAROON)
 column_chart(s, 5.5, 1.55, 4.62, 2.7, ["No defence", "MAPIS", "Stateless"], [("Attack success rate (%)", (15.3, 0.0, 0.0))], maximum=20, legend=False, size=10, gap=80)
 bullets(s, 5.5, 4.35, 4.62, 3.0, [
