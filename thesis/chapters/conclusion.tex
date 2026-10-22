@@ -1,27 +1,27 @@
 \label{chap.8}
 \section{Summary}
-In this project we looked at indirect prompt injection that spreads across the hops of a multi-agent LLM pipeline, including attacks split into pieces that look harmless one message at a time. We built MAPIS, a monitor that sits at a tap independent of the framework and remembers the session. It records where each item first appeared, gives a summary of that record and four signals to a fine-tuned DeBERTa-v3-small classifier, combines the result with rule signals and checks on action arguments, and responds with one of four tiers, a forensic trace and an operator dashboard.
+In this project we looked at indirect prompt injection that spreads across the hops of a multi-agent LLM pipeline, including attacks split into pieces that look harmless one message at a time. We built MAPIS, a monitor that sits at a tap independent of the framework and remembers the session. It records where each item first appeared, gives a summary of that record and four signals to a fine-tuned DeBERTa-v3-small classifier, combines the result with rule signals, and responds with one of four tiers, a forensic trace and an operator dashboard.
 
-We evaluated it on 2,304 held-out sessions from six benchmark sets, with five training seeds and five baselines. MAPIS reached $98.0\pm0.6$\% recall with $0.9\pm0.8$\% false positives and $98.5$\% accuracy at 63 ms per event. On multi-hop attacks it caught 100\% with 3.0\% false positives (at most 1.8\% in every seed with the calibrated cut-off), while a stateless model of the same size, limited to 5\% false positives, caught 4.3\%. Against an attacker trying to evade it, MAPIS caught 100\% at 0.4\% false positives, and with a live LLM agent it brought the attack success rate down from 15.3\% to 0\%. All four targets were met. The harder test sets showed that attacks which only change a value were a weak point; the tampering checks, added without retraining, raised recall on our team-written set from 40\% to 95\% and on attacks against the session record from 55.7\% to 80.4\%, with no new false positives.
+We evaluated it on 2,304 held-out sessions from six benchmark sets, with five training seeds, three public guardrails and a stateless model trained on the same data. MAPIS reached $98.0\pm0.6$\% recall with $0.9\pm0.8$\% false positives and $98.5$\% accuracy at 63 ms per event. On multi-hop attacks it caught 100\% with 3.0\% false positives (at most 1.8\% in every seed with the calibrated cut-off), while a stateless model of the same size, limited to 5\% false positives, caught 4.3\%. Against an attacker trying to evade it, MAPIS caught 100\% at 0.4\% false positives. All four targets were met, and the prototype runs the whole pipeline live on LangGraph and AutoGen with an operator console.
 
 \section{Answer to the Research Question}
 What separates an attack from the same action requested by the user is the session memory. Without it, a detector either misses the fragment attacks or blocks the user's own requests. With it, a small and fast classifier can do both jobs.
 
 \section{Limitations}
 \begin{itemize}
-\item The tampering checks were designed after reading the misses on the team-written set, so their 95\% on that set is not an independent estimate; a new hand-written set is needed to confirm it.
-\item Attacks aimed at the session record reach 80.4\% recall but at 10.2\% false positives, above the 5\% target (mostly twins whose item was stored in memory); items the agent must decode (reversed or base64) are caught only 25\% of the time.
-\item MultiHop and Adaptive are template-generated, with held-out families, wordings and tools and real carrier text.
+\item MultiHop and Adaptive are template-generated, with held-out families, wordings and tools and real carrier text, so they are probably easier than real traffic.
+\item Provenance follows items with a recognisable shape (emails, URLs, IBAN-like ids and long numbers). An attack that only changes a short plain value, such as an account code or a delay in minutes, leaves no item to trace.
 \item At the default cut-off two of five seeds exceed 5\% false positives on multi-hop sessions; the validation-calibrated cut-off removes this in all five seeds.
-\item MAPIS was trained on AgentDojo-style injections, and the live run uses them. The live agent, the LLM judge and NeMo used a small 7B local model.
 \item On single-hop BIPIA there is no cross-hop evidence, so the stateless model is within seed variance of MAPIS in recall.
-\item The four original rule signals add nothing measurable once the classifier has the session signals; only the tampering checks add recall.
+\item The rule signals add nothing measurable once the classifier has the session signals; they remain as a safety net and as the explanation shown to the operator.
+\item The demonstration testbed is scripted, and the public guardrails were run with their default thresholds.
 \end{itemize}
 
 \section{Scope for Further Research}
 \begin{itemize}
-\item Write a fresh hand-written test set to confirm the tampering checks, and extend them to items the agent must decode.
+\item Check the arguments of every action against the user's request (values, privilege flags and destinations the user never gave), so that attacks which only change a plain value are caught.
+\item Test on harder data: a set written by hand, independently of the generators, and attacks aimed at the session record itself.
+\item Run live LLM agents with MAPIS in the loop, for example on AgentDojo, and measure attack success and utility; add LLM-based guardrails such as NeMo Guardrails and a history-aware LLM judge as baselines.
 \item Tap agent-internal reads so that items introduced by an agent can be traced, and evaluate on real agent traffic.
-\item Run larger live agents and stronger LLM judges as baselines.
 \item Extend the tap to multimodal content and to additional frameworks, and harden the system for production use.
 \end{itemize}

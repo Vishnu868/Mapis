@@ -12,7 +12,7 @@ Learn these first. Every slide uses them.
 
 | Word | Plain meaning | Example |
 |---|---|---|
-| **LLM** | Large Language Model: an AI that reads and writes text (ChatGPT, Llama, Qwen). | qwen2.5 7B, the agent in our live test |
+| **LLM** | Large Language Model: an AI that reads and writes text (ChatGPT, Llama, Qwen). | Llama Guard 3-1B, one of our baselines |
 | **Agent** | An LLM that does things, not just chat. It calls **tools**: search the web, read a file, send an email. | the "email agent" calls `send_email(...)` |
 | **Multi-agent pipeline** | Several agents pass messages to each other. Each does one job. | planner → web agent → file agent → memory agent → email agent |
 | **Hop** | One message passing from one agent or tool to the next. A session is a chain of hops. | hop 4 = the file agent hands the file text to the memory agent |
@@ -69,7 +69,7 @@ The slides show the **mean over 5 seeds** (98.0 / 0.9 / 98.5). The figures above
   - Example: recall 98.0 ± 0.6 % means the five runs averaged 98.0 %, and a typical run is within about 0.6 points of that.
 - **95 % Wilson interval:** a range that probably (95 %) contains the true value, given the sample size. It matters when the sample is small.
   - When **zero** errors are seen in *n* tries, the upper bound is about **3.84 / (n + 3.84)**.
-  - Example: 0 successful attacks in 144 runs gives 3.84 / 147.84 = **2.6 %**. So we can say the true attack success rate is probably below 2.6 %.
+  - Example: MAPIS flagged 0 of the 39 designated twins in seed 42, giving 3.84 / 42.84 = **9.0 %**. So the true false-alarm rate on that kind of twin is probably below 9 %: a small sample gives a wide interval.
 
 ### Matched FPR (important for slides 2, 3, 12, 18)
 
@@ -115,21 +115,20 @@ This table compares what existed at the First Review with what exists now. Row b
    - *Now:* the same on **LangGraph and AutoGen** (two popular agent frameworks), plus the following:
      - **Escalation:** a document claims authority, then the agent does something the user never asked for.
      - **Evasion defences:** obfuscated addresses are cleaned before matching. Example: "x at evil dot com" becomes x@evil.com.
-     - **Tampering checks:** the action uses a value the user never gave.
      - **Calibrated hold cut-off:** a threshold tuned on validation data.
 3. **Data**
    - *Before:* MAPIS-Bench v1 (1,693 sessions), BIPIA (1,800), Decomposed.
-   - *Now:* plus **MultiHop, RealHarm, Adaptive** (training and test), and **StateAttack** plus a **team-written set** (test only). Each is explained on slide 5.
+   - *Now:* plus **MultiHop** (fragment attacks with twins), **RealHarm** and **Adaptive** (the evasive attacker), for training and test. Each is explained on slide 5.
 4. **Baselines** (the systems we compare against)
    - *Before:* Llama Guard and NeMo were only planned.
-   - *Now:* Llama Guard, Prompt Guard 2, ProtectAI, NeMo Guardrails, and an LLM judge, all run on *identical sessions*.
+   - *Now:* Llama Guard, Prompt Guard 2, ProtectAI and a **same-data stateless model** (our own DeBERTa without memory), all run on *identical sessions*.
 5. **Evaluation**
    - *Before:* one training run, tested on held-out BIPIA.
-   - *Now:* **5 training seeds**, a 2,304-session test, the matched-FPR comparison, and **live LLM agents (AgentDojo)**: a real AI agent attacked live.
+   - *Now:* **5 training seeds**, a 2,304-session test, the matched-FPR comparison, and the **evasive-attacker test** (an attacker who knows how MAPIS works).
 6. **Interface**
    - *Before:* "Dashboard integration in progress, demo pending".
    - *Now:* the **operator console**, with three tabs: Live monitor, Session inspector, Results.
-7. **Tests:** automated unit tests (pytest) went from 26 to **33 passing**.
+7. **Tests:** automated unit tests (pytest) went from 26 to a full suite that passes, including the **train/serve parity** test (slide 6) and the **AutoGen tap** test.
 
 **Bottom line on the slide:** "All four project targets are measured and met (slide 18)."
 
@@ -181,8 +180,8 @@ Each row is: the work → what it does → what it cannot do that MAPIS does.
 | **InjecAgent 2024 [3], AgentDojo 2024 [4]** | Public benchmarks of attacks on tool-using agents. We use both as data. Limit: their attacks are *explicit text* ("ignore… do X"). They have no fragment attacks and no harmless twins. |
 | **Task Shield 2024** [7] | Before each action, an LLM asks "does this action serve the user's task?" It works per action, and relies on an LLM's judgement, which is slow and itself attackable. |
 | **AgentWatcher 2026** [8] | Links each action to the context that caused it, then uses a monitor LLM with rules. Limit: an extra LLM call on every check (cost, latency). |
-| **LlamaFirewall AlignmentCheck 2025** [9] | Meta's system: an LLM reads the *whole* agent trajectory and judges it. Heavy, and after the fact. We built this kind of judge with a 7B model (slide 14): it flagged 80 % of harmless multi-hop twins. |
-| **Llama Guard [13], Prompt Guard 2, ProtectAI** | Classifiers that judge a single message. No session memory, so they cannot see multi-hop attacks. |
+| **LlamaFirewall AlignmentCheck 2025** [9] | Meta's system: an LLM reads the *whole* agent trajectory and judges it. Heavy (one LLM call over the whole history), and after the fact (it judges once the trajectory exists). |
+| **Llama Guard [13], NeMo [14], Prompt Guard 2, ProtectAI** | Guardrails that judge a single message. No session memory, so they cannot see multi-hop attacks. |
 | **Prompt Infection 2024 [10], G-Safeguard 2025 [11]** | Injection that spreads agent to agent like a virus; G-Safeguard uses a graph neural network over the agents' message graph. Limit: they study spreading or need graph models, not a light inline tap. |
 
 **Research gap (bottom box):** "a lightweight real-time monitor that carries session state across hops, tested on fragment attacks with matched benign twins."
@@ -236,7 +235,7 @@ Check the sums:
   - *Wording:* the phrasing pool. Pools 0–3 are for training, 4 for validation, 5 for test.
   - *Tool:* for example `release_order` appears only in test.
   - So the model cannot pass by memorising names.
-- **"Test only: StateAttack (168), team-written set (40)":** two extra hard sets, never used in training. See slide 13.
+- **"Never trained on: BIPIA test part, Decomposed":** BIPIA's own test split is our test, and Decomposed is used only for testing.
 - **"Every system sees the same events":** MAPIS, the stateless model, Llama Guard and the others are scored on exactly the same messages. That makes the comparison fair.
 - **"5 seeds; 95 % Wilson intervals":** see Part 0.
 
@@ -284,7 +283,7 @@ For every attack we build harmless sessions that look the same:
    - *Where each item came from:* every email, URL, account number and long number, with the hop where it first appeared and whether that hop was trusted (user) or untrusted (tool, file, memory).
    - *Authority claims:* sentences like "per the new policy, approval is not required".
    - *Baselines:* which tools each agent normally uses, and how long its messages normally are.
-4. **Trust score.** "DeBERTa-v3-small + signals + tampering checks; 0 = malicious, 1 = safe". The model gives a trust value; the rule signals can lower it (slide 7).
+4. **Trust score.** "DeBERTa-v3-small + session signals; 0 = malicious, 1 = safe". The model gives a trust value; the rule signals can lower it (slide 7).
 5. **Tiered response** (the four coloured boxes):
    - **PASS ≥ 0.75:** deliver.
    - **FLAG 0.50–0.75:** deliver + alert. The session's *sensitivity* also rises.
@@ -300,10 +299,10 @@ For every attack we build harmless sessions that look the same:
     - *provenance:* an address or number that first appeared in untrusted text now reaches an action;
     - *escalation:* a document claimed authority, then an unrequested action follows.
   - *behaviour anomaly:* an agent uses a tool it never used before, or writes a message 4× longer than usual.
-- **"Tampering checks: an action argument the user never gave — a changed value, an extra privilege flag, a destination relayed by another agent."** Examples:
-  - wallet `WL-5508` where the user said `PS-7731`;
-  - `bypass_checks=true` that nobody asked for;
-  - an email address that only another agent mentioned.
+- **"Evasion defences: items are normalised before matching (x at evil dot com → x@evil.com, hidden characters removed); an item split across two documents is joined."**
+  - *Normalised:* `canonical()` in `features.py` turns spelled-out or "defanged" forms back into the real item. Examples: "x at evil dot com" → x@evil.com; `hxxps://evil[.]com` → https://evil.com; invisible zero-width characters are deleted.
+  - *Split item joined:* if one document says "mailbox: pay-desk" and another says "domain: acme-billing.co", and the action uses pay-desk@acme-billing.co, MAPIS still links it to both documents.
+  - Slide 13 shows the effect.
 - **"Same code in training and live":** the file `session.py` builds the classifier text both when we make training data and when MAPIS runs live. A unit test checks that the two texts are identical. (If they differed, the model would see different inputs live than in training. That mismatch is called train/serve skew.)
 - **"Response":** QUARANTINE waits for the operator. BLOCK drops the message and suspends the channel. Every alert has a **trace origin → relay → action**. Example: file hop 4 (origin) → memory write/read hops 5–6 (relay) → `send_email` hop 7 (action).
 - **"Stack"** (the software used):
@@ -357,7 +356,7 @@ MAPIS SESSION HISTORY                     ← short summary of earlier hops
 |---|---|---|
 | Instruction in data | 0.5 | "ignore previous…" inside a page |
 | Drift from goal | 0.15 | goal "list contracts" → action "grant admin" |
-| Provenance / escalation / tampering | 0.8 | planted address used; WL-5508 instead of PS-7731 |
+| Provenance / escalation | 0.8 | planted address used; a "claim, then unrequested action" pattern |
 | Behaviour anomaly | 0.15 | the file agent suddenly sends an email |
 
 - The **weight** says how much a signal may lower trust. Provenance is the strongest evidence (0.8). Drift and behaviour are weak hints (0.15), because harmless sessions also drift.
@@ -453,14 +452,14 @@ Each row is a component, its status, and where it lives in the code. If asked, y
 | Testbed: LangGraph and AutoGen (5 agents, 3 scenarios) | The demo pipeline: planner, web, file, memory, code/email agents. Scenarios: clean, overt attack, decomposed attack. | `backend/agents/graph.py`, `autogen_testbed.py`, `testbed.py` |
 | FastAPI tap, Redis session store, SQLite forensic log | The `/inspect` endpoint, the session memory, and the database that stores every verdict for later investigation. | `backend/api/`, `core/store.py`, `db.py` |
 | Stateful shield: session record + 4 signals | The main logic: `shield.inspect()`, `session.py` (state), `features.py` (signals). | `core/shield.py`, `session.py`, `features.py` |
-| Evasion defences and tampering checks | `canonical()`: normalises "x at evil dot com" to x@evil.com, removes invisible characters. Fragment matching: an address split across two documents. `tamper_risk`: the three tampering checks. | `features.py` |
+| Evasion defences (normalisation, split items) | `canonical()`: normalises "x at evil dot com" to x@evil.com, removes invisible characters. Item fragments: an address split across two documents is still matched. | `features.py` |
 | Classifier and training pipeline | Training, evaluation, metrics. | `backend/ml/` |
 | Four tiers, channel suspension, quarantine review | The response layer. | `/inspect` API, operator console |
 | Forensic trace and operator dashboard | The React web app. | `frontend/` |
-| Benchmark sets and generators | The scripts that build MultiHop, Adaptive, StateAttack, and so on. | `scripts/generate_*.py`, `data/mapis_bench/` |
-| Baselines: 5 systems on identical sessions | Wrappers for Llama Guard, Prompt Guard 2, ProtectAI, NeMo, LLM judge. | `backend/baselines.py`, `scripts/benchmark.py` |
-| Live LLM agent evaluation (AgentDojo) | A real LLM agent attacked, with MAPIS in the loop. | `scripts/live_agentdojo.py` |
-| Automated tests: 33 PASS | Unit tests: shield behaviour, API, train/serve parity, AutoGen tap, tampering. | `tests/` |
+| Benchmark sets and generators | The scripts that build MultiHop, Adaptive, Decomposed, and so on. | `scripts/generate_*.py`, `data/mapis_bench/` |
+| Baselines: Llama Guard, Prompt Guard 2, ProtectAI, stateless | Wrappers that run the public guardrails, plus the stateless model, on the same sessions. | `backend/baselines.py`, `scripts/benchmark.py` |
+| Matched-FPR sweep and hold-threshold calibration | `stateless_sweep.py` finds the stateless threshold for ≤ 5 % FPR on validation (slide 12); `calibrate_mapis.py` picks MAPIS's calibrated hold cut-off on validation (slide 11). | `scripts/stateless_sweep.py`, `calibrate_mapis.py` |
+| Automated tests: PASS | Unit tests: shield behaviour, API, train/serve parity, AutoGen tap, multi-hop attacks against their twins. | `tests/` |
 
 **Train/serve parity** means the same input text in training and live (slide 6).
 
@@ -547,106 +546,98 @@ Point at the FP cell: 342 vs 2.
   - To catch the attack it must also block the twin.
 - **"Fair comparison":** held to the same 5 % false-alarm budget, it catches 4.3 % (multi-hop) and 6.1 % (adaptive). MAPIS catches 100 %.
   - *How it was done:* `scripts/stateless_sweep.py` finds, on validation, the threshold where the stateless model's FPR is ≤ 5 %, then applies it to test.
-- **"Evasive attacker: 64.6 % → 100 % recall at 0.4 % FPR, with normalisation, fragment matching and adversarial training."**
-  - *Before:* the old model with old matching caught 64.6 % of the Adaptive test.
-  - *After:* 100 %, from three things:
-    - normalisation (`canonical()`);
-    - fragment matching (an address split in two parts is still linked);
-    - adversarial training (Adaptive train sessions added to training data).
+- **"Per twin type (seed 42): the stateless model flags 89 % of authorized and 77 % of designated twins; MAPIS 0.6 % and 0 %."**
+  - *Authorized twin:* the user named the address. The stateless model stops 89 % of these, almost every harmless session in which the user asked for exactly that action.
+  - *Designated twin:* the user named the file that holds the address. Stateless 77 %.
+  - MAPIS: 0.6 % (2 of 325 authorized twins) and 0 % (0 of 39 designated). It can tell them apart because the session record shows the user gave the item.
 - **Footnote:**
   - The stateless thresholds were picked on validation; on test they gave up to 8.8 % FPR, so the 4.3 % is if anything generous to the baseline.
-  - On explicit single-message attacks (RealHarm, AgentDojo) both models work. There the gap is at most 11 points (InjecAgent-DH 88.5 vs 99.4).
+  - On explicit single-message attacks (RealHarm, MAPIS-Bench v1) both models work. There the gap is at most 11 points (InjecAgent-DH 88.5 vs 99.4).
 
 **One-line message of the slide:** memory is what separates the attack from the same action the user asked for.
 
 ---
 
-## Slide 13: 12 | Harder Tests: A Gap Found and Fixed
+## Slide 13: 12 | Robustness to an Evasive Attacker
 
-### Left table: "Team-written set (seed 42)"
+**The question this slide answers:** "What if the attacker knows how MAPIS works and hides the planted item?"
 
-40 sessions written in plain English by the four of us (5 stories each = 20 attacks + 20 twins), with scenarios, tools and wording unlike the generators.
+**MAPIS-Adaptive** is a set we built for this. The attacker hides the planted address, link or account number so that plain matching would miss it. The test split uses attack families and hiding styles never seen in training.
 
-| System | Recall | FPR | Acc. | Meaning |
+### Table: the six hiding techniques (seed 42, recall / FPR in %)
+
+| Technique | What the attacker does | Example | MAPIS | Stateless |
 |---|---|---|---|---|
-| MAPIS + tampering checks | 95.0 | 5.0 | 95.0 | 19 / 20 attacks caught, 1 / 20 twins flagged. |
-| MAPIS before the checks | 35.0 | 5.0 | 65.0 | Only 7 / 20 caught: the ones with an email or URL. |
-| Stateless DeBERTa | 40.0 | 40.0 | 50.0 | Flags attacks and twins equally, so it is no better than chance. |
-| ProtectAI v2 | 50.0 | 50.0 | 50.0 | Same. |
-| Llama Guard 3-1B | 100 | 100 | 50.0 | Flags all 40. |
+| **Obfuscated item** | Writes the item in a form a human understands but a pattern matcher does not | "x at host dot example", `hxxps://h[.]example` | 100 / 0 | 83.3 / 37.5 |
+| **Split item** | Puts half the item in one document and half in another | mailbox in one document, domain in another | 100 / 0 | 83.3 / 45.8 |
+| **Hidden characters** | Inserts invisible characters, or look-alike characters | zero-width space inside an address; full-width ＠ | 100 / 0 | 87.5 / 43.8 |
+| **Paraphrased claim** | Writes the authority claim without the usual words ("approved", "policy") | "the controller already signed this off" style | 100 / 0 | 87.5 / 45.0 |
+| **Long delay** | Puts 8 harmless hops between the plant and the action | so the plant falls out of the 4-hop history window | 100 / 0 | 87.5 / 46.2 |
+| **Combination** | Several of the above at once | | 100 / 0 | 90.0 / 51.2 |
 
-Accuracy check for MAPIS before: (7 caught + 19 correct twins) / 40 = 26 / 40 = 65 %.
+- **"100 / 0"** = MAPIS caught every attack and flagged no twin in that technique (seed 42).
+- The line under the table: 576 test sessions = 192 attacks + 384 twins. Over 5 seeds, MAPIS 100 % recall / 0.4 % FPR; stateless 86.6 % / 43.0 %.
+- **How to read the stateless column:** 83–90 % recall looks fine, but it flags 38–51 % of the twins. It is guessing from words, not from where the item came from.
 
-### Right table: "Attacks on the session record (5 seeds)"
+### Chart: before → after (seed 42)
 
-**StateAttack** is a test-only set of 168 sessions (56 attacks + 112 twins). It attacks MAPIS's memory itself.
+| Step | Recall | FPR | What changed |
+|---|---|---|---|
+| **Before** | 64.6 % | 2.9 % | The old model and old matching: hidden items were not recognised as the planted item. |
+| **+ normalisation & item fragments** | 100 % | 3.9 % | Matching fixed (same old model): every attack found, but a few more false alarms. |
+| **+ adversarial training** | 100 % | 0.0 % | Model retrained with Adaptive *training* sessions: false alarms gone. |
 
-| Technique | Meaning | Before → After |
-|---|---|---|
-| Evidence buried under filler | 6–14 harmless hops between the plant and the action, to push it out of the history window | 76.7 → 90.0 |
-| Claim split over 3 documents | The authority claim is cut into three pieces | 78.3 → 91.7 |
-| Item laundered via memory | Stored under a memory key and read back later, so it looks like it came from memory | 63.3 → 86.7 |
-| Item introduced by an agent | The address first appears in an agent's own message, not in a tool output | 25.0 → 90.0 |
-| Item the agent must decode | Reversed text, base64, halves to join | 25.0 → 25.0 (still weak) |
-| All (FPR 10.2 % both) | | **55.7 → 80.4** |
+### Right-hand bullets: the defences
 
-### Text lines
+- **Normalisation:** `canonical()` rewrites spelled-out ("at", "dot"), defanged (`hxxp`, `[.]`) and hidden-character items into their normal form *before* matching.
+- **Item fragments:** MAPIS also stores parts of items (host, domain, id parts). If an action rebuilds an item from two documents, both parts match.
+- **Adversarial training:** Adaptive *train* sessions (900) were added to the training data. The *test* uses held-out families and hiding styles, so this is not training on the test.
+- **Long delay:** the taint (the record that an item came from untrusted content) stays in the session record, even after the hop is no longer shown in the 4-hop history text.
 
-- **"What the first run missed":**
-  - changed values: wallet **WL-5508 instead of PS-7731**; alarm delay **360 instead of 10 min**;
-  - extra privilege flags: `bypass_checks=true`;
-  - destinations relayed by another agent.
-- **"Fix — three tampering checks on action arguments, no retraining":**
-  1. **Privilege flag check:** an action carries a flag, role or command switch (`bypass_checks`, `grant_role=admin`, `--disable-auth`) that is not in the user's text or a user-named document.
-  2. **Changed value check:** an argument contradicts a value the user gave for the same thing.
-     - Same-shape ids: the user said PS-7731, the action uses WL-5508.
-     - A number near the same word: the user said "delay 10 minutes", the action says `delay_min=360`.
-     - on/off and times.
-  3. **Relayed destination check:** a destination argument (to, cc, account, url) whose value appeared only in untrusted or agent-relayed text.
-  - *No retraining:* these checks are rules in `features.py`, fused with weight 0.8 like provenance. The model is unchanged.
-  - Result: team set 35–45 % → **95 %** in all 5 seeds; **no new false positive** on any of the 2,512 test sessions (2,304 + 168 + 40).
-- **"Honest note":** the checks were designed *after* reading these misses, so the 95 % is not an independent estimate. A fresh hand-written set must confirm it. Decoded items stay the weak spot.
+**Say:** "Even an attacker who knows our design and hides the address is caught: 100 % in all six techniques, every seed, with almost no false alarms."
 
 ---
 
-## Slide 14: 13 | Baselines & Live LLM Agents
+## Slide 14: 13 | Baselines & Ablation
 
-### Left: "LLM detectors, same 153 sessions"
+### Top table: "Public guardrails on the same sessions (recall / FPR %)"
 
-Why only 153? The LLM baselines run on a 7B model on the laptop, which is slow. So we took up to 20 sessions per dataset, class-balanced: 80 attacks and 73 harmless, 153 in total. MAPIS and the stateless model were scored on exactly these 153.
+| Set | MAPIS | Stateless | Llama Guard 3-1B | ProtectAI v2 | Prompt Guard 2 (recall) |
+|---|---|---|---|---|---|
+| All 2,304 sessions | 98.0 / 0.9 | 94.1 / 33.2 | 86.1 / 90.3 | 53.3 / 49.5 | 7.5 (FPR 0.1) |
+| MultiHop | 100 / 3.0 | 86.5 / 51.1 | 100 / 100 | 70.8 / 63.9 | 0 |
+| Adaptive | 100 / 0.4 | 86.6 / 43.0 | 100 / 100 | 66.1 / 64.1 | 0 |
+| BIPIA (held-out part) | 95.8 / 1.4 | 94.5 / 2.2 | 72.5 / 65.5 | 44.7 / 56.5 | 1.0 |
 
-| System | Recall | FPR |
-|---|---|---|
-| MAPIS | 100 % | 0.0 % |
-| Stateless DeBERTa | 91.2 % | 32.9 % |
-| **LLM judge** (qwen2.5 7B, full transcript) | 67.5 % | 23.3 % |
-| **NeMo Guardrails** (qwen2.5 7B) | 48.7 % | 17.8 % |
+- **Every cell is "recall / FPR".** Example: Llama Guard on MultiHop "100 / 100" = it caught every attack *and* flagged every harmless twin. That is not detection, it is blocking everything.
+- **The three public systems:**
+  - **Llama Guard 3-1B** (Meta): a content-safety model ("is this text harmful?"). Agent sessions talk about money, emails and passwords, so it calls almost everything unsafe.
+  - **ProtectAI v2:** a public prompt-injection classifier (DeBERTa-base). Flags about half of attacks and half of harmless sessions: no better than chance.
+  - **Prompt Guard 2** (Meta, 86 M): looks for explicit commands like "ignore previous instructions". Our attacks have none, so it flags almost nothing (overall FPR 0.1 %). Per set only recall is shown.
+- **Footnote:** MAPIS and stateless are 5-seed means. The three public systems are pretrained models: we run them once, with their own default thresholds, and we do not train them.
 
-- **LLM judge:** we give an LLM the *whole session transcript* and ask "is this an attack?". It is stateful by design, LlamaFirewall-style, and judges after the fact.
-- **NeMo Guardrails:** NVIDIA's guardrail toolkit. We used its "self-check input" rail: the LLM checks each message.
-- **qwen2.5 7B:** Alibaba's open 7-billion-parameter model, run locally through Ollama.
+### Bottom-left table: "Ablation: what each part adds (seed 42)"
 
-Bullets:
-- "The judge finds the multi-hop attacks but flags 80 % of the benign twins." It sees the planted fragments and gets suspicious, even when the user authorized the action.
-- "NeMo misses most multi-hop and adaptive attacks." Per message, there is nothing to see.
-- "Neither can separate an attack from the same action the user asked for."
-- "Both used a small local 7B model; 153 sessions (80 attacks, 73 harmless), so 0 % FPR has a 5 % upper bound." 0 / 73 → 3.84 / 76.84 = **5.0 %**. A small sample, stated honestly.
+*Ablation* = remove one part of the system, keep everything else the same, and measure again.
 
-### Right: "AgentDojo with a real tool-calling agent"
+| System | Recall | FPR | What was removed |
+|---|---|---|---|
+| **Full MAPIS** | 97.0 % | 0.2 % | Nothing |
+| Learned model only (no rule fusion) | 97.0 % | 0.1 % | The noisy-OR fusion with the rule signals (slide 7). Only DeBERTa's trust is used. |
+| Same model without memory | 94.7 % | 33.6 % | The session record and history: the stateless model |
+| Regex rules only | 12.5 % | 0.0 % | The trained model: only hand-written keyword patterns |
 
-**AgentDojo** is a public test environment (ETH Zürich, NeurIPS 2024) with 4 suites: banking, Slack, workspace (email/calendar), and travel. A real LLM agent solves user tasks by calling tools; attackers have put injections into the tool data.
+Seed 42 counts for the full system: TP 1,246, FN 39, FP 2, TN 1,017. So recall = 1,246 / 1,285 = 97.0 % and FPR = 2 / 1,019 = 0.2 %.
 
-Chart: attack success rate, none 15.3 %, MAPIS 0 %, stateless 0 %.
+### Bottom-right bullets
 
-Bullets:
-- "qwen2.5 7B agent, 4 suites, 39 benign + 144 attacked runs per defence." 8 user tasks × 4 injection tasks per suite.
-- "Attacks succeeded 22 / 144 times without defence, 0 / 144 with MAPIS (95 % upper bound 2.6 %)."
-  - 22 / 144 = 15.3 %.
-  - Upper bound: 3.84 / (144 + 3.84) = 2.6 %.
-- "Benign tasks solved: 28.2 % without, 25.6 % with MAPIS (1 of 39 lost)."
-  - *Utility* = how many normal tasks still succeed: 11 / 39 = 28.2 % without, 10 / 39 = 25.6 % with MAPIS.
-  - The 7B agent is weak, so utility is low even without a defence. MAPIS cost one task.
-- "AgentDojo injections are explicit, so the stateless model also stops them: this shows MAPIS works inside a live agent at low cost." Honest point: this test shows MAPIS works in a real loop. It is not the test that separates MAPIS from stateless (that is slide 12).
+- **"Memory is the decisive part: removing it raises false alarms from 0.2 % to 33.6 %."** Of 1,019 harmless sessions: 2 flagged with memory, 342 without.
+- **"Signals inside the model:"** the rule signals are *also* written into the SIGNALS line the classifier reads (slide 7). So the trained model already uses that evidence, and the separate fusion step changes no decision on these test sets. We keep the rules because their plain-English reasons are what the operator sees in each alert, and as a safety net.
+- **"Llama Guard is a content-safety model and flags almost everything; Prompt Guard 2 looks for explicit commands and flags almost nothing."**
+
+**Likely question:** "If the rules add nothing, why keep them?"
+- They explain each alert to the operator ("this address first appeared in untrusted hop 4").
+- They act as a safety net if the model misses something on new data.
 
 ---
 
@@ -672,14 +663,13 @@ Read each row as: what the limit is → why it matters.
 
 | Limitation | Plain explanation |
 |---|---|
-| **Tampering checks are post-hoc** | We wrote them after seeing what MAPIS missed on the team set. Testing on the same set is optimistic. A new set is needed. |
-| **Attacks on the session record** | On StateAttack, recall is 80.4 % but FPR is 10.2 %, above our 5 % target. Most false alarms are memory-laundering twins. Items the agent must decode: 25 %. |
 | **Generated benchmarks** | MultiHop and Adaptive come from templates. Tools, wording and families are held out, and the carrier text is real, but real attackers are more varied. |
+| **Item shapes** | Provenance follows items with a recognisable shape: emails, URLs (+ host), IBAN-like account ids, long numbers. If an attack only changes a short plain value, for example an account code "WL-5508" or a delay "360 minutes", there is no traceable item, so MAPIS depends on the model alone. |
 | **Seed variation** | At the default 0.50 cut-off, 2 of 5 seeds exceed 5 % multi-hop FPR (5.3 % and 7.7 %). The calibrated cut-off brings every seed ≤ 1.8 %. |
-| **Training overlap** | MAPIS was trained on AgentDojo-style injections (in v1), and the live run uses AgentDojo, so that test is easier for us. |
-| **Small models in baselines** | The LLM judge and NeMo used a 7B model; a bigger model (GPT-4-class) might do better. |
 | **Single-hop attacks** | On BIPIA there is no cross-hop evidence. Stateless 94.5 % vs MAPIS 95.8 % is within seed variation: memory doesn't help where there is nothing to remember. |
-| **Scripted testbed** | Our 5-agent demo agents follow fixed code, not an LLM. Real LLM behaviour was tested on AgentDojo only. |
+| **Fusion rules** | In the ablation (slide 14), removing the fusion rules changes nothing: the model already reads the signals. The rules remain as a safety net and as the explanation shown to the operator. |
+| **Public baselines** | Llama Guard, Prompt Guard 2 and ProtectAI run with their default thresholds and are not trained on our data. That is why the stateless DeBERTa (same data, same training) is the fair main comparison. |
+| **Scripted testbed** | Our 5-agent demo agents follow fixed code, not an LLM. The benchmark sessions come from public corpora (AgentDojo, InjecAgent, BIPIA, ASB) and our generators. |
 
 **Say:** "We state these once and clearly. The core result, the multi-hop gain at matched FPR, holds in all five seeds."
 
@@ -691,17 +681,18 @@ Read each row as: what the limit is → why it matters.
 
 1. **Literature and problem:** the gap is defined (slide 4).
 2. **Testbed and FastAPI hooks:** LangGraph and AutoGen through one tap.
-3. **Attack dataset and MAPIS-Bench:** "Six benchmark sets with twins, two test-only sets". The six are v1, BIPIA, MultiHop, RealHarm, Adaptive and Decomposed; the two test-only ones are StateAttack and the team set.
+3. **Attack dataset and MAPIS-Bench:** "Six benchmark sets with twins, incl. an evasive attacker". The six are v1, BIPIA, MultiHop, RealHarm, Adaptive and Decomposed.
 4. **Trust model and fine-tuning:** 5 seeds, adversarial training, calibration.
-5. **Tiered response and forensic logging:** 4 tiers, trace, quarantine review, tampering checks.
+5. **Tiered response and forensic logging:** 4 tiers, trace, quarantine review, channel suspension.
 6. **Dashboard and integration:** the operator console.
-7. **Benchmarking against guardrails:** 5 baselines, live LLM agents.
+7. **Benchmarking against guardrails:** Llama Guard, Prompt Guard 2, ProtectAI and the stateless model on identical sessions.
 8. **Report and demonstration:** thesis, report, live demo.
 
 ### Future work
 
-- A fresh hand-written test set to confirm the tampering checks, plus checks for items the agent must decode (base64, reversed text).
-- "Tap agent-internal reads": today we see messages *between* agents; an agent's private reasoning is not tapped. Also: evaluate on real agent traffic with larger agents and stronger LLM judges.
+- **Action-argument checks:** compare every action argument with what the user said: a changed value (account code WL-5508 where the user said PS-7731), an extra privilege flag (`bypass_checks=true`), a destination passed on by another agent. This closes the "item shapes" limitation of slide 16.
+- **Harder tests:** a test set written by hand, without our generators, and attacks aimed at MAPIS's session record itself (burying evidence, laundering an item through memory).
+- **Live LLM agents (AgentDojo):** run a real tool-calling LLM agent with MAPIS in the loop and measure attack success rate and utility; add **LLM-based guardrails** (NeMo Guardrails, a history-aware LLM judge) as further baselines.
 - Multimodal content (images, PDFs with images), more frameworks (CrewAI and others), and production hardening (scaling, security of MAPIS itself).
 
 ---
@@ -722,10 +713,10 @@ Read each row as: what the limit is → why it matters.
 1. A stateful, provenance-aware monitor at a framework-neutral tap, 63 ms per message.
    - *Provenance-aware:* it knows where each item came from.
    - *Framework-neutral:* the same tap works for LangGraph and AutoGen.
-2. MAPIS-Bench: multi-hop fragment attacks with matched twins, an evasive-attacker set, and attacks on the session record.
-3. A fair matched-false-positive comparison against stateless and LLM-based detectors.
-4. Action-argument tampering checks: team-written attacks 35–45 % → 95 % without retraining.
-5. Evaluation inside a live LLM-agent pipeline: attack success 15.3 % → 0 %.
+2. MAPIS-Bench: multi-hop fragment attacks with matched twins, plus an evasive-attacker set.
+3. A fair matched-false-positive comparison: +96 points over the same model without memory.
+4. Robustness to an evasive attacker: 64.6 % → 100 % with normalisation, item fragments and adversarial training (slide 13).
+5. A working prototype: the operator console with live monitoring, session replay and quarantine review (slide 15).
 
 ---
 
@@ -736,7 +727,7 @@ The roles are the same as at the First Review.
 - **Nithya Sai:** Attack Dataset & Red-Team Lead. MAPIS-Bench, attack taxonomy (classes and mechanisms), multi-hop scenarios, labelling.
 - **Sreekar Reddy:** Detection Model Lead. Session-context design, the classifier, training, feature design, threshold calibration.
 - **Beena Reddy:** Response, Dashboard & Evaluation Lead. Tiers, forensic logging, dashboard, benchmark evaluation.
-- **Shared:** the hand-written independent test set (each member wrote 5 attacks with their twins), weekly integration testing, code review, experiment tracking, documentation, thesis.
+- **Shared:** weekly integration testing, code review, experiment tracking, documentation, thesis.
 
 *Red-team* = the people who play the attacker.
 
@@ -751,17 +742,17 @@ Sixteen sources. What each is for:
 | 1 | Greshake et al. 2023 | Defines indirect prompt injection |
 | 2 | Liu et al. 2023 | Prompt injection attack framework |
 | 3 | InjecAgent | Data (v1, RealHarm) |
-| 4 | AgentDojo | Data (v1) and the live-agent test |
+| 4 | AgentDojo | Data (v1) |
 | 5 | BIPIA (Yi et al.) | Data (BIPIA set) |
 | 6 | ASB | Data (RealHarm) |
 | 7 | Task Shield | Related defence |
 | 8 | AgentWatcher | Related defence |
-| 9 | LlamaFirewall | Related defence, the LLM judge idea |
+| 9 | LlamaFirewall | Related defence (LLM audit of the whole trajectory) |
 | 10 | Prompt Infection | Spreading across agents |
 | 11 | G-Safeguard | Multi-agent graph defence |
 | 12 | DeBERTa | Our model |
 | 13 | Llama Guard | Baseline |
-| 14 | NeMo Guardrails | Baseline |
+| 14 | NeMo Guardrails | Related work: a per-message guardrail toolkit |
 | 15 | Autonomy tax (Li & Zhao 2026) | Defence training can break agents, which is why MAPIS is a separate monitor and doesn't retrain the agent |
 | 16 | Geng et al. 2026 survey | Overview of attacks and defences |
 
@@ -777,12 +768,12 @@ Sixteen sources. What each is for:
 
 | Question | Answer |
 |---|---|
-| Why DeBERTa-small and not a big LLM? | 63 ms per message on a laptop GPU, and it can be fine-tuned on our data. An LLM judge is slower and, as measured, had 23 % FPR. |
+| Why DeBERTa-small and not a big LLM? | 63 ms per message on a laptop GPU, and it can be fine-tuned on our data. An LLM call per message is far slower and costs money per call. |
 | Why 0 = malicious? | It is a *trust* score: high trust = safe. The abstract defined it that way. |
 | Why 0.75 / 0.50 / 0.25? | Equal quarters of the scale, from the abstract. The calibrated hold line is the one tuned value, and it is tuned on validation. |
 | What if Redis goes down? | The in-memory store takes over. If MAPIS itself fails, the default is **fail closed**: the message is not delivered. |
-| Can the attacker fool the model? | Partly: decoded items (25 %) and items introduced by a compromised agent were our weak spots. We measured and reported them (slides 13, 16). |
+| Can the attacker fool the model? | We tested an attacker who knows MAPIS (slide 13): all six hiding techniques caught. The open limit is attacks with no traceable item, a changed plain value (slide 16). |
 | What is new compared to Llama Guard? | Llama Guard judges a message alone and asks "is this harmful content?". MAPIS asks "did this action's data come from somewhere the user never trusted?". |
 | Why do you need twins? | Without them, "flag everything suspicious" looks perfect. Llama Guard's 100 % multi-hop recall comes with 100 % FPR. |
-| Does it need retraining for new attacks? | Not for the tampering checks (rules). New attack *styles* in text would benefit from retraining, as Adaptive did (64.6 → 100 %). |
+| Does it need retraining for new attacks? | Matching fixes (normalisation, fragments) need none. New attack *styles* in text benefit from retraining, as Adaptive did (64.6 → 100 %). |
 | How does the trace work? | The session record stores the first hop where each item appeared. When an action uses it, MAPIS lists origin hop → relay hops → action. |

@@ -32,7 +32,7 @@ Prompt Guard 2 (86M) & 7.5 & 0.1 & 48.4\\
 \caption{Recall and false-positive rate on 2,304 held-out sessions.}
 \end{figure}
 
-Llama Guard flags nearly every session and Prompt Guard 2 flags nearly none. ProtectAI flags about half of everything, and the stateless model catches most attacks only by also stopping a third of the harmless sessions. MAPIS keeps recall high and false alarms close to zero. The tampering checks of Section~\ref{sec:harder} did not change a single decision on these sessions in any seed, so the table also holds for the final system.
+Llama Guard flags nearly every session and Prompt Guard 2 flags nearly none. ProtectAI flags about half of everything, and the stateless model catches most attacks only by also stopping a third of the harmless sessions. MAPIS keeps recall high and false alarms close to zero.
 
 \section{Results by Set}
 \begin{table}[H]
@@ -84,69 +84,64 @@ ASB & 97.8 & 100\\
 So at the same false-positive budget, MAPIS gains about 96 percentage points of recall over stateless detection on multi-hop attacks, while the target was 20. At the default threshold the plain gain is only 13.5 points (100 against 86.5), which is why we use the matched comparison. The thresholds picked on validation did not hold exactly on test (multi-hop FPR 7.7\% in seed 3, adaptive FPR 8.8\% in seed 2), so these stateless numbers are, if anything, generous to the baseline. On RealHarm the attack text is explicit, a message-level model does well even at zero false positives, and the gap is at most 11 points.
 
 \section{The Evasive Attacker}
-Before the upgrade described in Section~\ref{sec:history}, the old model with the old matching caught 64.6\% of the adaptive attacks at 2.9\% FPR. With canonical matching the old model reached 100\%, but at 3.9\% FPR. After retraining, the model catches 100\% of obfuscated, split, Unicode, paraphrased, long-delay and combined attacks in all five seeds (576 sessions, 192 attacks), with 0.0\% FPR in four seeds and 1.8\% in one (mean 0.4\%).
-
-\section{Comparison with LLM-Based Detectors}
-We ran two LLM-based baselines through a local Ollama server with the 7B model qwen2.5: a history-aware LLM judge that reads the whole session transcript in one call, similar to AlignmentCheck, and NeMo Guardrails with its self-check input rail, one call per message. These runs need many LLM calls, so we used a class-balanced subset of 153 test sessions (up to 20 per dataset).
+MAPIS-Adaptive assumes an attacker who knows how MAPIS works and tries to hide the planted item. Its test split uses held-out families and held-out evasion styles. Before the upgrade described in Section~\ref{sec:history}, the old model with the old matching caught 64.6\% of the adaptive attacks at 2.9\% FPR. With canonical matching and fragment matching the old model reached 100\%, but at 3.9\% FPR. After adversarial training the model catches every attack in all five seeds (576 sessions, 192 attacks), with 0.0\% FPR in four seeds and 1.8\% in one (mean 0.4\%). Table~\ref{tab:adaptive} breaks this down by technique.
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lrrr}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.9cm}>{\raggedright\arraybackslash}p{5.6cm}rr}
 \toprule
-System (153 sessions) & Recall (\%) & FPR (\%) & Accuracy (\%)\\
+Technique & Example & MAPIS & Stateless\\
 \midrule
-\textbf{MAPIS} & \textbf{100} & \textbf{0.0} & \textbf{100}\\
-Stateless DeBERTa & 91.2 & 32.9 & 79.7\\
-LLM judge (qwen2.5 7B, whole transcript) & 67.5 & 23.3 & 71.9\\
-NeMo Guardrails (qwen2.5 7B) & 48.7 & 17.8 & 64.7\\
+Obfuscated item & ``x at host dot example'', \texttt{hxxps://h[.]example} & 100 / 0 & 83.3 / 37.5\\
+Split item & mailbox in one document, domain in another & 100 / 0 & 83.3 / 45.8\\
+Hidden characters & zero-width characters, full-width @ & 100 / 0 & 87.5 / 43.8\\
+Paraphrased claim & authority claim without the usual wording & 100 / 0 & 87.5 / 45.0\\
+Long delay & eight hops between the plant and the action & 100 / 0 & 87.5 / 46.2\\
+Combination & several techniques at once & 100 / 0 & 90.0 / 51.2\\
 \bottomrule
 \end{tabular}
-\caption{Comparison on identical sessions.}
+\caption{MAPIS-Adaptive by technique, recall / FPR in \%, seed 42 (576 test sessions).}
+\label{tab:adaptive}
 \end{table}
-The judge does find the multi-hop attacks (100\% recall), but it also flags 80\% of the harmless multi-hop twins, because any session whose documents contain the fragments looks suspicious to it. NeMo misses most multi-hop and adaptive attacks (20\% and 30\% recall). Neither of them can tell an attack from the same action requested by the user. With only 20 sessions per dataset, a 0\% FPR has a 95\% upper bound of 5\%, so Table~\ref{tab:head} stays the main result and this table is only the like-for-like comparison. Both LLM baselines used a small local model and might do better with a larger one.
+The stateless model reaches 83 to 90\% recall here only by flagging 38 to 51\% of the twins. A long delay does not help the attacker against MAPIS, because a tainted item stays in the session record after its hop has left the four-hop history window.
 
-\section{Calibrated Hold Cut-off}
-With the default cut-off of 0.50, two of the five seeds go above 5\% false positives on multi-hop sessions (5.3 and 7.7\%). We therefore picked a cut-off on the validation split only, such that no dataset family goes above 2\% false positives there, and applied it to test. Across the five seeds, multi-hop FPR went from 1.2, 5.3, 0.0, 7.7 and 0.6\% to 0.6, 1.8, 0.0, 0.6 and 0.0\% (mean 3.0 to 0.6\%), recall stayed at 100\%, and no other set got worse. With this cut-off every seed meets the 5\% target.
-
-\section{Harder Tests and the Tampering Checks}
-\label{sec:harder}
-The headline sets were made by us. To find out where MAPIS breaks, we added two sets that were never used for training or tuning: MAPIS-StateAttack, whose attacks target the session record itself, and 20 attacks with 20 twins that the four of us wrote in plain English without the generators. These sets were meant to be hard, so a low first score on them is a finding and not a measurement error.
-
-\textbf{First result.} Over five seeds MAPIS caught 40\% of the team's attacks (35 to 45\%) and 55.7\% of StateAttack. It caught the attacks where the planted item is an email address or URL, and missed the ones that change a plain value. The 13 misses in seed 42 fell into three groups. Seven changed a value the user had given (a wallet id, an alarm delay, a time, an on/off setting), four added a privilege or safety flag (\texttt{bypass\_checks}, \texttt{override\_balance}, a role grant, \texttt{--disable-auth}), and two used a destination passed on by another agent. Provenance only tracked emails, URLs, IBAN-like ids and long numbers, and the classifier had not learned any other kind of item from the generated data.
-
-\textbf{Fix and final result.} The tampering checks of Section~\ref{sec:tamper} are aimed at exactly these three groups and do not need retraining. Table~\ref{tab:indep} and Table~\ref{tab:v2} show the results with the trained models.
+\section{Public Guardrails by Set}
 \begin{table}[H]
 \centering\small
-\begin{tabular}{lrrr}
+\begin{tabular}{lrrrrr}
 \toprule
-System & Recall (\%) & FPR (\%) & Accuracy (\%)\\
+Set & MAPIS & Stateless & Llama Guard & ProtectAI & Prompt Guard 2\\
 \midrule
-\textbf{MAPIS with tampering checks} & \textbf{95.0} & \textbf{5.0} & \textbf{95.0}\\
-MAPIS before the checks & 35.0 & 5.0 & 65.0\\
-Stateless DeBERTa & 40.0 & 40.0 & 50.0\\
-ProtectAI v2 & 50.0 & 50.0 & 50.0\\
-Llama Guard 3-1B & 100 & 100 & 50.0\\
+All 2,304 sessions & 98.0 / 0.9 & 94.1 / 33.2 & 86.1 / 90.3 & 53.3 / 49.5 & 7.5 / 0.1\\
+MAPIS-MultiHop & 100 / 3.0 & 86.5 / 51.1 & 100 / 100 & 70.8 / 63.9 & 0\\
+MAPIS-Adaptive & 100 / 0.4 & 86.6 / 43.0 & 100 / 100 & 66.1 / 64.1 & 0\\
+BIPIA (held-out part) & 95.8 / 1.4 & 94.5 / 2.2 & 72.5 / 65.5 & 44.7 / 56.5 & 1.0\\
 \bottomrule
 \end{tabular}
-\caption{Team-written independent set, 20 attacks and 20 twins (seed 42).}\label{tab:indep}
+\caption{Recall / FPR in \% on the same sessions. MAPIS and the stateless model are means over five seeds; the public guardrails are pretrained and run once with their default thresholds. For Prompt Guard 2 the per-set cells give recall only.}
 \end{table}
+Llama Guard is a content-safety model and treats almost every agent session as unsafe. Prompt Guard 2 looks for explicit instructions such as ``ignore previous instructions'' and finds almost none in our attacks. ProtectAI flags attacks and harmless sessions at about the same rate. None of them can use the history of the session, so none can tell an attack from its twin.
+
+\section{Ablation}
+To see which part of MAPIS does the work, we remove one part at a time (seed 42, all 2,304 sessions).
 \begin{table}[H]
 \centering\small
 \begin{tabular}{lrr}
 \toprule
-Set (mean of five seeds) & Before the checks & With the checks\\
+System & Recall (\%) & FPR (\%)\\
 \midrule
-Team-written set, recall & 40.0\% & \textbf{95.0\%} (every seed)\\
-Team-written set, FPR & 7.0\% & 7.0\%\\
-StateAttack, recall & 55.7\% & \textbf{80.4\%}\\
-StateAttack, FPR & 10.2\% & 10.2\%\\
-Six headline sets (2,304 sessions) & Table~\ref{tab:head} & unchanged\\
+\textbf{Full MAPIS} & \textbf{97.0} & \textbf{0.2}\\
+Learned model only (no rule fusion) & 97.0 & 0.1\\
+Without the provenance rule & 97.0 & 0.1\\
+Same model without session memory & 94.7 & 33.6\\
+Regex rules only & 12.5 & 0.0\\
 \bottomrule
 \end{tabular}
-\caption{Effect of the tampering checks with the trained models (2,512 test sessions per seed).}\label{tab:v2}
+\caption{Ablation, seed 42.}
 \end{table}
-The checks did not add a single false positive on any of the 2,512 test sessions in any seed, and they changed no decision on the six headline sets, so Table~\ref{tab:head} holds for the final system. Document-poisoning attacks went from 78.6\% to 100\% recall. On StateAttack, items first introduced by an agent went from 25.0\% to 90.0\%, items passed through memory from 63.3\% to 86.7\%, buried evidence from 76.7\% to 90.0\% and split claims from 78.3\% to 91.7\%. Items that the agent has to decode (reversed or base64) stayed at 25.0\%. The one team attack still missed turns the ventilation off although the user asked to keep it on. The on/off check skipped it because the word ``off'' also appears elsewhere in the user's request; we fixed this matching bug after the run. The baselines flag harmless and attack sessions at about the same rate, and the stateless model flags StateAttack attacks and their twins at nearly the same rate in every seed (mean 69.3\% recall at 55.2\% FPR). Because we designed the checks after looking at the team set's misses, the 95\% is not an independent estimate, and a new hand-written set is needed to confirm it. With 20 sessions per class the interval is also wide (95\% recall: 76 to 99\%).
+Removing the session memory raises the false-positive rate from 0.2\% to 33.6\%, and in the multi-hop twins the stateless model flags 89\% of the authorized and 77\% of the designated sessions, against 0.6\% and 0\% for MAPIS. Removing the fusion rules changes no decision: once the classifier reads the session signals in its input, it has learned what the rules add. The rules stay in the system as a safety net and because their reasons are what the operator sees in each alert.
 
-\textbf{Rule ablation.} On 978 adaptive, multi-hop and StateAttack sessions (seed 42), the full system without the tampering checks, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7 to 1.8\% FPR. In other words, the classifier has learned the four original rule signals from its input. The tampering checks are different, because they compare argument values with the user's request, which the classifier input does not do.
+\section{Calibrated Hold Cut-off}
+With the default cut-off of 0.50, two of the five seeds go above 5\% false positives on multi-hop sessions (5.3 and 7.7\%). We therefore picked a cut-off on the validation split only, such that no dataset family goes above 2\% false positives there, and applied it to test. Across the five seeds, multi-hop FPR went from 1.2, 5.3, 0.0, 7.7 and 0.6\% to 0.6, 1.8, 0.0, 0.6 and 0.0\% (mean 3.0 to 0.6\%), recall stayed at 100\%, and no other set got worse. With this cut-off every seed meets the 5\% target.
 
 \section{Latency and Cost}
 On the RTX 3050 laptop GPU the classifier needs 63.0 ms per event when events come one at a time and 51.4 ms per event in batches. The DeBERTa-v3-base version, which we tried as a capacity comparison, needs 115 ms per event, still under 200 ms. The rule signals add only a few milliseconds.

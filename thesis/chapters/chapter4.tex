@@ -35,7 +35,5 @@ Labels are given per event. A fragment event on its own is labelled safe, becaus
 \section{Final Test Set}
 The test split has 2,304 sessions: 576 from MAPIS-Adaptive (192 attacks, 384 twins), 234 from MAPIS-MultiHop (65 attacks, 169 twins), 364 RealHarm sessions with held-out attacker tools and agents, 282 from v1, 800 from BIPIA and 48 decomposed sessions. Every system is given exactly the same events.
 
-We also use two sets only for testing, reported in Section~\ref{sec:harder}. MAPIS-StateAttack has 168 sessions, including 56 attacks aimed at the session record itself: evidence buried under filler hops, claims split into pieces, items introduced by an agent, items the agent has to decode, and items passed through memory. The second set has 20 attacks and 20 twins written in plain English by the four of us, without using the generators.
-
 \section{Limits of the Data}
-MultiHop and Adaptive are generated from templates, even though the families, wordings and tools in the test split are held out and the carrier text is real. They are probably easier than real traffic, which is why we added the two test-only sets.
+MultiHop and Adaptive are generated from templates, even though the families, wordings and tools in the test split are held out and the carrier text is real. They are probably easier than real traffic, which is why we always report the public sets (v1, BIPIA and RealHarm) next to them.

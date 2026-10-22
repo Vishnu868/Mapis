@@ -179,14 +179,14 @@ s = S[1]; clear(s); title(s, 1, "Progress Since First Review", 2)
 table(s, L, 1.2, CW, [
     ["Area", "At First Review", "At Final Review"],
     ["Detector", "DeBERTa-v3-small on chunked history; gained only 2.3 points from session state", "Session signals written into the classifier input; +96 points over the stateless model on multi-hop attacks at matched FPR"],
-    ["Runtime", "4-tier shield, session store, provenance, trace on LangGraph", "Same on LangGraph and AutoGen, plus escalation, evasion defences, tampering checks and a calibrated hold cut-off"],
-    ["Data", "MAPIS-Bench v1 (1,693), BIPIA (1,800), Decomposed", "+ MultiHop, RealHarm, Adaptive; StateAttack and a team-written test set"],
-    ["Baselines", "Llama Guard / NeMo comparison planned", "Llama Guard, Prompt Guard 2, ProtectAI, NeMo Guardrails, LLM judge on identical sessions"],
-    ["Evaluation", "One training run, held-out BIPIA", "5 training seeds, 2,304-session test, matched-FPR comparison, live LLM agents (AgentDojo)"],
+    ["Runtime", "4-tier shield, session store, provenance, trace on LangGraph", "Same on LangGraph and AutoGen, plus escalation, evasion defences and a calibrated hold cut-off"],
+    ["Data", "MAPIS-Bench v1 (1,693), BIPIA (1,800), Decomposed", "+ MultiHop (fragment attacks with twins), RealHarm, Adaptive (evasive attacker)"],
+    ["Baselines", "Llama Guard / NeMo comparison planned", "Llama Guard, Prompt Guard 2, ProtectAI and a same-data stateless model on identical sessions"],
+    ["Evaluation", "One training run, held-out BIPIA", "5 training seeds, 2,304-session test, matched-FPR comparison, evasive-attacker test"],
     ["Interface", "Dashboard integration in progress, demo pending", "Operator console: live monitor, session inspector, results"],
-    ["Tests", "26 passing", "33 passing"]], [1.35, 3.4, 4.82], size=12, row_h=0.68, bold_first_col=True)
+    ["Tests", "26 passing", "Full suite passing, incl. train/serve parity and AutoGen tap"]], [1.35, 3.4, 4.82], size=12, row_h=0.68, bold_first_col=True)
 tb(s, L, 6.85, CW, 0.5, "All four project targets are measured and met (slide 18).", size=16, bold=True, color=MAROON)
-notes(s, "At the First Review we had a trained classifier and a prototype shield. Since then the classifier really uses the session, we added AutoGen, five more test sets, five baselines, five training seeds and a live LLM-agent test.")
+notes(s, "At the First Review we had a trained classifier and a prototype shield. Since then the classifier really uses the session, we added AutoGen, three more benchmark sets, three public baselines, five training seeds and the operator console.")
 
 # ======================================================================= 3 motivation
 s = S[2]; clear(s); title(s, 2, "Motivation & Problem Statement", 3)
@@ -212,8 +212,8 @@ table(s, L, 1.2, CW, [
     ["InjecAgent 2024, AgentDojo 2024", "Benchmarks for tool-using agents", "Explicit injection text; no fragment attacks with benign twins"],
     ["Task Shield 2024", "Checks each action against the user's task", "Per action; relies on an LLM's judgement"],
     ["AgentWatcher 2026", "Attributes actions to their context, rule-based monitor LLM", "Adds LLM inference to every check"],
-    ["LlamaFirewall AlignmentCheck 2025", "An LLM audits the whole trajectory", "Heavy and after the fact; our 7B judge of this kind flagged 80 % of benign multi-hop twins"],
-    ["Llama Guard, Prompt Guard 2, ProtectAI", "Single-message safety / injection classifiers", "No session memory"],
+    ["LlamaFirewall AlignmentCheck 2025", "An LLM audits the whole trajectory", "Heavy: an LLM call over the whole trajectory, after the fact"],
+    ["Llama Guard, NeMo, Prompt Guard 2, ProtectAI", "Single-message safety / injection guardrails", "No session memory"],
     ["Prompt Infection 2024, G-Safeguard 2025", "Injection spreading across agents", "Study spreading or use graph models; no light inline stateful tap"]], [2.6, 3.4, 3.57], size=12, row_h=0.58)
 card(s, L, 6.05, CW, 1.15, fill=PINK)
 tb(s, L + 0.15, 6.1, CW - 0.3, 1.05, ["Research gap: a lightweight real-time monitor that carries session state across hops, tested on fragment attacks with matched benign twins.",
@@ -225,7 +225,7 @@ s = S[5]; clear(s); title(s, 5, "System Architecture & Methodology", 6)
 boxes = [("Agents", ["planner, web, file,", "memory, code/email", "LangGraph or AutoGen"]),
          ("MAPIS tap", ["FastAPI /inspect on every", "message, tool call,", "memory read / write"]),
          ("Session record", ["Redis or in-memory: user goal,", "where each item came from,", "authority claims, baselines"]),
-         ("Trust score", ["DeBERTa-v3-small + signals", "+ tampering checks", "0 = malicious, 1 = safe"])]
+         ("Trust score", ["DeBERTa-v3-small", "+ session signals", "0 = malicious, 1 = safe"])]
 bw, gap = 2.15, 0.323
 for i, (h, t) in enumerate(boxes):
     x = L + i * (bw + gap)
@@ -248,7 +248,7 @@ for i, (n, r, col) in enumerate(tiers):
         rr = p.add_run(); rr.text = txt; rr.font.size = Pt(sz); rr.font.bold = bd; rr.font.name = FONT; rr.font.color.rgb = WHITE
 bullets(s, L, 4.7, CW, 2.7, [
     "Four signals:||  instruction in data, drift from the user goal, cross-hop provenance and escalation, behaviour anomaly.",
-    "Tampering checks:||  an action argument the user never gave — a changed value, an extra privilege flag, a destination relayed by another agent.",
+    "Evasion defences:||  items are normalised before matching (x at evil dot com → x@evil.com, hidden characters removed); an item split across two documents is joined.",
     "Same code in training and live:||  session.py builds the classifier text for both; a unit test checks they are identical.",
     "Response:||  QUARANTINE waits for operator Release / Reject; BLOCK drops the message and suspends the channel; every alert has a trace origin → relay → action.",
     "Stack:||  Python, PyTorch, HuggingFace, FastAPI, Redis, SQLite, React, LangGraph, AutoGen."], size=13, gap=4)
@@ -272,7 +272,7 @@ table(s, 5.5, 1.2, 4.62, [
     ["Signal", "Weight", "Example"],
     ["Instruction in data", "0.5", "“ignore previous…” inside a page"],
     ["Drift from goal", "0.15", "goal: list contracts → grant admin"],
-    ["Provenance / escalation / tampering", "0.8", "planted address used; WL-5508 instead of PS-7731"],
+    ["Provenance / escalation", "0.8", "planted address used; claim, then unrequested action"],
     ["Behaviour anomaly", "0.15", "file agent suddenly sends email"]], [1.6, 0.85, 2.17], size=11, row_h=0.6)
 card(s, 5.5, 4.35, 4.62, 1.0, fill=PINK)
 tb(s, 5.6, 4.38, 4.42, 0.95, ["survive = model × Π(1 − w × r)", "risk = (1 − survive) × (1 + sensitivity)", "trust = 1 − risk  →  tier"], size=11, bold=True, font=MONO, anchor=MSO_ANCHOR.MIDDLE)
@@ -290,14 +290,14 @@ table(s, L, 1.2, CW, [
     ["Testbed: LangGraph and AutoGen (5 agents, 3 scenarios)", "DONE", "backend/agents/graph.py, autogen_testbed.py, testbed.py"],
     ["FastAPI tap, Redis session store, SQLite forensic log", "DONE", "backend/api/, core/store.py, db.py"],
     ["Stateful shield: session record + 4 signals", "DONE", "core/shield.py, session.py, features.py"],
-    ["Evasion defences and tampering checks", "DONE", "features.py: canonical(), fragments, tamper_risk"],
+    ["Evasion defences (normalisation, split items)", "DONE", "features.py: canonical(), item fragments"],
     ["Classifier and training pipeline", "DONE", "backend/ml/, 5 training seeds"],
     ["Four tiers, channel suspension, quarantine review", "DONE", "/inspect API, operator console"],
     ["Forensic trace and operator dashboard", "DONE", "frontend/ (live monitor, inspector, results)"],
     ["Benchmark sets and generators", "DONE", "scripts/generate_*.py, data/mapis_bench/"],
-    ["Baselines: 5 systems on identical sessions", "DONE", "backend/baselines.py, scripts/benchmark.py"],
-    ["Live LLM agent evaluation (AgentDojo)", "DONE", "scripts/live_agentdojo.py"],
-    ["Automated tests", "33 PASS", "tests/ (shield, API, train/serve parity, AutoGen tap, tampering)"]], [4.3, 1.0, 4.27], size=12, row_h=0.5)
+    ["Baselines: Llama Guard, Prompt Guard 2, ProtectAI, stateless", "DONE", "backend/baselines.py, scripts/benchmark.py"],
+    ["Matched-FPR sweep and hold-threshold calibration", "DONE", "scripts/stateless_sweep.py, calibrate_mapis.py"],
+    ["Automated tests", "PASS", "tests/ (shield, API, train/serve parity, AutoGen tap, twins)"]], [4.3, 1.0, 4.27], size=12, row_h=0.5)
 notes(s, "Everything planned in the abstract is built and in the repository. The tests include a train/serve parity test.")
 
 # ======================================================================= 8 datasets (new)
@@ -314,12 +314,12 @@ table(s, L, 1.2, 6.25, [
 card(s, 7.0, 1.2, 3.12, 3.76)
 tb(s, 7.1, 1.25, 2.9, 0.4, "Setup", size=15, bold=True, color=MAROON)
 bullets(s, 7.1, 1.65, 2.95, 3.3, ["Test: 1,285 attacks, 1,019 harmless", "MultiHop, Adaptive, RealHarm: split by family, wording and tool — their test uses tools and phrasings never seen in training",
-                                   "Test only: StateAttack (168), team-written set (40)", "Every system sees the same events", "5 seeds; 95 % Wilson intervals"], size=12, gap=4)
+                                   "Never trained on: BIPIA test part, Decomposed", "Every system sees the same events", "5 seeds; 95 % Wilson intervals"], size=12, gap=4)
 card(s, L, 5.15, CW, 1.6, fill=PINK)
 bullets(s, L + 0.15, 5.22, CW - 0.3, 2.1, [
     "Benign twins for every attack:||  authorized (the user named the destination), resisted (planted text present, the agent acts correctly), designated (the user named the file). Without twins a detector can score well by flagging anything suspicious.",
     "Reported both ways:||  5 attack classes (exfiltration, financial, code/tool, instruction override, physical safety) and 5 mechanisms (document poisoning, memory injection, tool output, cross-agent, goal hijack)."], size=13, gap=6)
-notes(s, "Public benchmarks are split into a trained part and a held-out part; we always report the held-out part. Decomposed, StateAttack and the team-written set were never trained on.")
+notes(s, "Public benchmarks are split into a trained part and a held-out part; we always report the held-out part. Decomposed was never trained on.")
 
 # ======================================================================= 9 model and training (new)
 s = S[7]; clear(s); title(s, 7, "Model & Training", 8)
@@ -379,58 +379,52 @@ column_chart(s, L, 2.7, 4.9, 3.7, ["Multi-hop", "Adaptive (evasive)"], [("MAPIS"
 bullets(s, 5.65, 2.75, 4.47, 4.0, [
     "Same words, different history:||  at the default threshold the stateless model gets 86.5 % multi-hop recall but stops 51.1 % of harmless sessions — it flags the twin where the user asked for the action.",
     "Fair comparison:||  held to the same 5 % false-alarm budget it catches 4.3 % (multi-hop) and 6.1 % (adaptive); MAPIS catches 100 %.",
-    "Evasive attacker:||  64.6 % → 100 % recall at 0.4 % FPR, with normalisation, fragment matching and adversarial training."], size=13, gap=7)
-tb(s, L, 6.55, CW, 0.8, "Stateless thresholds were picked on validation and applied to test (5 seeds); on test they gave up to 8.8 % FPR, so these recalls are generous to the baseline. Explicit single-message attacks (RealHarm, AgentDojo) are caught by both — the gap there is at most 11 points.", size=11, color=GREY)
+    "Per twin type (seed 42):||  the stateless model flags 89 % of authorized and 77 % of designated twins; MAPIS 0.6 % and 0 %."], size=13, gap=7)
+tb(s, L, 6.55, CW, 0.8, "Stateless thresholds were picked on validation and applied to test (5 seeds); on test they gave up to 8.8 % FPR, so these recalls are generous to the baseline. Explicit single-message attacks (RealHarm, MAPIS-Bench v1) are caught by both — the gap there is at most 11 points.", size=11, color=GREY)
 notes(s, "This is the core result: without memory a detector either misses the spread-out attacks or blocks the user's own requests.")
 
-# ======================================================================= 13 harder tests (new)
-s = S[12]; clear(s); title(s, 12, "Harder Tests: A Gap Found and Fixed", 13)
-tb(s, L, 1.12, 4.85, 0.4, "Team-written set (seed 42)", size=14, bold=True, color=MAROON)
-table(s, L, 1.55, 4.85, [
-    ["System", "Recall", "FPR", "Acc."],
-    ["MAPIS + tampering checks", "95.0", "5.0", "95.0"],
-    ["MAPIS before the checks", "35.0", "5.0", "65.0"],
-    ["Stateless DeBERTa", "40.0", "40.0", "50.0"],
-    ["ProtectAI v2", "50.0", "50.0", "50.0"],
-    ["Llama Guard 3-1B", "100", "100", "50.0"]], [2.35, 0.8, 0.8, 0.9], size=12, row_h=0.45, bold_rows=(1,))
-tb(s, 5.65, 1.12, 4.47, 0.4, "Attacks on the session record (5 seeds)", size=14, bold=True, color=MAROON)
-table(s, 5.65, 1.55, 4.47, [
-    ["StateAttack technique", "Before", "After"],
-    ["Evidence buried under filler", "76.7", "90.0"],
-    ["Claim split over 3 documents", "78.3", "91.7"],
-    ["Item laundered via memory", "63.3", "86.7"],
-    ["Item introduced by an agent", "25.0", "90.0"],
-    ["Item the agent must decode", "25.0", "25.0"],
-    ["All (FPR 10.2 % both)", "55.7", "80.4"]], [2.67, 0.9, 0.9], size=12, row_h=0.42, bold_rows=(6,))
-card(s, L, 4.75, CW, 2.2, fill=PINK)
-bullets(s, L + 0.15, 4.85, CW - 0.3, 2.5, [
-    "What the first run missed:||  changed values (wallet WL-5508 instead of PS-7731, alarm delay 360 instead of 10 min), extra privilege flags (bypass_checks=true), destinations relayed by another agent.",
-    "Fix — three tampering checks on action arguments, no retraining:||  team-written set 35–45 % → 95 % in all 5 seeds; no new false positive on any of 2,512 test sessions.",
-    "Honest note:||  the checks were designed after reading these misses, so a fresh hand-written set must confirm the 95 %. Decoded items stay the weak spot."], size=14, gap=8)
-notes(s, "These sets were built to break MAPIS. The low first score showed exactly what was missing; plain rules fixed most of it without retraining the model.")
+# ======================================================================= 13 evasive attacker
+s = S[12]; clear(s); title(s, 12, "Robustness to an Evasive Attacker", 13)
+table(s, L, 1.2, CW, [
+    ["Technique (MAPIS-Adaptive, attacker knows MAPIS)", "Example", "MAPIS", "Stateless"],
+    ["Obfuscated item", "“x at host dot example”, hxxps://h[.]example", "100 / 0", "83.3 / 37.5"],
+    ["Split item", "mailbox in one document, domain in another", "100 / 0", "83.3 / 45.8"],
+    ["Hidden characters", "zero-width characters, full-width @", "100 / 0", "87.5 / 43.8"],
+    ["Paraphrased claim", "authority claim without the usual wording", "100 / 0", "87.5 / 45.0"],
+    ["Long delay", "8 hops between the plant and the action", "100 / 0", "87.5 / 46.2"],
+    ["Combination", "several techniques at once", "100 / 0", "90.0 / 51.2"]], [3.1, 3.67, 1.3, 1.5], size=12, row_h=0.43)
+tb(s, L, 4.25, CW, 0.35, "Recall / FPR in %, seed 42, 576 test sessions (192 attacks, 384 twins). 5-seed mean: MAPIS 100 % / 0.4 %; stateless 86.6 % / 43.0 %.", size=11, color=GREY)
+column_chart(s, L, 4.65, 4.9, 2.8, ["Before", "+ normalisation\n& item fragments", "+ adversarial\ntraining"],
+             [("Recall (%)", (64.6, 100, 100)), ("False-positive rate (%)", (2.9, 3.9, 0.0))], size=10, gap=60)
+bullets(s, 5.65, 4.7, 4.47, 2.75, [
+    "Normalisation:||  canonical() rewrites spelled-out, defanged and hidden-character items before matching.",
+    "Item fragments:||  hosts, domains and id parts are registered, so an action that rebuilds an item from two documents still matches.",
+    "Adversarial training:||  Adaptive train sessions added to the training data; test uses held-out families and evasion styles.",
+    "Long delay:||  taint stays in the session record after the hop leaves the 4-hop history window."], size=12, gap=4)
+notes(s, "The attacker knows how MAPIS works and hides the planted item. Normalisation and fragment matching close the gap; adversarial training removes the remaining false alarms.")
 
-# ======================================================================= 14 baselines + live agents
-s = S[13]; clear(s); title(s, 13, "Baselines & Live LLM Agents", 14)
-tb(s, L, 1.12, 4.6, 0.4, "LLM detectors, same 153 sessions", size=14, bold=True, color=MAROON)
-table(s, L, 1.55, 4.6, [
+# ======================================================================= 14 baselines + ablation
+s = S[13]; clear(s); title(s, 13, "Baselines & Ablation", 14)
+tb(s, L, 1.12, CW, 0.4, "Public guardrails on the same sessions (recall / FPR %)", size=14, bold=True, color=MAROON)
+table(s, L, 1.55, CW, [
+    ["Set", "MAPIS", "Stateless", "Llama Guard 3-1B", "ProtectAI v2", "Prompt Guard 2 (recall)"],
+    ["All 2,304 sessions", "98.0 / 0.9", "94.1 / 33.2", "86.1 / 90.3", "53.3 / 49.5", "7.5  (FPR 0.1)"],
+    ["MultiHop", "100 / 3.0", "86.5 / 51.1", "100 / 100", "70.8 / 63.9", "0"],
+    ["Adaptive", "100 / 0.4", "86.6 / 43.0", "100 / 100", "66.1 / 64.1", "0"],
+    ["BIPIA (held-out part)", "95.8 / 1.4", "94.5 / 2.2", "72.5 / 65.5", "44.7 / 56.5", "1.0"]], [2.2, 1.35, 1.35, 1.6, 1.45, 1.62], size=12, row_h=0.45, bold_rows=())
+tb(s, L, 3.85, CW, 0.35, "MAPIS and stateless: 5-seed means. Llama Guard, ProtectAI and Prompt Guard 2 are pretrained and run once with default thresholds.", size=11, color=GREY)
+tb(s, L, 4.3, 4.6, 0.4, "Ablation: what each part adds (seed 42)", size=14, bold=True, color=MAROON)
+table(s, L, 4.73, 4.6, [
     ["System", "Recall", "FPR"],
-    ["MAPIS", "100 %", "0.0 %"],
-    ["Stateless DeBERTa", "91.2 %", "32.9 %"],
-    ["LLM judge (qwen2.5 7B, full transcript)", "67.5 %", "23.3 %"],
-    ["NeMo Guardrails (qwen2.5 7B)", "48.7 %", "17.8 %"]], [2.6, 1.0, 1.0], size=12, row_h=0.45, bold_rows=(1,))
-bullets(s, L, 3.95, 4.6, 3.4, [
-    "The judge finds the multi-hop attacks but flags 80 % of the benign twins.",
-    "NeMo misses most multi-hop and adaptive attacks.",
-    "Neither can separate an attack from the same action the user asked for.",
-    "Both used a small local 7B model; 153 sessions (80 attacks, 73 harmless), so 0 % FPR has a 5 % upper bound."], size=12, gap=5)
-tb(s, 5.5, 1.12, 4.62, 0.4, "AgentDojo with a real tool-calling agent", size=14, bold=True, color=MAROON)
-column_chart(s, 5.5, 1.55, 4.62, 2.7, ["No defence", "MAPIS", "Stateless"], [("Attack success rate (%)", (15.3, 0.0, 0.0))], maximum=20, legend=False, size=10, gap=80)
+    ["Full MAPIS", "97.0 %", "0.2 %"],
+    ["Learned model only (no rule fusion)", "97.0 %", "0.1 %"],
+    ["Same model without memory", "94.7 %", "33.6 %"],
+    ["Regex rules only", "12.5 %", "0.0 %"]], [2.6, 1.0, 1.0], size=12, row_h=0.45, bold_rows=(1,))
 bullets(s, 5.5, 4.35, 4.62, 3.0, [
-    "qwen2.5 7B agent, 4 suites, 39 benign + 144 attacked runs per defence.",
-    "Attacks succeeded 22 / 144 times without defence, 0 / 144 with MAPIS (95 % upper bound 2.6 %).",
-    "Benign tasks solved: 28.2 % without, 25.6 % with MAPIS (1 of 39 lost).",
-    "AgentDojo injections are explicit, so the stateless model also stops them: this shows MAPIS works inside a live agent at low cost."], size=12, gap=5)
-notes(s, "Left: all systems on the same 153 sessions. Right: a real LLM agent where MAPIS gates every tool call and tool output.")
+    "Memory is the decisive part:||  removing it raises false alarms from 0.2 % to 33.6 %.",
+    "Signals inside the model:||  once the classifier reads the SIGNALS line, the fusion rules change no decision; they explain each alert to the operator.",
+    "Llama Guard||  is a content-safety model and flags almost everything; Prompt Guard 2 looks for explicit commands and flags almost nothing."], size=12, gap=6)
+notes(s, "Top: every public system on the same sessions. Bottom: we remove one part at a time; only removing the session memory hurts.")
 
 # ======================================================================= 15 demo
 s = S[14]; clear(s); title(s, 14, "Prototype / Demonstration", 15)
@@ -451,15 +445,14 @@ notes(s, "Run the five demo steps. If the laptop has a problem, use this screens
 s = S[15]; clear(s); title(s, 15, "Limitations & Technical Challenges", 16)
 table(s, L, 1.2, CW, [
     ["Limitation", "Detail"],
-    ["Tampering checks are post-hoc", "Designed after reading the team-set misses; the 95 % there is not an independent estimate. A fresh hand-written set is needed."],
-    ["Attacks on the session record", "StateAttack: 80.4 % recall but 10.2 % FPR (above target, mostly memory-laundering twins); items the agent must decode: 25 %."],
     ["Generated benchmarks", "MultiHop and Adaptive come from templates (held-out families, wordings and tools; real carrier text), so they are easier than real traffic."],
+    ["Item shapes", "Provenance follows items with a recognisable shape (emails, URLs, IBAN-like ids, long numbers); a changed short value such as an account code or a delay in minutes has no traceable shape."],
     ["Seed variation", "At the default cut-off 2 of 5 seeds exceed 5 % multi-hop FPR; the validation-calibrated cut-off keeps every seed ≤ 1.8 %."],
-    ["Training overlap", "MAPIS was trained on AgentDojo-style injections, which the live-agent run also uses."],
-    ["Small models in baselines", "The live agent, the LLM judge and NeMo used a local 7B model."],
     ["Single-hop attacks", "On BIPIA there is no cross-hop evidence; stateless recall is within seed variance (94.5 vs 95.8 %)."],
-    ["Scripted testbed", "The 5-agent testbed is scripted; real LLM behaviour was tested on AgentDojo only."]], [2.5, 7.07], size=12, row_h=0.66, bold_first_col=True)
-notes(s, "Stated once, factually. The most important: the tampering-check result needs a fresh set, and decoded items are still missed.")
+    ["Fusion rules", "Once the classifier reads the session signals, the fusion rules add nothing measurable on the test sets (slide 14); they stay as a safety net and as the explanation shown to the operator."],
+    ["Public baselines", "Llama Guard, Prompt Guard 2 and ProtectAI run with their default thresholds and are not trained on our data; the same-data comparison is the stateless DeBERTa."],
+    ["Scripted testbed", "The 5-agent demo testbed follows fixed code rather than an LLM; the benchmark sessions come from public corpora and our generators."]], [2.5, 7.07], size=12, row_h=0.72, bold_first_col=True)
+notes(s, "Stated once, factually. The most important: the multi-hop sets are generated, and provenance only follows items with a recognisable shape.")
 
 # ======================================================================= 17 completion + future
 s = S[16]; clear(s); title(s, 16, "Completion Status & Future Work", 17)
@@ -467,16 +460,17 @@ table(s, L, 1.2, CW, [
     ["Phase", "Status", "Outcome"],
     ["1  Literature and problem", "DONE", "Gap defined"],
     ["2  Testbed and FastAPI hooks", "DONE", "LangGraph and AutoGen through one tap"],
-    ["3  Attack dataset and MAPIS-Bench", "DONE", "Six benchmark sets with twins, two test-only sets"],
+    ["3  Attack dataset and MAPIS-Bench", "DONE", "Six benchmark sets with twins, incl. an evasive attacker"],
     ["4  Trust model and fine-tuning", "DONE", "5 seeds, adversarial training, calibration"],
-    ["5  Tiered response and forensic logging", "DONE", "4 tiers, trace, quarantine review, tampering checks"],
+    ["5  Tiered response and forensic logging", "DONE", "4 tiers, trace, quarantine review, channel suspension"],
     ["6  Dashboard and integration", "DONE", "Operator console"],
-    ["7  Benchmarking against guardrails", "DONE", "5 baselines, live LLM agents"],
+    ["7  Benchmarking against guardrails", "DONE", "Llama Guard, Prompt Guard 2, ProtectAI, stateless model"],
     ["8  Report and demonstration", "DONE", "Thesis, report, live demo"]], [4.0, 1.1, 4.47], size=12, row_h=0.45)
 tb(s, L, 5.4, CW, 0.4, "Future work", size=15, bold=True, color=MAROON)
-bullets(s, L, 5.8, CW, 1.6, ["A fresh hand-written test set to confirm the tampering checks; checks for items the agent must decode.",
-                             "Tap agent-internal reads; evaluate on real agent traffic with larger live agents and stronger LLM judges.",
-                             "Multimodal content, more frameworks, production hardening."], size=13, gap=4)
+bullets(s, L, 5.8, CW, 1.65, ["Action-argument checks: values, privilege flags and destinations the user never gave (a changed account code, bypass_checks=true).",
+                             "Harder tests: a team-written independent set and attacks aimed at the session record itself.",
+                             "Live LLM agents (AgentDojo) with MAPIS in the loop; LLM-based guardrails (NeMo Guardrails, a history-aware LLM judge) as baselines.",
+                             "Multimodal content, more frameworks, production hardening."], size=12, gap=3)
 notes(s, "All eight phases from the zeroth-review timeline are complete.")
 
 # ======================================================================= 18 contribution + targets
@@ -490,10 +484,10 @@ table(s, L, 1.2, CW, [
 tb(s, L, 4.35, CW, 0.4, "Contributions", size=15, bold=True, color=MAROON)
 bullets(s, L, 4.75, CW, 2.7, [
     "A stateful, provenance-aware monitor at a framework-neutral tap, 63 ms per message.",
-    "MAPIS-Bench: multi-hop fragment attacks with matched benign twins, an evasive-attacker set and attacks on the session record.",
-    "A fair matched-false-positive comparison against stateless and LLM-based detectors.",
-    "Action-argument tampering checks: team-written attacks 35–45 % → 95 % without retraining.",
-    "Evaluation inside a live LLM-agent pipeline: attack success 15.3 % → 0 %."], size=14, gap=5)
+    "MAPIS-Bench: multi-hop fragment attacks with matched benign twins, plus an evasive-attacker set.",
+    "A fair matched-false-positive comparison: +96 points over the same model without memory.",
+    "Robustness to an evasive attacker: 64.6 % → 100 % with normalisation, item fragments and adversarial training.",
+    "A working prototype: operator console with live monitoring, session replay and quarantine review."], size=14, gap=5)
 notes(s, "Every target from the abstract is met.")
 
 # ======================================================================= 19 team
@@ -509,7 +503,7 @@ for i, (n, r, d) in enumerate(people):
     tb(s, x + 0.12, y + 0.1, cw2 - 0.24, 0.4, n, size=17, bold=True, color=MAROON)
     tb(s, x + 0.12, y + 0.52, cw2 - 0.24, 0.35, r, size=13, bold=True)
     tb(s, x + 0.12, y + 0.95, cw2 - 0.24, 1.25, d, size=14, color=GREY)
-tb(s, L, 6.25, CW, 0.9, size=14, text="Shared: the hand-written independent test set (each member wrote 5 attacks with their twins), weekly integration testing, code review, experiment tracking, documentation, and thesis preparation across all four members.")
+tb(s, L, 6.25, CW, 0.9, size=14, text="Shared: weekly integration testing, code review, experiment tracking, documentation, and thesis preparation across all four members.")
 notes(s, "Roles and wording as in the First Review; everyone took part in the whole project.")
 
 # ======================================================================= 20 references

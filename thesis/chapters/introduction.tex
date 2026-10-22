@@ -31,12 +31,12 @@ Current LLM guardrails judge each message on its own, so they cannot detect indi
 
 \section{Contributions}
 \begin{enumerate}
-\item MAPIS, a monitor that remembers the session and tracks where each item came from. It sits at a tap that works with any framework and combines a fine-tuned DeBERTa-v3-small classifier with four session signals, checks on action arguments and a four-tier response.
+\item MAPIS, a monitor that remembers the session and tracks where each item came from. It sits at a tap that works with any framework and combines a fine-tuned DeBERTa-v3-small classifier with four session signals and a four-tier response.
 \item MAPIS-Bench, six test sets including multi-hop fragment attacks with matching harmless twins and a set from an attacker who tries to evade MAPIS.
 \item A fairer way to compare: we hold the stateless detector to at most 5\% false positives, with the threshold picked on validation data, and then compare recall.
-\item A comparison with five baselines on exactly the same sessions, plus a test inside a live LLM-agent pipeline.
-\item An operator console for live monitoring, session replay and results, and an open repository with 33 automated tests.
+\item A comparison with three public guardrails (Llama Guard, Prompt Guard 2 and ProtectAI) and a stateless model trained on the same data, on exactly the same sessions, plus a test against an attacker who knows how MAPIS works.
+\item An operator console for live monitoring, session replay and results, and an open repository with an automated test suite.
 \end{enumerate}
 
 \section{Organisation of the Thesis}
-The rest of the thesis is organised as follows. Chapter~2 looks at related work and the research gap. Chapter~3 explains how MAPIS is designed, and Chapter~4 describes the datasets. Chapter~5 covers the model, the training and the implementation. Chapter~6 gives the experimental results and Chapter~7 the live-agent tests and the demonstration. Chapter~8 concludes and lists future work, and Appendix~A explains how to reproduce the results.
+The rest of the thesis is organised as follows. Chapter~2 looks at related work and the research gap. Chapter~3 explains how MAPIS is designed, and Chapter~4 describes the datasets. Chapter~5 covers the model, the training and the implementation. Chapter~6 gives the experimental results and Chapter~7 the prototype and the demonstration. Chapter~8 concludes and lists future work, and Appendix~A explains how to reproduce the results.

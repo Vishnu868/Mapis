@@ -100,7 +100,7 @@ When you open http://localhost:3000:
    - **Grey preview:** the message or tool call.
    - **Bullet list = reasons.** Plain English, for example:
      - `'backup@evil.com' first appeared in untrusted hop 4 (file_agent) and now reaches an action` (the provenance signal);
-     - `'cc=backup@evil.com' first appeared in untrusted or relayed content, not in the user's request` (the tampering check: relayed destination);
+     - `'cc=backup@evil.com' first appeared in untrusted or relayed content, not in the user's request` (the same provenance evidence, stated for the `cc` argument: its value came from untrusted content, not from the user);
      - `instruction-like text in a data channel (1 cue(s))` (the instruction signal);
      - `classifier trust 0.55` (what DeBERTa alone said).
    - **Numbered list = forensic trace:** origin → relay → action, each step with hop, source → target, the item, and a text snippet.
@@ -112,7 +112,7 @@ When you open http://localhost:3000:
 ### Tab 2: Session inspector
 
 This tab replays **held-out test sessions from our benchmark** (sessions the model never trained on) through MAPIS, hop by hop.
-- **Dropdown 1, dataset:** MAPIS-MultiHop / RealHarm / MAPIS-Bench v1 / Decomposed / BIPIA / Independent (hand-written).
+- **Dropdown 1, dataset:** MAPIS-MultiHop / RealHarm / MAPIS-Bench v1 / Decomposed / BIPIA (held-out part). (After `git pull`; an older checkout also lists an extra entry: skip it.)
 - **Dropdown 2, session:** each entry reads like `ATTACK · exfiltration / memory · 9 hops · <task>` or `benign · authorized · 9 hops · <task>`.
   - *ATTACK* is followed by the class and mechanism.
   - *benign* is followed by the twin type (authorized / resisted / designated / clean).
@@ -130,8 +130,8 @@ This tab replays **held-out test sessions from our benchmark** (sessions the mod
 
 ### Tab 3: Results
 
-Tables and bar charts of the measured numbers, read from `results/benchmark.json` (and the Llama Guard / NeMo files) on the laptop: overall, MultiHop, RealHarm, BIPIA, and the seed summary.
-- The seed box is titled "Three training seeds" (an old label). It shows whatever is in `results/seeds/summary.json`, which is the 5-seed summary.
+Tables and bar charts of the measured numbers, read from `results/benchmark.json` (and the Llama Guard file) on the laptop: overall, MultiHop, RealHarm, BIPIA, and the seed summary.
+- The seed box is titled "Training seeds" ("Three training seeds" in an older checkout). It shows whatever is in `results/seeds/summary.json`, which is the 5-seed summary.
 - The headline numbers to *say* are on slides 10–12.
 
 ---

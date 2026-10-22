@@ -23,7 +23,7 @@ Work & Approach & Limit addressed by MAPIS\\
 \midrule
 Task Shield & Per-action task alignment by an LLM & Relies on the backbone LLM's judgement; evaluated on one benchmark\\
 AgentWatcher & Attribution plus monitor LLM & Adds LLM inference to every check\\
-LlamaFirewall & Classifier plus trajectory audit by an LLM & Heavy and post-hoc; our LLM-judge baseline flagged 80\% of benign multi-hop twins\\
+LlamaFirewall & Classifier plus trajectory audit by an LLM & Heavy and post-hoc: an LLM call over the whole trajectory\\
 G-Safeguard & GNN over the agent graph & Not a lightweight inline stateful tap\\
 Llama Guard, Prompt Guard 2, ProtectAI & Single-message classifiers & No session memory\\
 \bottomrule

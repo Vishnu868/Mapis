@@ -39,9 +39,9 @@ Session state & \texttt{session.py}, \texttt{features.py}, \texttt{context.py}, 
 Detector & \texttt{detector.py}: transformer detector with chunking, regex fallback\\
 API & FastAPI: \texttt{/inspect}, \texttt{/pipeline/run}, events, quarantine review, WebSocket, replay, results\\
 Testbed & \texttt{testbed.py}, \texttt{graph.py} (LangGraph), \texttt{autogen\_testbed.py} (AutoGen)\\
-Evaluation & \texttt{benchmark.py}, \texttt{evaluate.py}, \texttt{stateless\_sweep.py}, \texttt{live\_agentdojo.py}, \texttt{baselines.py}\\
+Evaluation & \texttt{benchmark.py}, \texttt{evaluate.py}, \texttt{stateless\_sweep.py}, \texttt{calibrate\_mapis.py}, \texttt{baselines.py}\\
 Interface & React operator console in \texttt{frontend/}\\
-Tests & 33 pytest tests: shield, API, train/serve parity, AutoGen tap, multi-hop attacks against twins, tampering checks\\
+Tests & pytest suite: shield, API, train/serve parity, AutoGen tap, multi-hop attacks against twins\\
 \bottomrule
 \end{tabular}
 \caption{Implementation overview.}
@@ -58,5 +58,4 @@ We did not get to the final system in one go. Each of the failures below was mea
 \item \textbf{Multi-hop false positives of 10 to 17\%.} Two causes: contradictory labels in our generator (the same text labelled malicious in attacks and benign in twins) and memorised tool names. We changed the label policy, added eight further override and physical action kinds as training families, and drew carrier text from a larger pool. The multi-hop false-positive rate fell to about 2\%.
 \item \textbf{Evasive attacker.} Against the adaptive set the first model reached 64.6\% recall. Canonicalisation, fragment matching and adversarial training raised it to 100\% on all six techniques.
 \item \textbf{A stale old-code run.} One run silently used old code because a pull failed. The pipeline now aborts at its first step if the code is out of date.
-\item \textbf{Plain values on the team-written set.} MAPIS caught only 35 to 45\% of the team's attacks: provenance did not follow changed values, privilege flags or destinations relayed by an agent. The tampering checks of Section~\ref{sec:tamper} raised this to 95\% without retraining (Section~\ref{sec:harder}).
 \end{enumerate}

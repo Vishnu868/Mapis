@@ -198,7 +198,7 @@ code,pre{background:#f3f4f6;border-radius:4px;font-size:13px}pre{padding:10px;ov
 <li><strong>Grey preview:</strong> the message or tool call.</li>
 <li><strong>Bullet list = reasons.</strong> Plain English, for example:<ul>
 <li><code>'backup@evil.com' first appeared in untrusted hop 4 (file_agent) and now reaches an action</code> (the provenance signal);</li>
-<li><code>'cc=backup@evil.com' first appeared in untrusted or relayed content, not in the user's request</code> (the tampering check: relayed destination);</li>
+<li><code>'cc=backup@evil.com' first appeared in untrusted or relayed content, not in the user's request</code> (the same provenance evidence, stated for the <code>cc</code> argument: its value came from untrusted content, not from the user);</li>
 <li><code>instruction-like text in a data channel (1 cue(s))</code> (the instruction signal);</li>
 <li><code>classifier trust 0.55</code> (what DeBERTa alone said).</li>
 </ul>
@@ -216,7 +216,7 @@ code,pre{background:#f3f4f6;border-radius:4px;font-size:13px}pre{padding:10px;ov
 <h3>Tab 2: Session inspector</h3>
 <p>This tab replays <strong>held-out test sessions from our benchmark</strong> (sessions the model never trained on) through MAPIS, hop by hop.</p>
 <ul>
-<li><strong>Dropdown 1, dataset:</strong> MAPIS-MultiHop / RealHarm / MAPIS-Bench v1 / Decomposed / BIPIA / Independent (hand-written).</li>
+<li><strong>Dropdown 1, dataset:</strong> MAPIS-MultiHop / RealHarm / MAPIS-Bench v1 / Decomposed / BIPIA (held-out part). (After <code>git pull</code>; an older checkout also lists an extra entry: skip it.)</li>
 <li><strong>Dropdown 2, session:</strong> each entry reads like <code>ATTACK · exfiltration / memory · 9 hops · &lt;task&gt;</code> or <code>benign · authorized · 9 hops · &lt;task&gt;</code>.<ul>
 <li><em>ATTACK</em> is followed by the class and mechanism.</li>
 <li><em>benign</em> is followed by the twin type (authorized / resisted / designated / clean).</li>
@@ -239,9 +239,9 @@ code,pre{background:#f3f4f6;border-radius:4px;font-size:13px}pre{padding:10px;ov
 </li>
 </ul>
 <h3>Tab 3: Results</h3>
-<p>Tables and bar charts of the measured numbers, read from <code>results/benchmark.json</code> (and the Llama Guard / NeMo files) on the laptop: overall, MultiHop, RealHarm, BIPIA, and the seed summary.</p>
+<p>Tables and bar charts of the measured numbers, read from <code>results/benchmark.json</code> (and the Llama Guard file) on the laptop: overall, MultiHop, RealHarm, BIPIA, and the seed summary.</p>
 <ul>
-<li>The seed box is titled "Three training seeds" (an old label). It shows whatever is in <code>results/seeds/summary.json</code>, which is the 5-seed summary.</li>
+<li>The seed box is titled "Training seeds" ("Three training seeds" in an older checkout). It shows whatever is in <code>results/seeds/summary.json</code>, which is the 5-seed summary.</li>
 <li>The headline numbers to <em>say</em> are on slides 10–12.</li>
 </ul>
 <hr />

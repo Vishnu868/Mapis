@@ -9,11 +9,11 @@ Path & Contents\\
 \texttt{backend/ml/} & training configuration, training, evaluation, metrics, data\\
 \texttt{backend/agents/} & testbed, LangGraph graph, AutoGen testbed\\
 \texttt{backend/api/} & FastAPI routes\\
-\texttt{backend/baselines.py} & Llama Guard, Prompt Guard 2, ProtectAI, NeMo, LLM judge\\
+\texttt{backend/baselines.py} & Llama Guard, Prompt Guard 2, ProtectAI\\
 \texttt{frontend/} & React operator console\\
-\texttt{scripts/} & dataset generators, training-data builder, benchmark, diagnosis, stateless sweep, live AgentDojo run, pipeline script\\
+\texttt{scripts/} & dataset generators, training-data builder, benchmark, diagnosis, stateless sweep, calibration, pipeline script\\
 \texttt{data/mapis\_bench/} & the benchmark sets\\
-\texttt{tests/} & 33 automated tests\\
+\texttt{tests/} & automated tests\\
 \texttt{docs/} & report, guide, demo script, explainer\\
 \bottomrule
 \end{tabular}
@@ -22,13 +22,11 @@ Path & Contents\\
 \section{Reproduction Commands}
 All commands were run on a Windows laptop with an RTX 3050 GPU, in PowerShell, from the project folder.
 \begin{lstlisting}
-python -m pytest -q                       # 33 tests
+python -m pytest -q                       # test suite
 .\scripts\run_pipeline.ps1                # data, training, evaluation, benchmark
 .\scripts\run_pipeline.ps1 -Seeds 3       # two extra training seeds + aggregate
 python scripts/stateless_sweep.py --sets multihop,adaptive,realharm
-.\scripts\run_v2_checks.ps1               # with and without tampering checks, all seeds
-.\scripts\run_pipeline.ps1 -Live          # live LLM agents (needs Ollama)
-.\scripts\run_pipeline.ps1 -LLMBaselines  # LLM judge and NeMo
+python scripts/calibrate_mapis.py         # calibrated hold cut-off
 
 python -m uvicorn backend.main:app --port 8000   # API
 cd frontend ; npm install ; npm start            # dashboard
@@ -42,12 +40,6 @@ cd frontend ; npm install ; npm start            # dashboard
 \item \texttt{results/benchmark\_llamaguard.json}: Llama Guard
 \item \texttt{results/benchmark\_promptguard.json}: Prompt Guard 2
 \item \texttt{results/benchmark\_protectai.json}: ProtectAI
-\item \texttt{benchmark\_llm.json}, \texttt{benchmark\_llm\_mapis.json}: 153-session comparison with LLM baselines
-\item \texttt{results/live\_agentdojo.json}: live agents
 \item \texttt{results/evaluate.json}: event-level metrics and latency
 \item \texttt{results/calibration/}: calibrated cut-off
-\item \texttt{results/stateattack/}: attacks on the session record
-\item \texttt{results/ablation\_seed42.json}: rule ablation
-\item \texttt{results/benchmark\_independent.json}: team-written independent set
-\item \texttt{results/v2/}: with and without the tampering checks, every seed
 \end{itemize}

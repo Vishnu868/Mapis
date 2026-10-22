@@ -13,7 +13,7 @@ const TIERS = ["PASS", "FLAG", "QUARANTINE", "BLOCK"];
 const COLOR = { PASS: "#16a34a", FLAG: "#ca8a04", QUARANTINE: "#ea580c", BLOCK: "#dc2626" };
 const SCENARIOS = { clean: "Clean task", attack: "Overt injection in a document", decomposed: "Decomposed attack (no cue in any message)" };
 const DATASETS = { multihop: "MAPIS-MultiHop (multi-hop attacks + benign twins)", realharm: "RealHarm (InjecAgent direct harm + ASB)",
-  v1: "MAPIS-Bench v1 (AgentDojo + InjecAgent)", decomposed: "Decomposed", bipia: "BIPIA (unseen dataset)", independent: "Independent (hand-written)" };
+  v1: "MAPIS-Bench v1 (AgentDojo + InjecAgent)", decomposed: "Decomposed", bipia: "BIPIA (held-out part)" };
 const card = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: 14, marginBottom: 16 };
 const pct = (x) => (x == null ? "—" : `${(100 * x).toFixed(1)} %`);
 
@@ -225,7 +225,7 @@ function Results() {
     <Table scope="RealHarm: InjecAgent direct harm" title="RealHarm: InjecAgent direct harm" />
     <Table scope="RealHarm: ASB" title="RealHarm: Agent Security Bench" />
     <Table scope="BIPIA (unseen dataset)" title="BIPIA (never trained on)" />
-    {r.seeds && <div style={card}><b>Three training seeds (mean ± std)</b>
+    {r.seeds && <div style={card}><b>Training seeds (mean ± std)</b>
       <table style={{ width: "100%", fontSize: 13, marginTop: 8 }}><tbody>{Object.entries(r.seeds).map(([k, v]) => (
         <tr key={k}><td>{k}</td><td>recall {pct(v.recall.mean)} ± {(100 * v.recall.std).toFixed(1)}</td><td>FPR {pct(v.fpr.mean)} ± {(100 * v.fpr.std).toFixed(1)}</td></tr>))}</tbody></table></div>}
   </>);
