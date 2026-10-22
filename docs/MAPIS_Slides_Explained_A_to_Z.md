@@ -4,6 +4,8 @@ This covers the 21-slide deck `docs/presentation/MAPIS_Final_Review.pptx`, in it
 
 The live demo has its own document: `docs/MAPIS_Live_Demo_Guide.md`.
 
+Speakers (one block each): **Nithya 1–5 · Vishnu 6–10 · Sreekar 11–15 · Beena 16–21.** Vishnu drives the laptop during the demo (slide 15).
+
 ---
 
 ## Part 0. Words you must know before slide 1

@@ -71,7 +71,7 @@ for a, k, t in zip(ax, ("deberta-v3-small", "mapis"), ("Baseline: stateless DeBE
 fig.tight_layout(); fig.savefig(F / "confusion.png", dpi=200); plt.close(fig)
 
 # 3. headline bar chart (3-seed means for MAPIS and stateless; others seed-independent)
-rows = [("MAPIS", 97.7, 0.5), ("Stateless\nDeBERTa", 94.6, 35.2), ("Llama\nGuard 3", 86.1, 90.3), ("ProtectAI", 53.3, 49.5), ("Prompt\nGuard 2", 7.5, 0.1)]
+rows = [("MAPIS", 98.0, 0.9), ("Stateless\nDeBERTa", 94.1, 33.2), ("Llama\nGuard 3", 86.1, 90.3), ("ProtectAI", 53.3, 49.5), ("Prompt\nGuard 2", 7.5, 0.1)]
 fig, a = plt.subplots(figsize=(8, 3.3)); x = range(len(rows)); w = .38
 a.bar([i - w / 2 for i in x], [r[1] for r in rows], w, color=MAROON, label="Recall (%)")
 a.bar([i + w / 2 for i in x], [r[2] for r in rows], w, color=GREY, label="False-positive rate (%)")
