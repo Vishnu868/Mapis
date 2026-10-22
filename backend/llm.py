@@ -41,9 +41,11 @@ class LLMClient:
         self._cache: dict[str, dict] = {}
         if self.cache_path and self.cache_path.exists():
             for line in self.cache_path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
+                try:  # a line cut off by an interrupted run is skipped and simply re-asked
                     row = json.loads(line)
                     self._cache[row["key"]] = row
+                except (ValueError, KeyError, TypeError):
+                    continue
         self.calls = self.cached = 0
 
     def _key(self, messages: list[dict], **kw) -> str:

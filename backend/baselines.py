@@ -115,9 +115,11 @@ class NemoBaseline:
         self._cache: dict[str, float] = {}
         if self._cache_path.exists():
             for line in self._cache_path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
+                try:  # a line cut off by an interrupted run is skipped and simply re-scored
                     row = json.loads(line)
                     self._cache[row["k"]] = row["score"]
+                except (ValueError, KeyError, TypeError):
+                    continue
 
     def score_chunks(self, texts: list[str], hop: dict) -> tuple[float, int]:
         """Cached per message (results/llm_cache/nemo_<model>.jsonl): an interrupted run (daily token limit) resumes without repeating calls."""

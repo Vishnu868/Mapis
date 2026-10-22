@@ -1,7 +1,7 @@
 # Final remaining runs for the paper (LLM-based baselines on a larger test subset, optional larger judge model).
 # Usage (repo root, venv active, Ollama running with qwen2.5:7b pulled):
 #   .\scripts\run_remaining.ps1            # NeMo Guardrails + history-aware LLM judge, qwen2.5:7b, ~460-session class-balanced subset
-#   .\scripts\run_remaining.ps1 -Big       # also the LLM judge with qwen2.5:14b on the 20-per-set subset (needs >= 16 GB RAM)
+#   .\scripts\run_remaining.ps1 -Big       # also the LLM judge with qwen2.5:14b on the 20-per-set subset (needs a 16 GB laptop)
 #   .\scripts\run_remaining.ps1 -BigOnly   # only the 14B judge
 # Every LLM reply is cached in results\llm_cache, so an interrupted run resumes where it stopped (just run the same command again).
 param([switch]$Big, [switch]$BigOnly, [int]$PerSet = 60)
@@ -32,7 +32,7 @@ if (-not $BigOnly) {
 
 if ($Big -or $BigOnly) {
     $ramGB = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
-    if ($ramGB -lt 16) {
+    if ($ramGB -lt 15) {  # Windows reports a 16 GB laptop as ~15 GB (memory reserved by hardware/GPU)
         Write-Host "Skipping the 14B judge: this laptop has $ramGB GB RAM (16 GB needed)." -ForegroundColor Yellow
     } else {
         if (-not ($tags.models.name -contains "qwen2.5:14b")) { Step "final_2_pull_14b" "ollama pull qwen2.5:14b" }
