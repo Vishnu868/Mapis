@@ -417,6 +417,17 @@ action-argument tampering checks, team-written independent set, MAPIS-StateAttac
 Deck slides 13-14 are now "Robustness to an Evasive Attacker" and "Baselines & Ablation"; thesis ch6 gains §6.5 per-technique table, §6.6 Public Guardrails by Set, §6.7 Ablation; ch7 is "Prototype: Dashboard and Demonstration" with a testbed walkthrough (7 hops table).
 Code is unchanged (tampering checks stay on in the shield; in the demo the cc reason reads as argument-level provenance). Dashboard: inspector dropdown no longer lists the independent set. Superseded guides removed (MAPIS_Slide_Guide, MAPIS_Demo_Guide, MAPIS_Complete_Guide, MAPIS_Explained); current: MAPIS_Slides_Explained_A_to_Z, MAPIS_Live_Demo_Guide, MAPIS_A_to_Z.html, MAPIS_Fusion_TryIt.html. results_bar.png regenerated with 5-seed numbers.
 
+### 4aa. Journal paper + last runs (22 Oct 2026)
+- **Paper (whole project, not the presentation scope):** `paper/` (IEEE Access LaTeX template: `ieeeaccess.cls` patched, `mapis_paper.tex`, `refs.bib` 45 refs, 42 from 2022+, all cited;
+  figures as standalone TikZ PDFs because TikZ clashes with the class). Compiled `paper/mapis_paper.pdf` = 11 pages with page 11 half full (= 10.5 pages), abstract 178 words,
+  results & discussion ~half the paper, bullet conclusion with numbers, references, then "Team Contributions and Details" (roles, roll numbers, ethics/data availability). Copies:
+  `docs/final/MAPIS_Paper.pdf`, `docs/final/MAPIS_Paper_Source.zip` (Overleaf-ready, test-built). Build: pdflatex, bibtex, pdflatex x2. Corresponding author K. Sripriyan, no e-mail (owner to add).
+- **Seed fact (found 22 Oct):** `run_pipeline.ps1` trains extra run s with `--seed (40 + s)`, so the five runs used random seeds **42, 42, 43, 44, 45** (main run + runs 2-5), not "42, 2, 3, 4, 5".
+  The two seed-42 runs differ through GPU nondeterminism (val F1 0.9913 vs 0.9905). The paper says this correctly; deck, thesis, REPORT.md and sections 4m-4y above still label them
+  "seeds 42/2/3/4/5" (= run numbers). `artifacts\seedN\mapis_detector	raining_config.json` records the seed of each run.
+- **Last runs:** `scripts/run_remaining.ps1` (commit 21a71c9): NeMo + history-aware LLM judge with qwen2.5:7b via Ollama on a 60-per-set class-balanced subset (MAPIS and stateless re-scored
+  on the same subset) -> `results\benchmark_llm60.json`; `-Big` adds a qwen2.5:14b judge (>= 16 GB RAM) -> `results\benchmark_llm_14b.json`. When they arrive: update paper Sec. VI-G / Table 13.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
