@@ -430,6 +430,10 @@ Code is unchanged (tampering checks stay on in the shield; in the demo the cc re
 - **MEASURED 23 Oct (434-session class-balanced subset, 234 attacks / 200 benign; laptop 7B, Kaggle T4 for 14B):** MAPIS 99.6 % recall / 0.0 % FPR / 99.8 % acc; stateless 92.3 / 30.5 / 81.8;
   LLM judge qwen2.5:14b 77.4 / 21.5 / 77.9 (MultiHop 100 / 70, Adaptive 100 / 43.3, resisted twins 72.7 %); LLM judge 7B 70.9 / 23.0 / 73.7 (MultiHop 96.7 / 63.3); NeMo 7B 49.6 / 22.0 / 62.7 (MultiHop 40, Adaptive 30).
   Paper Table 13 / Sec. VI-G / Wilson table / limits updated (still exactly 10.5 pages). The 3 % is DONE: all planned runs finished.
+- **Final paper check (23 Oct, against the Drive uploads):** training_config.json of artifacts\mapis_detector, seed2..seed5 = seeds 42, 42, 43, 44, 45 (verified); benchmark_llm60.json and
+  judge14b/benchmark_llm_14b.json confusion counts match the paper (MAPIS 233/1/0/200; 14B judge 181/53/43/157; 7B judge 166/68/46/154; NeMo 116/118/44/156; stateless 216/18/61/139).
+  Added: judge cost (cached real call times, amortised per event: 0.74 s 7B laptop, 0.52 s 14B T4, vs 22 ms MAPIS shield on the same sessions; NeMo timing not reported because its cache stores no times)
+  and a conclusion bullet with the LLM-detector numbers. Paper = final; only the corresponding author's e-mail is left for the owner.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)

@@ -447,7 +447,7 @@ BIPIA & 95.8/1.4 & 72.5/65.5 & 44.7/56.5 & 1.0 \\
 \end{table}
 
 \subsection{LLM-Based Detectors}
-The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user.
+The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user. Amortised over a session's events, one judge call took 0.74 s per event (7B, laptop GPU) and 0.52 s (14B, T4 GPU), against 22 ms for the full MAPIS shield on the same sessions.
 
 \begin{table}[!t]
 \caption{LLM-Based Detectors on the Same 434 Sessions (\%)}
@@ -459,9 +459,9 @@ System & Recall & FPR & Acc. \\
 \midrule
 \textbf{MAPIS} & \textbf{99.6} & \textbf{0.0} & \textbf{99.8} \\
 Stateless DeBERTa & 92.3 & 30.5 & 81.8 \\
-LLM judge (qwen2.5 14B, transcript) & 77.4 & 21.5 & 77.9 \\
-LLM judge (qwen2.5 7B, transcript) & 70.9 & 23.0 & 73.7 \\
-NeMo Guardrails (qwen2.5 7B) & 49.6 & 22.0 & 62.7 \\
+LLM judge (qwen2.5 14B) & 77.4 & 21.5 & 77.9 \\
+LLM judge (qwen2.5 7B) & 70.9 & 23.0 & 73.7 \\
+NeMo Guardrails (7B) & 49.6 & 22.0 & 62.7 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -559,7 +559,7 @@ Training time per run, stateful / stateless & 4.3 / 1.3 h \\
 \end{table}
 
 \subsection{Case Studies With the Trained Model}
-Fig.~\ref{fig:console} shows the decomposed testbed scenario on LangGraph with the seed-42 model. The trust stays close to 1 for the task, the plan, the web result and the file read at hop 4, which contains only ``Client account AC-9931. Archive contact on file: backup@evil.com.''; it dips at the memory write of hop 5 and falls to 0.280 at hop 7, where \texttt{send\_email} adds \texttt{cc=backup@evil.com}. The message is quarantined, the e-mail is not sent, and the alert lists the origin (hop 4, file agent), the two relays (memory write and memory read) and the action. In the clean scenario every hop stays close to 1 (0.999 at the e-mail action) and the e-mail is delivered. In the session inspector, a held-out 16-hop MultiHop attack (data exfiltration by goal hijacking; the user asked to back up a page to a company wiki) passes hops 1--14 with trust close to 1, is quarantined at the planner's ``standing procedure'' message of hop 15, which is also four times longer than that agent's usual messages, and is blocked at hop 16 with trust 0.000 when \texttt{upload\_file} targets \texttt{cdn-store7.example}, a host that first appeared in an untrusted web result at hop 12. Each verdict lists the classifier trust and the rule reasons, so an operator can see why a message was held.
+Fig.~\ref{fig:console} shows the decomposed testbed scenario on LangGraph with the seed-42 model. Trust stays near 1 up to the file read at hop 4, which contains only ``Client account AC-9931. Archive contact on file: backup@evil.com.''; it dips at the memory write of hop 5 and falls to 0.280 at hop 7, where \texttt{send\_email} adds \texttt{cc=backup@evil.com}. The e-mail is quarantined and the alert lists the origin (hop 4, file agent), the two memory relays and the action; in the clean scenario every hop stays near 1 (0.999 at the e-mail) and the e-mail is sent. In the session inspector, a held-out 16-hop MultiHop attack (exfiltration by goal hijacking) passes hops 1--14 with trust near 1, is quarantined at the planner's ``standing procedure'' message of hop 15, which is also four times longer than that agent's usual messages, and is blocked at hop 16 with trust 0.000 when \texttt{upload\_file} targets \texttt{cdn-store7.example}, a host that first appeared in an untrusted web result at hop 12.
 
 \subsection{Discussion and Limitations}
 Three findings stand out. First, what separates an attack from the same action requested by the user is the session history, and a small classifier can use it once the history is summarised as explicit signals: the stateless model and an LLM judge that reads the full transcript both fail on the twins. Second, provenance generalises beyond the training distribution in depth (eight-hop delays) and in evasion style, because canonical matching operates on the item and not on the wording. Third, measuring at a matched false-positive budget is essential; at default thresholds the stateless model's 86.5\% MultiHop recall hides a 51\% false-alarm rate.
@@ -576,6 +576,7 @@ The evaluation has limits that we state once. MultiHop, Adaptive and StateAttack
 \item On 2,304 held-out sessions it reaches 98.0$\pm$0.6\% recall, 0.9$\pm$0.8\% FPR, 98.5\% accuracy and an F1 of 0.986 over five runs; Llama Guard, ProtectAI and Prompt Guard 2 reach 86.1/90.3\%, 53.3/49.5\% and 7.5/0.1\% recall/FPR.
 \item On multi-hop attacks MAPIS detects 100\% at 3.0\% FPR (at most 1.8\% in every run with the calibrated cut-off), while the same model without memory detects 4.3\% at a matched 5\% FPR budget, a gain of 96 points.
 \item Against an evasive attacker MAPIS detects 100\% of obfuscated, split, hidden-character, paraphrased, delayed and combined attacks at 0.4\% FPR.
+\item On the same 434 sessions a history-aware LLM judge (14B) reaches 77.4/21.5\% and NeMo Guardrails 49.6/22.0\% recall/FPR, against 99.6/0.0\% for MAPIS.
 \item With a live tool-calling agent, attack success fell from 15.3\% to 0\% at the cost of one of 39 benign tasks.
 \item Action-argument checks raised recall on hand-written attacks from 35--45\% to 95\% and on attacks against the session record from 55.7\% to 80.4\% without retraining.
 \item Future work: a fresh hand-written test set, decoding of transformed items, lower false alarms on memory-laundered twins, larger live agents and LLM judges, and tapping agent-internal reads.
