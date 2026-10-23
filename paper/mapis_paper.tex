@@ -26,18 +26,17 @@
 
 \title{MAPIS: A Stateful Trust-Scoring Monitor for Multi-Hop Indirect Prompt Injection in Multi-Agent LLM Pipelines}
 
-\author{\uppercase{K. Sripriyan}\authorrefmark{1},
-\uppercase{M. Vishnu Vardhan}\authorrefmark{1},
+\author{\uppercase{M. Vishnu Vardhan}\authorrefmark{1},
 \uppercase{Dodla Nithya Sai}\authorrefmark{1},
 \uppercase{Sreekar Reddy}\authorrefmark{1}, and
 \uppercase{Beena Reddy}\authorrefmark{1}}
 \address[1]{Amrita School of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore 641112, India}
 
 \markboth
-{Sripriyan \headeretal: MAPIS: Stateful Monitoring of Multi-Hop Indirect Prompt Injection}
-{Sripriyan \headeretal: MAPIS: Stateful Monitoring of Multi-Hop Indirect Prompt Injection}
+{Vishnu Vardhan \headeretal: MAPIS: Stateful Monitoring of Multi-Hop Indirect Prompt Injection}
+{Vishnu Vardhan \headeretal: MAPIS: Stateful Monitoring of Multi-Hop Indirect Prompt Injection}
 
-\corresp{Corresponding author: K. Sripriyan.}
+\corresp{Corresponding author: M. Vishnu Vardhan.}
 
 \begin{abstract}
 Teams of large language model agents read web pages, files, tool outputs and shared memory that nobody vets. An attacker can plant text there and split it into fragments that look harmless one message at a time, so per-message guardrails cannot separate an attack from the identical action the user requested. We present MAPIS, a monitor on the communication layer of LangGraph and AutoGen pipelines. It keeps a per-session record of the user goal and of where every address, link and identifier first appeared, and a fine-tuned DeBERTa-v3 classifier scores each message with these session signals. A four-tier response passes, flags, quarantines or blocks the message with a propagation trace. On 2,304 held-out sessions from six benchmark sets with matched benign twins, MAPIS reaches 98.0\% recall at a 0.9\% false-positive rate and 98.5\% accuracy over five training runs, at 63 ms per message. At a matched 5\% false-alarm budget, a memoryless classifier of identical architecture detects 4.3\% of multi-hop attacks; MAPIS detects all of them. With a live tool-calling agent, MAPIS reduced attack success from 15.3\% to 0\%.
@@ -601,8 +600,6 @@ Dodla Nithya Sai\newline{\scriptsize CB.SC.U4AIE23021} & Attack dataset and red-
 M. Vishnu Vardhan\newline{\scriptsize CB.SC.U4AIE23043} & Testbed and orchestration lead & LangGraph and AutoGen testbed, agent-to-agent orchestration, FastAPI interception middleware \\
 Sreekar Reddy\newline{\scriptsize CB.SC.U4AIE23049} & Detection model lead & Session-context design, trust-scoring classifier, training, feature design, threshold calibration \\
 Beena Reddy\newline{\scriptsize CB.SC.U4AIE23065} & Response, dashboard and evaluation lead & Tiered response layer, forensic logging, operator dashboard, benchmark evaluation \\
-K. Sripriyan & Guide & Problem formulation, experimental design, review of the manuscript \\
-Anjana Sankar & Co-guide & Experimental design, review of the manuscript \\
 \bottomrule
 \end{tabular}
 \end{table}
