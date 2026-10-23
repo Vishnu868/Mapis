@@ -239,7 +239,7 @@ Every attack has matched benign \emph{twins}: \emph{authorized} (the user named 
 The training data replay every session through the session module, giving 44,632 training and 9,064 validation chunk rows. DeBERTa-v3-small (6 layers, hidden size 768) is fine-tuned with class-weighted cross-entropy, AdamW (learning rate $2\times10^{-5}$, weight decay 0.01, 10\% warm-up), a batch of 4 with 4-step gradient accumulation, two epochs, a maximum length of 512 tokens and fp16 with fp32 master weights. The epoch with the highest validation F1 at a validation false-positive rate of at most 5\% is kept. The \emph{stateless} baseline is the same model trained on the same data with the event alone. Both models were trained five times, with random seeds 42, 42, 43, 44 and 45; the two seed-42 runs differ because mixed-precision GPU training is not bit-for-bit reproducible. One run takes 4.3~h (stateful) or 1.3~h (stateless) on an NVIDIA RTX 3050 Laptop GPU.
 
 \subsection{Baselines and Metrics}
-We compare with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at their default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The two LLM-based detectors use qwen2.5:7b through Ollama. All systems see the same events. We report recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
+We compare with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at their default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The LLM-based detectors use qwen2.5 (7B; the judge also 14B) through Ollama. All systems see the same events. We report recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
 
 % =====================================================================================================
 \section{Results and Discussion}
@@ -350,7 +350,7 @@ MAPIS recall, seed 42 (1,246/1,285) & 97.0 & 95.9--97.8 \\
 MAPIS FPR, seed 42 (2/1,019) & 0.2 & 0.1--0.7 \\
 Stateless FPR, seed 42 (342/1,019) & 33.6 & 30.7--36.5 \\
 MAPIS MultiHop FPR, seed 42 (2/169) & 1.2 & 0.3--4.2 \\
-MAPIS FPR on the LLM subset (0/73) & 0.0 & 0.0--5.0 \\
+MAPIS FPR on the LLM subset (0/200) & 0.0 & 0.0--1.9 \\
 Live attack success, no defence (22/144) & 15.3 & 10.3--22.0 \\
 Live attack success, MAPIS (0/144) & 0.0 & 0.0--2.6 \\
 Team-set recall with checks (19/20) & 95.0 & 76.4--99.1 \\
@@ -447,20 +447,21 @@ BIPIA & 95.8/1.4 & 72.5/65.5 & 44.7/56.5 & 1.0 \\
 \end{table}
 
 \subsection{LLM-Based Detectors}
-The two LLM-based detectors need many LLM calls, so they were scored on a class-balanced subset of 153 test sessions (80 attacks, 73 benign; up to 20 per set), together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS detects all attacks with no false positive (95\% upper bound 5\%). The history-aware judge finds every MultiHop attack but also flags 80\% of the MultiHop twins and 70\% of the Adaptive twins, because any transcript that contains the fragments looks suspicious to it. NeMo's per-message rail detects only 20\% of MultiHop and 30\% of Adaptive attacks. Neither separates an attack from the same action requested by the user. Both used a 7B local model and may do better with a larger one.
+The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user.
 
 \begin{table}[!t]
-\caption{LLM-Based Detectors on the Same 153 Sessions (\%)}
+\caption{LLM-Based Detectors on the Same 434 Sessions (\%)}
 \label{tab:llm}
 \centering\footnotesize
 \begin{tabular}{L{3.5cm}rrr}
 \toprule
 System & Recall & FPR & Acc. \\
 \midrule
-\textbf{MAPIS} & \textbf{100} & \textbf{0.0} & \textbf{100} \\
-Stateless DeBERTa & 91.2 & 32.9 & 79.7 \\
-LLM judge (qwen2.5 7B, transcript) & 67.5 & 23.3 & 71.9 \\
-NeMo Guardrails (qwen2.5 7B) & 48.7 & 17.8 & 64.7 \\
+\textbf{MAPIS} & \textbf{99.6} & \textbf{0.0} & \textbf{99.8} \\
+Stateless DeBERTa & 92.3 & 30.5 & 81.8 \\
+LLM judge (qwen2.5 14B, transcript) & 77.4 & 21.5 & 77.9 \\
+LLM judge (qwen2.5 7B, transcript) & 70.9 & 23.0 & 73.7 \\
+NeMo Guardrails (qwen2.5 7B) & 49.6 & 22.0 & 62.7 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -565,7 +566,7 @@ Three findings stand out. First, what separates an attack from the same action r
 
 For deployment, MAPIS needs no change to the agents: one HTTP call per hop, a session store and a 44M-parameter backbone on a laptop-class GPU. Because the user is the trust anchor, MAPIS cannot help when the user account itself is compromised, and the session record holds items from the conversation, so its time-to-live should follow the data-retention policy of the host system. MAPIS is complementary to system-level designs such as CaMeL \cite{debenedetti2025camel} and FIDES \cite{costa2025fides}: they prevent unsafe flows by construction in agents built for them, whereas MAPIS monitors existing pipelines unchanged.
 
-The evaluation has limits that we state once. MultiHop, Adaptive and StateAttack are template-generated, although their test splits use held-out families, phrasings and tools and real carrier text. The action-argument checks were designed after reading the team-set misses. StateAttack exposes two weak spots: items that the agent must decode stay at 25\% recall, and the FPR of 10.2\% exceeds the 5\% target, mostly on twins whose item passed through memory. At the default cut-off two of five runs exceed 5\% MultiHop FPR, which the validation-calibrated cut-off removes. The LLM-based baselines and the live agent used a 7B model, MAPIS and the stateless model were trained on AgentDojo-style injections, and the five-agent demonstration testbed is scripted.
+The evaluation has limits that we state once. MultiHop, Adaptive and StateAttack are template-generated, although their test splits use held-out families, phrasings and tools and real carrier text. The action-argument checks were designed after reading the team-set misses. StateAttack exposes two weak spots: items that the agent must decode stay at 25\% recall, and the FPR of 10.2\% exceeds the 5\% target, mostly on twins whose item passed through memory. At the default cut-off two of five runs exceed 5\% MultiHop FPR, which the validation-calibrated cut-off removes. The LLM-based baselines used 7B and 14B models and the live agent a 7B model, MAPIS and the stateless model were trained on AgentDojo-style injections, and the five-agent demonstration testbed is scripted.
 
 % =====================================================================================================
 \section{Conclusion}

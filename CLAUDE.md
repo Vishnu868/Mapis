@@ -427,6 +427,9 @@ Code is unchanged (tampering checks stay on in the shield; in the demo the cc re
   "seeds 42/2/3/4/5" (= run numbers). `artifacts\seedN\mapis_detector	raining_config.json` records the seed of each run.
 - **Last runs:** `scripts/run_remaining.ps1` (commit 21a71c9): NeMo + history-aware LLM judge with qwen2.5:7b via Ollama on a 60-per-set class-balanced subset (MAPIS and stateless re-scored
   on the same subset) -> `results\benchmark_llm60.json`; `-Big` adds a qwen2.5:14b judge (>= 16 GB RAM) -> `results\benchmark_llm_14b.json`. When they arrive: update paper Sec. VI-G / Table 13.
+- **MEASURED 23 Oct (434-session class-balanced subset, 234 attacks / 200 benign; laptop 7B, Kaggle T4 for 14B):** MAPIS 99.6 % recall / 0.0 % FPR / 99.8 % acc; stateless 92.3 / 30.5 / 81.8;
+  LLM judge qwen2.5:14b 77.4 / 21.5 / 77.9 (MultiHop 100 / 70, Adaptive 100 / 43.3, resisted twins 72.7 %); LLM judge 7B 70.9 / 23.0 / 73.7 (MultiHop 96.7 / 63.3); NeMo 7B 49.6 / 22.0 / 62.7 (MultiHop 40, Adaptive 30).
+  Paper Table 13 / Sec. VI-G / Wilson table / limits updated (still exactly 10.5 pages). The 3 % is DONE: all planned runs finished.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
