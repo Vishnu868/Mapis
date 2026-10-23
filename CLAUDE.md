@@ -434,6 +434,9 @@ Code is unchanged (tampering checks stay on in the shield; in the demo the cc re
   judge14b/benchmark_llm_14b.json confusion counts match the paper (MAPIS 233/1/0/200; 14B judge 181/53/43/157; 7B judge 166/68/46/154; NeMo 116/118/44/156; stateless 216/18/61/139).
   Added: judge cost (cached real call times, amortised per event: 0.74 s 7B laptop, 0.52 s 14B T4, vs 22 ms MAPIS shield on the same sessions; NeMo timing not reported because its cache stores no times)
   and a conclusion bullet with the LLM-detector numbers. Paper = final; only the corresponding author's e-mail is left for the owner.
+- **Citation audit (23 Oct):** all 45 references cited; added the works the paper uses but had not cited - Qwen2.5 tech report (arXiv:2412.15115), AdamW (ICLR 2019), mixed-precision
+  training (ICLR 2018) - and swapped out three overlapping related-work refs to stay at 45 (Liu et al. HouYi arXiv:2306.05499, WIPI arXiv:2402.16965, f-secure arXiv:2409.19091; they
+  can be restored, total would be 48). Citations added at re-mentions of benchmarks/baselines in Sec. V-VI and Tables 4, 5, 12, 13, 14. 40 refs from 2022+. Still exactly 10.5 pages.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)

@@ -71,10 +71,10 @@ Section~\ref{sec:related} reviews related work, Section~\ref{sec:threat} states 
 \section{Related Work}
 \label{sec:related}
 \subsection{Indirect Prompt Injection and Benchmarks}
-Perez and Ribeiro \cite{perez2022} introduced goal hijacking and prompt leaking for direct injection. Greshake \emph{et al.} \cite{greshake2023} showed that injected text retrieved at run time can control LLM-integrated applications, and Liu \emph{et al.} \cite{liu2023houyi,liu2024formalizing} formalised and benchmarked such attacks. For agents, InjecAgent \cite{zhan2024injecagent} provides 1,054 test cases with tool-based attacks, AgentDojo \cite{debenedetti2024agentdojo} supplies a dynamic environment with banking, Slack, workspace and travel suites, BIPIA \cite{yi2025bipia} covers e-mail, web, table, summarisation and code tasks, and ASB \cite{zhang2025asb} formalises attacks on ten agent scenarios. These benchmarks mostly place an explicit instruction in a single tool output or document, and none pairs an attack with a benign twin that performs the identical final action.
+Perez and Ribeiro \cite{perez2022} introduced goal hijacking and prompt leaking for direct injection. Greshake \emph{et al.} \cite{greshake2023} showed that injected text retrieved at run time can control LLM-integrated applications, and Liu \emph{et al.} \cite{liu2024formalizing} formalised and benchmarked such attacks. For agents, InjecAgent \cite{zhan2024injecagent} provides 1,054 test cases with tool-based attacks, AgentDojo \cite{debenedetti2024agentdojo} supplies a dynamic environment with banking, Slack, workspace and travel suites, BIPIA \cite{yi2025bipia} covers e-mail, web, table, summarisation and code tasks, and ASB \cite{zhang2025asb} formalises attacks on ten agent scenarios. These benchmarks mostly place an explicit instruction in a single tool output or document, and none pairs an attack with a benign twin that performs the identical final action.
 
 \subsection{Attacks on Individual Agent Roles}
-Table~\ref{tab:roles} maps prior attacks to the five roles of our testbed. Each work studies one role in isolation: web agents are hijacked by crafted pages \cite{wu2024wipi,liao2025eia}, retrieval and file agents by poisoned documents \cite{greshake2023,zou2025poisonedrag}, memory agents by poisoned records \cite{chen2024agentpoison,dong2025minja}, and action agents through tool calls, e-mail and code execution \cite{zhan2024injecagent,cohen2024worm,triedman2025mas}. Adaptive attackers break eight published IPI defences \cite{zhan2025adaptive}. MAPIS targets the case in which the pieces of one attack are spread over several of these roles.
+Table~\ref{tab:roles} maps prior attacks to the five roles of our testbed. Each work studies one role in isolation: web agents leak private data through injected page elements \cite{liao2025eia}, retrieval and file agents by poisoned documents \cite{greshake2023,zou2025poisonedrag}, memory agents by poisoned records \cite{chen2024agentpoison,dong2025minja}, and action agents through tool calls, e-mail and code execution \cite{zhan2024injecagent,cohen2024worm,triedman2025mas}. Adaptive attackers break eight published IPI defences \cite{zhan2025adaptive}. MAPIS targets the case in which the pieces of one attack are spread over several of these roles.
 
 \begin{table}[!t]
 \caption{Prior Attacks by Agent Role, Mapped to the Five Roles of the MAPIS Testbed}
@@ -84,8 +84,8 @@ Table~\ref{tab:roles} maps prior attacks to the five roles of our testbed. Each 
 \toprule
 Agent role & Prior work & What it shows \\
 \midrule
-Planner & \cite{perez2022,liu2023houyi} & Goal hijacking redirects the task \\
-Web agent & \cite{wu2024wipi,liao2025eia} & Crafted pages hijack browsing agents or leak private data \\
+Planner & \cite{perez2022,liu2024formalizing} & Goal hijacking redirects the task \\
+Web agent & \cite{liao2025eia} & Injected page elements make web agents leak private data \\
 File/retrieval & \cite{greshake2023,zou2025poisonedrag} & Retrieved documents carry injections; five texts poison a large corpus \\
 Memory agent & \cite{chen2024agentpoison,dong2025minja} & Poisoned memory records trigger malicious actions later \\
 Action agent & \cite{zhan2024injecagent,cohen2024worm,triedman2025mas} & Tool calls, self-replicating e-mail and code execution \\
@@ -98,7 +98,7 @@ Across agents & \cite{lee2024infection,gu2024agentsmith,huang2025resilience} & I
 Prompt Infection \cite{lee2024infection} demonstrates self-replicating injections between agents, Agent Smith \cite{gu2024agentsmith} shows exponential spread of a jailbreak among multimodal agents, and MAS hijacking \cite{triedman2025mas} reroutes orchestrators to unsafe agents that execute code. Huang \emph{et al.} \cite{huang2025resilience} measure how the topology of a team affects its resilience to faulty agents, and NetSafe \cite{yu2025netsafe} studies how misinformation spreads through agent networks. G-Safeguard \cite{wang2025gsafeguard} detects anomalous utterances with a graph neural network and prunes edges of the communication graph. These works study spreading or require control of the topology; none offers a light, inline monitor that follows the provenance of individual items across hops.
 
 \subsection{Defences}
-Training-time and prompt-level defences separate instructions from data: spotlighting marks untrusted text \cite{hines2024spotlighting}, StruQ fine-tunes the model on a structured query format \cite{chen2025struq}, and the instruction hierarchy trains models to prioritise privileged instructions \cite{wallace2024hierarchy}. Detectors classify inputs: Prompt Guard~2 \cite{promptguard2025} and ProtectAI's classifier \cite{protectai2024} are small injection classifiers, Llama Guard \cite{inan2023llamaguard} judges content safety, and DataSentinel \cite{liu2025datasentinel} fine-tunes an LLM detector against adaptive attacks. Agent-level checks include Task Shield \cite{jia2025taskshield}, which tests every action against the user task with an LLM, and MELON \cite{zhu2025melon}, which re-executes the trajectory with a masked user prompt. System-level designs enforce information flow: CaMeL \cite{debenedetti2025camel} separates a privileged planner from a quarantined parser, and f-secure \cite{wu2024ifc} and FIDES \cite{costa2025fides} enforce information-flow control with security labels on data, in the tradition of dynamic taint analysis \cite{newsome2005taint}. LlamaFirewall's AlignmentCheck \cite{chennabasappa2025llamafirewall} audits the whole trajectory with an LLM. Strong system-level designs require rebuilding the agent, and LLM monitors add an LLM call per check.
+Training-time and prompt-level defences separate instructions from data: spotlighting marks untrusted text \cite{hines2024spotlighting}, StruQ fine-tunes the model on a structured query format \cite{chen2025struq}, and the instruction hierarchy trains models to prioritise privileged instructions \cite{wallace2024hierarchy}. Detectors classify inputs: Prompt Guard~2 \cite{promptguard2025} and ProtectAI's classifier \cite{protectai2024} are small injection classifiers, Llama Guard \cite{inan2023llamaguard} judges content safety, and DataSentinel \cite{liu2025datasentinel} fine-tunes an LLM detector against adaptive attacks. Agent-level checks include Task Shield \cite{jia2025taskshield}, which tests every action against the user task with an LLM, and MELON \cite{zhu2025melon}, which re-executes the trajectory with a masked user prompt. System-level designs enforce information flow: CaMeL \cite{debenedetti2025camel} separates a privileged planner from a quarantined parser, and FIDES \cite{costa2025fides} enforces information-flow control with security labels on data, in the tradition of dynamic taint analysis \cite{newsome2005taint}. LlamaFirewall's AlignmentCheck \cite{chennabasappa2025llamafirewall} audits the whole trajectory with an LLM. Strong system-level designs require rebuilding the agent, and LLM monitors add an LLM call per check.
 
 \begin{table}[!t]
 \caption{Positioning of Representative Defences}
@@ -143,7 +143,7 @@ Fig.~\ref{fig:arch} shows the path of a message.
 \end{figure*}
 
 \subsection{Tap and Testbed}
-The tap is a FastAPI endpoint, \texttt{POST /inspect}, that the pipeline calls before it delivers any hop. In LangGraph the call is placed in the graph before each delivery; in AutoGen~0.2 it is registered on the \texttt{process\_message\_before\_send} hook, and a withheld message ends the chat. The same five-agent testbed (planner, web, file, memory, code/e-mail) runs on both frameworks with three scenarios: a clean task, an overt injection in a document and the decomposed attack of Section~\ref{sec:intro}. If inspection fails, the message is held (fail closed).
+The tap is a FastAPI endpoint, \texttt{POST /inspect}, that the pipeline calls before it delivers any hop. In LangGraph \cite{langgraph2024} the call is placed in the graph before each delivery; in AutoGen~0.2 \cite{wu2024autogen} it is registered on the \texttt{process\_message\_before\_send} hook, and a withheld message ends the chat. The same five-agent testbed (planner, web, file, memory, code/e-mail) runs on both frameworks with three scenarios: a clean task, an overt injection in a document and the decomposed attack of Section~\ref{sec:intro}. If inspection fails, the message is held (fail closed).
 
 \subsection{Session Record}
 For every session MAPIS stores, in Redis with a time-to-live or in memory, (i) the goal from the first user message; (ii) \emph{tainted} items, namely e-mail addresses, URLs and their hosts, IBAN-like identifiers, long numbers and fragments of them, first seen in untrusted content (tool output, memory read or write), with the hop and source at which they appeared; (iii) \emph{trusted} items named by the user; (iv) untrusted authority claims (``approved by management'') and instruction cues; (v) per-agent baselines of tools and message lengths; and (vi) the session sensitivity and suspended channels. The same module builds the training data and runs live, and a unit test checks that both produce identical classifier texts.
@@ -208,7 +208,7 @@ a noisy-OR in which one strong signal is sufficient and weak signals accumulate.
 \section{MAPIS-Bench and Experimental Setup}
 \label{sec:setup}
 \subsection{Benchmark Sets}
-Table~\ref{tab:data} lists the six sets of MAPIS-Bench. \emph{v1} converts 1,132 AgentDojo \cite{debenedetti2024agentdojo} sessions and 561 InjecAgent \cite{zhan2024injecagent} data-stealing cases, audited against the originals. \emph{BIPIA} \cite{yi2025bipia} supplies minimal pairs; its own test split is never trained on. \emph{MultiHop} is generated: fragments, namely a changed detail and an authority claim, are embedded in real BIPIA and AgentDojo carrier text across untrusted hops, and the final action uses them. Four skeletons realise the five mechanisms of the threat model (document poisoning and tool-output manipulation, memory injection, cross-agent relay and goal hijacking) with 0, 2 or 4 extra benign hops. \emph{RealHarm} converts 510 InjecAgent direct-harm cases and ASB \cite{zhang2025asb} attacks from ten agents and 400 attacker tools, with held-out attacker tools and test agents. \emph{Adaptive} models an attacker who knows MAPIS and uses six evasion techniques (Section~\ref{sec:adaptive}). \emph{Decomposed} contains the memory-relay attack of Section~\ref{sec:intro} in 12 template families and is used for testing only. Two further test-only sets stress the monitor: \emph{StateAttack} (56 attacks, 112 twins) targets the session record, and a \emph{team-written} set of 20 attacks and 20 twins was written in plain English by the four student authors without the generators.
+Table~\ref{tab:data} lists the six sets of MAPIS-Bench. \emph{v1} converts 1,132 AgentDojo \cite{debenedetti2024agentdojo} sessions and 561 InjecAgent \cite{zhan2024injecagent} data-stealing cases, audited against the originals. \emph{BIPIA} \cite{yi2025bipia} supplies minimal pairs; its own test split is never trained on. \emph{MultiHop} is generated: fragments, namely a changed detail and an authority claim, are embedded in real BIPIA \cite{yi2025bipia} and AgentDojo \cite{debenedetti2024agentdojo} carrier text across untrusted hops, and the final action uses them. Four skeletons realise the five mechanisms of the threat model (document poisoning and tool-output manipulation, memory injection, cross-agent relay and goal hijacking) with 0, 2 or 4 extra benign hops. \emph{RealHarm} converts 510 InjecAgent direct-harm cases and ASB \cite{zhang2025asb} attacks from ten agents and 400 attacker tools, with held-out attacker tools and test agents. \emph{Adaptive} models an attacker who knows MAPIS and uses six evasion techniques (Section~\ref{sec:adaptive}). \emph{Decomposed} contains the memory-relay attack of Section~\ref{sec:intro} in 12 template families and is used for testing only. Two further test-only sets stress the monitor: \emph{StateAttack} (56 attacks, 112 twins) targets the session record, and a \emph{team-written} set of 20 attacks and 20 twins was written in plain English by the four student authors without the generators.
 
 \begin{table}[!t]
 \caption{MAPIS-Bench Sets and Splits (Sessions)}
@@ -218,10 +218,10 @@ Table~\ref{tab:data} lists the six sets of MAPIS-Bench. \emph{v1} converts 1,132
 \toprule
 Set (total) & Source & Train & Val & Test & Att./ben. \\
 \midrule
-v1 (1,693) & AgentDojo, InjecAgent & 1,169 & 242 & 282 & 256/26 \\
-BIPIA (1,800) & BIPIA & 872 & 128 & 800 & 600/200 \\
+v1 (1,693) & AgentDojo \cite{debenedetti2024agentdojo}, InjecAgent \cite{zhan2024injecagent} & 1,169 & 242 & 282 & 256/26 \\
+BIPIA (1,800) & BIPIA \cite{yi2025bipia} & 872 & 128 & 800 & 600/200 \\
 MultiHop (2,118) & generated & 1,512 & 372 & 234 & 65/169 \\
-RealHarm (2,330) & InjecAgent-DH, ASB & 1,733 & 233 & 364 & 148/216 \\
+RealHarm (2,330) & InjecAgent-DH \cite{zhan2024injecagent}, ASB \cite{zhang2025asb} & 1,733 & 233 & 364 & 148/216 \\
 Adaptive (1,692) & generated, evasive & 900 & 216 & 576 & 192/384 \\
 Decomposed (288) & generated & -- & -- & 48 & 24/24 \\
 \midrule
@@ -236,16 +236,16 @@ Team-written (40) & hand-written & -- & -- & 40 & 20/20 \\
 Every attack has matched benign \emph{twins}: \emph{authorized} (the user named the planted destination or rule), \emph{resisted} (the fragments are present but the agent acts correctly) and \emph{designated} (the user named the file that holds the item). Without twins, a detector can score well by flagging anything suspicious. MultiHop and Adaptive are split by template family and phrasing pool, and RealHarm by attacker tool and agent, so their test splits use families, phrasings, tools and agents never seen in training. The test set has 1,285 attacks and 1,019 benign sessions. Labels are per event: a fragment alone is safe, a relay is malicious only if it carries an actionable item, and the completing action is malicious.
 
 \subsection{Training}
-The training data replay every session through the session module, giving 44,632 training and 9,064 validation chunk rows. DeBERTa-v3-small (6 layers, hidden size 768) is fine-tuned with class-weighted cross-entropy, AdamW (learning rate $2\times10^{-5}$, weight decay 0.01, 10\% warm-up), a batch of 4 with 4-step gradient accumulation, two epochs, a maximum length of 512 tokens and fp16 with fp32 master weights. The epoch with the highest validation F1 at a validation false-positive rate of at most 5\% is kept. The \emph{stateless} baseline is the same model trained on the same data with the event alone. Both models were trained five times, with random seeds 42, 42, 43, 44 and 45; the two seed-42 runs differ because mixed-precision GPU training is not bit-for-bit reproducible. One run takes 4.3~h (stateful) or 1.3~h (stateless) on an NVIDIA RTX 3050 Laptop GPU.
+The training data replay every session through the session module, giving 44,632 training and 9,064 validation chunk rows. DeBERTa-v3-small \cite{he2023debertav3} (6 layers, hidden size 768) is fine-tuned with class-weighted cross-entropy, AdamW \cite{loshchilov2019adamw} (learning rate $2\times10^{-5}$, weight decay 0.01, 10\% warm-up), a batch of 4 with 4-step gradient accumulation, two epochs, a maximum length of 512 tokens and mixed precision with fp32 master weights \cite{micikevicius2018mixed}. The epoch with the highest validation F1 at a validation false-positive rate of at most 5\% is kept. The \emph{stateless} baseline is the same model trained on the same data with the event alone. Both models were trained five times, with random seeds 42, 42, 43, 44 and 45; the two seed-42 runs differ because mixed-precision GPU training is not bit-for-bit reproducible. One run takes 4.3~h (stateful) or 1.3~h (stateless) on an NVIDIA RTX 3050 Laptop GPU.
 
 \subsection{Baselines and Metrics}
-We compare with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at their default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The LLM-based detectors use qwen2.5 (7B; the judge also 14B) through Ollama. All systems see the same events. We report recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
+We compare with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at their default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The LLM-based detectors use Qwen2.5 \cite{qwen2025} (7B; the judge also 14B) through Ollama. All systems see the same events. We report recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
 
 % =====================================================================================================
 \section{Results and Discussion}
 \label{sec:results}
 \subsection{Headline Results}
-Table~\ref{tab:head} gives all metrics on the 2,304 held-out sessions. Over five runs MAPIS reaches $98.0\pm0.6\%$ recall at $0.9\pm0.8\%$ FPR, 98.5\% accuracy and an F1 of 0.986. The stateless model reaches $94.1\pm0.9\%$ recall, but only by holding $33.2\pm3.5\%$ of the benign sessions. The public guardrails are either indiscriminate or silent (Fig.~\ref{fig:head}): Llama Guard holds 90.3\% of benign sessions, Prompt Guard 2 detects 7.5\% of attacks and ProtectAI flags about half of everything. Only MAPIS combines high recall with almost no false alarms. In the seed-42 run the confusion matrix of MAPIS has 2 false positives against 342 for the stateless model (Fig.~\ref{fig:confusion}).
+Table~\ref{tab:head} gives all metrics on the 2,304 held-out sessions. Over five runs MAPIS reaches $98.0\pm0.6\%$ recall at $0.9\pm0.8\%$ FPR, 98.5\% accuracy and an F1 of 0.986. The stateless model reaches $94.1\pm0.9\%$ recall, but only by holding $33.2\pm3.5\%$ of the benign sessions. The public guardrails are either indiscriminate or silent (Fig.~\ref{fig:head}): Llama Guard \cite{inan2023llamaguard} holds 90.3\% of benign sessions, Prompt Guard 2 \cite{promptguard2025} detects 7.5\% of attacks and ProtectAI \cite{protectai2024} flags about half of everything. Only MAPIS combines high recall with almost no false alarms. In the seed-42 run the confusion matrix of MAPIS has 2 false positives against 342 for the stateless model (Fig.~\ref{fig:confusion}).
 
 \begin{table}[!t]
 \caption{Session-Level Results on 2,304 Held-Out Sessions (\%)}
@@ -262,9 +262,9 @@ Stateless DeBERTa & 94.1$\pm$0.9 & -- & -- & 33.2$\pm$3.5 & 82.0 \\
 \multicolumn{6}{l}{\emph{Seed-42 run and seed-independent systems}}\\
 \textbf{MAPIS} & \textbf{97.0} & \textbf{99.8} & \textbf{98.4} & \textbf{0.2} & \textbf{98.2} \\
 Stateless DeBERTa & 94.7 & 78.1 & 85.6 & 33.6 & 82.2 \\
-Llama Guard 3-1B & 86.1 & 54.6 & 66.8 & 90.3 & 52.3 \\
-ProtectAI v2 & 53.3 & 57.6 & 55.4 & 49.5 & 52.1 \\
-Prompt Guard 2 & 7.5 & 99.0 & 14.0 & 0.1 & 48.4 \\
+Llama Guard 3-1B \cite{inan2023llamaguard} & 86.1 & 54.6 & 66.8 & 90.3 & 52.3 \\
+ProtectAI v2 \cite{protectai2024} & 53.3 & 57.6 & 55.4 & 49.5 & 52.1 \\
+Prompt Guard 2 \cite{promptguard2025} & 7.5 & 99.0 & 14.0 & 0.1 & 48.4 \\
 Regex & 12.5 & 100 & 22.1 & 0.0 & 51.2 \\
 \bottomrule
 \end{tabular}
@@ -285,7 +285,7 @@ Regex & 12.5 & 100 & 22.1 & 0.0 & 51.2 \\
 \end{figure}
 
 \subsection{Results by Set, Attack Class, Mechanism and Depth}
-Table~\ref{tab:sets} reports each set. MAPIS detects every attack in MultiHop, Adaptive, ASB, Decomposed and v1 in every run and 99.4\% of InjecAgent direct-harm attacks, with zero false positives on four sets. The stateless model ties on the explicit sets (v1, ASB) but flags 50\% of the InjecAgent benign twins, 51.1\% of the MultiHop twins and 43.0\% of the Adaptive twins, and its Decomposed recall varies from run to run ($65\pm37\%$). BIPIA is the exception: its injections sit in a single hop, there is no cross-hop evidence, and the two models are within run-to-run variation (95.8\% against 94.5\%).
+Table~\ref{tab:sets} reports each set. MAPIS detects every attack in MultiHop, Adaptive, ASB, Decomposed and v1 in every run and 99.4\% of InjecAgent direct-harm attacks, with zero false positives on four sets. The stateless model ties on the explicit sets (v1, ASB) but flags 50\% of the InjecAgent benign twins, 51.1\% of the MultiHop twins and 43.0\% of the Adaptive twins, and its Decomposed recall varies from run to run ($65\pm37\%$). BIPIA \cite{yi2025bipia} is the exception: its injections sit in a single hop, there is no cross-hop evidence, and the two models are within run-to-run variation (95.8\% against 94.5\%).
 
 \begin{table}[!t]
 \caption{Recall / FPR per Set, Mean $\pm$ Std over Five Runs (\%)}
@@ -427,10 +427,10 @@ Combination & several techniques at once & 100/0 & 90.0/51.2 \\
 \end{table}
 
 \subsection{Public Guardrails by Set}
-Table~\ref{tab:guard} shows why the public guardrails fail. Llama Guard is a content-safety model and treats almost every agent session that mentions money, accounts or e-mail as unsafe, holding 100\% of the MultiHop and Adaptive twins. Prompt Guard 2 looks for explicit instructions and finds none in fragment attacks (0\% recall on MultiHop and Adaptive). ProtectAI flags attacks and twins at nearly the same rate. None of them reads the history, so none can separate an attack from its twin.
+Table~\ref{tab:guard} shows why the public guardrails fail. Llama Guard \cite{inan2023llamaguard} is a content-safety model and treats almost every agent session that mentions money, accounts or e-mail as unsafe, holding 100\% of the MultiHop and Adaptive twins. Prompt Guard 2 \cite{promptguard2025} looks for explicit instructions and finds none in fragment attacks (0\% recall on MultiHop and Adaptive). ProtectAI \cite{protectai2024} flags attacks and twins at nearly the same rate. None of them reads the history, so none can separate an attack from its twin.
 
 \begin{table}[!t]
-\caption{Public Guardrails on the Same Sessions, Recall / FPR (\%)}
+\caption{Public Guardrails \cite{inan2023llamaguard,protectai2024,promptguard2025} on the Same Sessions, Recall / FPR (\%)}
 \label{tab:guard}
 \centering\footnotesize
 \begin{tabular}{L{1.5cm}C{1.35cm}C{1.35cm}C{1.35cm}C{1.05cm}}
@@ -447,7 +447,7 @@ BIPIA & 95.8/1.4 & 72.5/65.5 & 44.7/56.5 & 1.0 \\
 \end{table}
 
 \subsection{LLM-Based Detectors}
-The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user. Amortised over a session's events, one judge call took 0.74 s per event (7B, laptop GPU) and 0.52 s (14B, T4 GPU), against 22 ms for the full MAPIS shield on the same sessions.
+The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo \cite{rebedea2023nemo} detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user. Amortised over a session's events, one judge call took 0.74 s per event (7B, laptop GPU) and 0.52 s (14B, T4 GPU), against 22 ms for the full MAPIS shield on the same sessions.
 
 \begin{table}[!t]
 \caption{LLM-Based Detectors on the Same 434 Sessions (\%)}
@@ -461,16 +461,16 @@ System & Recall & FPR & Acc. \\
 Stateless DeBERTa & 92.3 & 30.5 & 81.8 \\
 LLM judge (qwen2.5 14B) & 77.4 & 21.5 & 77.9 \\
 LLM judge (qwen2.5 7B) & 70.9 & 23.0 & 73.7 \\
-NeMo Guardrails (7B) & 49.6 & 22.0 & 62.7 \\
+NeMo Guardrails \cite{rebedea2023nemo} (7B) & 49.6 & 22.0 & 62.7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Live Tool-Calling Agent}
-To test MAPIS inside a real agent loop we ran AgentDojo v1.2.1 \cite{debenedetti2024agentdojo} with qwen2.5:7b as the agent, the attack \texttt{important\_instructions\_no\_names} and four suites (banking, Slack, workspace, travel), giving 39 benign and 144 attacked runs per defence. MAPIS inspects the user query, every tool call before it runs and every tool output before the model reads it; a withheld call is not executed and a withheld output is replaced. Without a defence, 22 of 144 attacks succeeded (15.3\%); with MAPIS none did (0\%, 95\% upper bound 2.6\%), at the cost of one of 39 benign tasks (28.2\% to 25.6\%, Table~\ref{tab:live}). The stateless model also stopped every attack but lost three benign tasks. AgentDojo injections are explicit, so this experiment shows that MAPIS works inside a live loop at low cost; the multi-hop sets are what separate MAPIS from stateless detection. Both models were trained on AgentDojo-style injections.
+To test MAPIS inside a real agent loop we ran AgentDojo v1.2.1 \cite{debenedetti2024agentdojo} with qwen2.5:7b \cite{qwen2025} as the agent, the attack \texttt{important\_instructions\_no\_names} and four suites (banking, Slack, workspace, travel), giving 39 benign and 144 attacked runs per defence. MAPIS inspects the user query, every tool call before it runs and every tool output before the model reads it; a withheld call is not executed and a withheld output is replaced. Without a defence, 22 of 144 attacks succeeded (15.3\%); with MAPIS none did (0\%, 95\% upper bound 2.6\%), at the cost of one of 39 benign tasks (28.2\% to 25.6\%, Table~\ref{tab:live}). The stateless model also stopped every attack but lost three benign tasks. AgentDojo injections are explicit, so this experiment shows that MAPIS works inside a live loop at low cost; the multi-hop sets are what separate MAPIS from stateless detection. Both models were trained on AgentDojo-style injections.
 
 \begin{table}[!t]
-\caption{Live Agent on AgentDojo (qwen2.5 7B), Rates in \%}
+\caption{Live Agent on AgentDojo \cite{debenedetti2024agentdojo} (qwen2.5 7B), Rates in \%}
 \label{tab:live}
 \centering\footnotesize
 \begin{tabular}{L{1.65cm}C{1.65cm}C{1.95cm}C{1.65cm}}
@@ -530,7 +530,7 @@ Regular expressions only & 12.5 & 0.0 \\
 \end{table}
 
 \subsection{Training Behaviour, Latency and Cost}
-On the 9,064 validation events of the seed-42 run, the stateful model reaches an F1 of 0.991 and the stateless model levels off at 0.861 (Fig.~\ref{fig:train}). On the RTX 3050 Laptop GPU the classifier needs 63.0 ms per event when 40 test events are scored one at a time, including long multi-chunk events, and 51.4 ms in batches (Table~\ref{tab:cost}). Replaying all 2,304 test sessions through the full shield costs 23.4 ms per event on average (34.9 ms at the 95th percentile) and 50.5 CPU-ms per event, because most hops are short. A DeBERTa-v3-base variant trained on an earlier data configuration reached 99.9\% recall at 2.0\% FPR but 5.3\% MultiHop FPR and 115 ms per event, so the small model is our default. Every configuration stays well below the 200 ms target.
+On the 9,064 validation events of the seed-42 run, the stateful model reaches an F1 of 0.991 and the stateless model levels off at 0.861 (Fig.~\ref{fig:train}). On the RTX 3050 Laptop GPU the classifier needs 63.0 ms per event when 40 test events are scored one at a time, including long multi-chunk events, and 51.4 ms in batches (Table~\ref{tab:cost}). Replaying all 2,304 test sessions through the full shield costs 23.4 ms per event on average (34.9 ms at the 95th percentile) and 50.5 CPU-ms per event, because most hops are short. A DeBERTa-v3-base \cite{he2023debertav3} variant trained on an earlier data configuration reached 99.9\% recall at 2.0\% FPR but 5.3\% MultiHop FPR and 115 ms per event, so the small model is our default. Every configuration stays well below the 200 ms target.
 
 \begin{figure}[!t]
 \centering
@@ -590,7 +590,7 @@ The authors thank the creators of AgentDojo, InjecAgent, BIPIA and the Agent Sec
 
 % =====================================================================================================
 \section*{Team Contributions and Details}
-This work is the B.Tech final-year project of Team A1, Amrita School of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore, carried out under the guidance of K.~Sripriyan, Assistant Professor (guide), and Anjana Sankar, Assistant Professor (co-guide), who supervised the problem formulation, the experimental design and the manuscript.
+This work is the B.Tech final-year project of Team A1, Amrita School of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore, carried out under the guidance of K.~Sripriyan, Assistant Professor (guide), and Anjana Sankar, Assistant Professor (co-guide).
 
 \begin{table}[!h]
 \centering\footnotesize

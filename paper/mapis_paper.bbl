@@ -88,11 +88,6 @@ F.~Perez and I.~Ribeiro, ``Ignore previous prompt: Attack techniques for
   language models,'' in \emph{NeurIPS ML Safety Workshop}, 2022,
   arXiv:2211.09527.
 
-\bibitem{liu2023houyi}
-Y.~Liu, G.~Deng, Y.~Li, K.~Wang, Z.~Wang, X.~Wang, T.~Zhang, Y.~Liu, H.~Wang,
-  Y.~Zheng, and Y.~Liu, ``Prompt injection attack against {LLM}-integrated
-  applications,'' arXiv:2306.05499, 2023.
-
 \bibitem{liu2024formalizing}
 Y.~Liu, Y.~Jia, R.~Geng, J.~Jia, and N.~Z. Gong, ``Formalizing and benchmarking
   prompt injection attacks and defenses,'' in \emph{Proc. 33rd USENIX Security
@@ -122,10 +117,6 @@ H.~Zhang, J.~Huang, K.~Mei, Y.~Yao, Z.~Wang, C.~Zhan, H.~Wang, and Y.~Zhang,
   ``Agent security bench ({ASB}): Formalizing and benchmarking attacks and
   defenses in {LLM}-based agents,'' in \emph{Proc. Int. Conf. Learning
   Representations (ICLR)}, 2025.
-
-\bibitem{wu2024wipi}
-F.~Wu, S.~Wu, Y.~Cao, and C.~Xiao, ``{WIPI}: A new web threat for {LLM}-driven
-  web agents,'' arXiv:2402.16965, 2024.
 
 \bibitem{liao2025eia}
 Z.~Liao, L.~Mo, C.~Xu, M.~Kang, J.~Zhang, C.~Xiao, Y.~Tian, B.~Li, and H.~Sun,
@@ -227,11 +218,6 @@ E.~Debenedetti, I.~Shumailov, T.~Fan, J.~Hayes, N.~Carlini, D.~Fabian, C.~Kern,
   C.~Shi, A.~Terzis, and F.~Tram{\`e}r, ``Defeating prompt injections by
   design,'' arXiv:2503.18813, 2025.
 
-\bibitem{wu2024ifc}
-F.~Wu, E.~Cecchetti, and C.~Xiao, ``System-level defense against indirect
-  prompt injection attacks: An information flow control perspective,''
-  arXiv:2409.19091, 2024.
-
 \bibitem{costa2025fides}
 M.~Costa, B.~K{\"o}pf, A.~Kolluri, A.~Paverd, M.~Russinovich, A.~Salem,
   S.~Tople, L.~Wutschitz, and S.~Zanella-B{\'e}guelin, ``Securing {AI} agents
@@ -255,5 +241,19 @@ P.~He, J.~Gao, and W.~Chen, ``{DeBERTaV3}: Improving {DeBERTa} using
 C.~Guo, G.~Pleiss, Y.~Sun, and K.~Q. Weinberger, ``On calibration of modern
   neural networks,'' in \emph{Proc. 34th Int. Conf. Machine Learning (ICML)},
   2017, pp. 1321--1330.
+
+\bibitem{loshchilov2019adamw}
+I.~Loshchilov and F.~Hutter, ``Decoupled weight decay regularization,'' in
+  \emph{Proc. Int. Conf. Learning Representations (ICLR)}, 2019.
+
+\bibitem{micikevicius2018mixed}
+P.~Micikevicius, S.~Narang, J.~Alben, G.~Diamos, E.~Elsen, D.~Garcia,
+  B.~Ginsburg, M.~Houston, O.~Kuchaiev, G.~Venkatesh, and H.~Wu, ``Mixed
+  precision training,'' in \emph{Proc. Int. Conf. Learning Representations
+  (ICLR)}, 2018.
+
+\bibitem{qwen2025}
+{Qwen Team}, A.~Yang, B.~Yang, B.~Zhang, B.~Hui, B.~Zheng, B.~Yu \emph{et~al.},
+  ``Qwen2.5 technical report,'' arXiv:2412.15115, 2024.
 
 \end{thebibliography}
