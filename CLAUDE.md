@@ -437,6 +437,8 @@ Code is unchanged (tampering checks stay on in the shield; in the demo the cc re
 - **Citation audit (23 Oct):** all 45 references cited; added the works the paper uses but had not cited - Qwen2.5 tech report (arXiv:2412.15115), AdamW (ICLR 2019), mixed-precision
   training (ICLR 2018) - and swapped out three overlapping related-work refs to stay at 45 (Liu et al. HouYi arXiv:2306.05499, WIPI arXiv:2402.16965, f-secure arXiv:2409.19091; they
   can be restored, total would be 48). Citations added at re-mentions of benchmarks/baselines in Sec. V-VI and Tables 4, 5, 12, 13, 14. 40 refs from 2022+. Still exactly 10.5 pages.
+- **Author order (owner, 23 Oct):** K. Sripriyan (guide, corresponding author), M. Vishnu Vardhan, Dodla Nithya Sai, Sreekar Reddy, Beena Reddy; running header "Sripriyan et al.".
+  Co-guide Anjana Sankar is no longer in the author line (owner asked for guide + 4 students); she stays in the Team Contributions section as co-guide.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
