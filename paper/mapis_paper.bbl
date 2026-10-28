@@ -232,6 +232,27 @@ J.~Newsome and D.~Song, ``Dynamic taint analysis for automatic detection,
 S.~Chennabasappa \emph{et~al.}, ``{LlamaFirewall}: An open source guardrail
   system for building secure {AI} agents,'' arXiv:2505.03574, 2025.
 
+\bibitem{vinayakumar2019ids}
+R.~Vinayakumar, M.~Alazab, K.~P. Soman, P.~Poornachandran, A.~Al-Nemrat, and
+  S.~Venkatraman, ``Deep learning approach for intelligent intrusion detection
+  system,'' \emph{IEEE Access}, vol.~7, pp. 41\,525--41\,550, 2019.
+
+\bibitem{vinayakumar2017cnn}
+R.~Vinayakumar, K.~P. Soman, and P.~Poornachandran, ``Applying convolutional
+  neural network for network intrusion detection,'' in \emph{Proc. Int. Conf.
+  Advances in Computing, Communications and Informatics (ICACCI)}, 2017, pp.
+  1222--1228.
+
+\bibitem{vinayakumar2017rnn}
+------, ``Evaluation of recurrent neural network and its variants for intrusion
+  detection system ({IDS}),'' \emph{Int. J. Inf. Syst. Model. Des.}, vol.~8,
+  no.~3, pp. 43--63, 2017.
+
+\bibitem{vinayakumar2019malware}
+R.~Vinayakumar, M.~Alazab, K.~P. Soman, P.~Poornachandran, and S.~Venkatraman,
+  ``Robust intelligent malware detection using deep learning,'' \emph{IEEE
+  Access}, vol.~7, pp. 46\,717--46\,738, 2019.
+
 \bibitem{he2023debertav3}
 P.~He, J.~Gao, and W.~Chen, ``{DeBERTaV3}: Improving {DeBERTa} using
   {ELECTRA}-style pre-training with gradient-disentangled embedding sharing,''

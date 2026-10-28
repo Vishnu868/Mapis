@@ -28,9 +28,10 @@
 
 \author{\uppercase{M. Vishnu Vardhan}\authorrefmark{1},
 \uppercase{Dodla Nithya Sai}\authorrefmark{1},
-\uppercase{Sreekar Reddy}\authorrefmark{1}, and
-\uppercase{Beena Reddy}\authorrefmark{1}}
-\address[1]{Amrita School of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore 641112, India}
+\uppercase{Sreekar Reddy}\authorrefmark{1},
+\uppercase{Beena Reddy}\authorrefmark{1}, and
+\mbox{\uppercase{K. Sripriyan}\authorrefmark{1}}}
+\address[1]{Amrita School of Artificial Intelligence, Coimbatore 641112, Amrita Vishwa Vidyapeetham, India}
 
 \markboth
 {Vishnu Vardhan \headeretal: MAPIS: Stateful Monitoring of Multi-Hop Indirect Prompt Injection}
@@ -39,7 +40,7 @@
 \corresp{Corresponding author: M. Vishnu Vardhan.}
 
 \begin{abstract}
-Teams of LLM agents constantly read unchecked text: web pages, files, tool outputs and shared memory. An attacker can plant instructions there and even split them into pieces that each look harmless, so a guardrail that inspects one message at a time cannot tell the attack from the same action requested by the user. MAPIS sits on the communication layer of LangGraph and AutoGen pipelines and remembers, for each session, the user's goal and where every address, link and identifier first came from. A fine-tuned DeBERTa-v3 classifier reads each message with these session signals, and a four-tier response passes, flags, quarantines or blocks it with a propagation trace. On 2,304 held-out sessions from six benchmark sets with matched benign twins, MAPIS reaches 98.0\% recall at a 0.9\% false-positive rate and 98.5\% accuracy over five training runs, at 63 ms per message. At the same 5\% false-alarm budget, an identical classifier without memory catches 4.3\% of multi-hop attacks; MAPIS catches all of them. In a live tool-calling agent, attack success fell from 15.3\% to 0\%.
+Teams of LLM agents constantly read unchecked text: web pages, files, tool outputs and shared memory. An attacker can plant instructions there, even cut into pieces that each look harmless, so a guardrail that inspects one message at a time cannot tell the attack from the same action requested by the user. MAPIS sits on the communication layer of LangGraph and AutoGen pipelines and remembers, for each session, the user's goal and where every address, link and identifier first came from. A fine-tuned DeBERTa-v3 classifier reads each message with these session signals, and a four-tier response passes, flags, quarantines or blocks it with a propagation trace. On 2,304 held-out sessions from six benchmark sets with matched benign twins, MAPIS reaches 98.0\% recall at a 0.9\% false-positive rate and 98.5\% accuracy over five training runs, at 63 ms per message. At the same 5\% false-alarm budget, an identical classifier without memory catches 4.3\% of multi-hop attacks, while MAPIS catches every one. Guarding a live tool-calling agent, MAPIS cut the share of successful attacks from 15.3\% to zero.
 \end{abstract}
 
 \begin{keywords}
@@ -52,27 +53,27 @@ AI agent security, indirect prompt injection, information provenance, large lang
 % =====================================================================================================
 \section{Introduction}
 \label{sec:intro}
-\PARstart{L}{arge} language models (LLMs) no longer just answer questions. They now act as agents that call tools, browse the web, read documents and keep long-term memory \cite{yao2023react}. With frameworks such as AutoGen \cite{wu2024autogen} and LangGraph \cite{langgraph2024}, it takes only a few lines of code to chain several of these agents together: a planner splits the task, a web agent fetches pages, a file agent reads documents, a memory agent keeps notes and an action agent sends e-mail or moves money \cite{guo2024masurvey}. The catch is that every one of these agents reads text its operator never wrote, and if that text contains instructions, the agent may follow them instead of the user. This is indirect prompt injection (IPI) \cite{greshake2023}. OWASP ranks it as the top risk for LLM applications \cite{owasp2025}, and surveys treat it as a central threat to agentic systems \cite{deng2025survey}.
+\PARstart{L}{arge} language models (LLMs) no longer just answer questions. LLMs now act as agents that call tools, browse the web, read documents and keep long-term memory \cite{yao2023react}. With frameworks such as AutoGen \cite{wu2024autogen} and LangGraph \cite{langgraph2024}, it takes only a few lines of code to chain several of these agents together: a planner splits the task, a web agent fetches pages, a file agent reads documents, a memory agent keeps notes and an action agent sends e-mail or moves money \cite{guo2024masurvey}. The catch is that every one of these agents reads text its operator never wrote. When that text carries instructions, an agent can end up obeying the text rather than the person who started the task, an attack known as indirect prompt injection (IPI) \cite{greshake2023}. OWASP ranks it as the top risk for LLM applications \cite{owasp2025}, and surveys treat it as a central threat to agentic systems \cite{deng2025survey}.
 
-Putting several agents in a pipeline makes things worse in two ways. To begin with, an agent trusts what its colleagues hand over, so an injection that reaches one agent can travel several hops before anything goes wrong \cite{lee2024infection,triedman2025mas}. More importantly, the attacker does not even need to write a command. Take the task ``summarise the vendor contracts and e-mail me the key terms''. One file contains nothing more than ``Archive contact on file: backup@evil.com''. A memory agent stores that address, another agent reads it back, and the e-mail agent places it in the \texttt{cc} field. None of these messages is an instruction, and the final \texttt{send\_email} call is identical, word for word, to the one in a session where the user really did ask to copy that address. A guardrail that checks messages one by one, such as Llama Guard \cite{inan2023llamaguard} or the per-message rails of NeMo Guardrails \cite{rebedea2023nemo}, has to either block both sessions or let both through. Only the session history tells them apart.
+Putting several agents in a pipeline makes things worse in two ways. To begin with, an agent trusts what its colleagues hand over, so an injection that reaches one agent can travel several hops before anything goes wrong \cite{lee2024infection,triedman2025mas}. More importantly, the attacker does not even need to write a command. Take the task ``summarise the vendor contracts and e-mail me the key terms''. One file contains nothing more than ``Archive contact on file: backup@evil.com''. A memory agent stores that address, another agent reads it back, and the e-mail agent places it in the \texttt{cc} field. None of these messages is an instruction, and the final \texttt{send\_email} call is identical, word for word, to the one in a session where the user really did ask to copy that address. A guardrail that checks messages one by one, such as Llama Guard \cite{inan2023llamaguard} or the per-message rails of NeMo Guardrails \cite{rebedea2023nemo}, has to either block both sessions or let both through. Only the session history tells the two sessions apart.
 
-In this paper we present \emph{MAPIS} (Multi-Agent Prompt Injection Shield), a monitor that keeps state for exactly this situation. It sits at a single tap on the communication layer, keeps a compact record of each session, and checks every message, tool call, tool output and memory access before it is delivered. The record stores the user goal, the hop at which each e-mail address, URL and identifier first appeared (and whether that hop could be trusted), any untrusted authority claims, and how each agent normally behaves. A small fine-tuned classifier reads the current event along with a one-line summary of these signals; its trust score is then combined with rule signals to pick one of four responses, each with a forensic trace. Our main contributions are:
+This paper presents \emph{MAPIS} (Multi-Agent Prompt Injection Shield), a monitor that keeps state for exactly this situation. It sits at a single tap on the communication layer, keeps a compact record of each session, and checks every message, tool call, tool output and memory access before it is delivered. The record stores the user goal, the hop at which each e-mail address, URL and identifier first appeared (and whether that hop could be trusted), any untrusted authority claims, and how each agent normally behaves. A small fine-tuned classifier reads the current event along with a one-line summary of these signals; its trust score is then combined with rule signals to pick one of four responses, each with a forensic trace. The proposed work aims are:
 \begin{itemize}
 \item A stateful, provenance-aware monitor at a framework-neutral tap, implemented for LangGraph and AutoGen, that runs at 63 ms per message on a laptop GPU.
 \item MAPIS-Bench: 9,921 sessions in six sets, including multi-hop fragment attacks with matched benign twins and an evasive attacker that knows the defence, plus two test-only sets that stress the session record.
 \item An evaluation at a matched false-positive budget against a memoryless model of identical architecture, three public guardrails, two LLM-based detectors and a live tool-calling agent, with five training runs and Wilson intervals \cite{wilson1927}.
 \item Action-argument checks that compare every argument of a state-changing call with the user's own request, raising recall on hand-written attacks from 35--45\% to 95\% without retraining.
 \end{itemize}
-Section~\ref{sec:related} reviews related work, Section~\ref{sec:threat} states the threat model, Section~\ref{sec:design} describes MAPIS, Section~\ref{sec:setup} the data and the protocol, Section~\ref{sec:results} the results and Section~\ref{sec:conclusion} concludes.
+Prior work is covered in Section~\ref{sec:related}, and Section~\ref{sec:threat} fixes the threat model. The design of MAPIS follows in Section~\ref{sec:design}, the benchmark and protocol in Section~\ref{sec:setup} and the measurements in Section~\ref{sec:results}; Section~\ref{sec:conclusion} closes the paper.
 
 % =====================================================================================================
 \section{Related Work}
 \label{sec:related}
 \subsection{Indirect Prompt Injection and Benchmarks}
-Perez and Ribeiro \cite{perez2022} introduced goal hijacking and prompt leaking for direct injection. Greshake \emph{et al.} \cite{greshake2023} showed that injected text retrieved at run time can control LLM-integrated applications, and Liu \emph{et al.} \cite{liu2024formalizing} formalised and benchmarked such attacks. For agents, InjecAgent \cite{zhan2024injecagent} provides 1,054 test cases with tool-based attacks, AgentDojo \cite{debenedetti2024agentdojo} supplies a dynamic environment with banking, Slack, workspace and travel suites, BIPIA \cite{yi2025bipia} covers e-mail, web, table, summarisation and code tasks, and ASB \cite{zhang2025asb} formalises attacks on ten agent scenarios. Most of these benchmarks put an explicit instruction into a single tool output or document. None of them pairs an attack with a benign twin that ends in exactly the same action, which is the case that matters most for a monitor.
+Direct injection was first studied by Perez and Ribeiro \cite{perez2022}, whose attacks hijack the goal of a prompt or leak it. Greshake \emph{et al.} \cite{greshake2023} moved the attack into content that an application retrieves while it runs and took over LLM-integrated applications this way; Liu \emph{et al.} \cite{liu2024formalizing} later gave such attacks a formal framework and a benchmark. Agent benchmarks followed. InjecAgent \cite{zhan2024injecagent} has 1,054 cases built around tool use, AgentDojo \cite{debenedetti2024agentdojo} runs attacks inside live banking, Slack, workspace and travel suites, BIPIA \cite{yi2025bipia} spans e-mail, web, table, summarisation and code tasks, and ASB \cite{zhang2025asb} defines attacks for ten agent scenarios. In most of these benchmarks, one tool output or document carries an explicit instruction. None of these benchmarks pairs an attack with a benign twin that ends in exactly the same action, which is the case that matters most for a monitor.
 
 \subsection{Attacks on Individual Agent Roles}
-Table~\ref{tab:roles} maps prior attacks to the five roles of our testbed. Each work studies one role in isolation: web agents leak private data through injected page elements \cite{liao2025eia}, retrieval and file agents by poisoned documents \cite{greshake2023,zou2025poisonedrag}, memory agents by poisoned records \cite{chen2024agentpoison,dong2025minja}, and action agents through tool calls, e-mail and code execution \cite{zhan2024injecagent,cohen2024worm,triedman2025mas}. Adaptive attackers break eight published IPI defences \cite{zhan2025adaptive}. MAPIS targets the case in which the pieces of one attack are spread over several of these roles.
+Table~\ref{tab:roles} maps prior attacks to the five roles of the MAPIS testbed. Each work studies one role in isolation: web agents leak private data through injected page elements \cite{liao2025eia}, retrieval and file agents by poisoned documents \cite{greshake2023,zou2025poisonedrag}, memory agents by poisoned records \cite{chen2024agentpoison,dong2025minja}, and action agents through tool calls, e-mail and code execution \cite{zhan2024injecagent,cohen2024worm,triedman2025mas}. Adaptive attackers break eight published IPI defences \cite{zhan2025adaptive}. MAPIS targets the case in which the pieces of one attack are spread over several of these roles.
 
 \begin{table}[!t]
 \caption{Prior Attacks by Agent Role, Mapped to the Five Roles of the MAPIS Testbed}
@@ -96,7 +97,7 @@ Across agents & \cite{lee2024infection,gu2024agentsmith,huang2025resilience} & I
 Prompt Infection \cite{lee2024infection} demonstrates self-replicating injections between agents, Agent Smith \cite{gu2024agentsmith} shows exponential spread of a jailbreak among multimodal agents, and MAS hijacking \cite{triedman2025mas} reroutes orchestrators to unsafe agents that execute code. Huang \emph{et al.} \cite{huang2025resilience} measure how the topology of a team affects its resilience to faulty agents, and NetSafe \cite{yu2025netsafe} studies how misinformation spreads through agent networks. G-Safeguard \cite{wang2025gsafeguard} detects anomalous utterances with a graph neural network and prunes edges of the communication graph. These works study spreading or require control of the topology; none offers a light, inline monitor that follows the provenance of individual items across hops.
 
 \subsection{Defences}
-Training-time and prompt-level defences separate instructions from data: spotlighting marks untrusted text \cite{hines2024spotlighting}, StruQ fine-tunes the model on a structured query format \cite{chen2025struq}, and the instruction hierarchy trains models to prioritise privileged instructions \cite{wallace2024hierarchy}. Detectors classify inputs: Prompt Guard~2 \cite{promptguard2025} and ProtectAI's classifier \cite{protectai2024} are small injection classifiers, Llama Guard \cite{inan2023llamaguard} judges content safety, and DataSentinel \cite{liu2025datasentinel} fine-tunes an LLM detector against adaptive attacks. Agent-level checks include Task Shield \cite{jia2025taskshield}, which tests every action against the user task with an LLM, and MELON \cite{zhu2025melon}, which re-executes the trajectory with a masked user prompt. System-level designs enforce information flow: CaMeL \cite{debenedetti2025camel} separates a privileged planner from a quarantined parser, and FIDES \cite{costa2025fides} enforces information-flow control with security labels on data, in the tradition of dynamic taint analysis \cite{newsome2005taint}. LlamaFirewall's AlignmentCheck \cite{chennabasappa2025llamafirewall} audits the whole trajectory with an LLM. Strong system-level designs require rebuilding the agent, and LLM monitors add an LLM call per check.
+One family of defences keeps instructions and data apart, in the prompt or during training. Spotlighting tags untrusted text so that the model can recognise it \cite{hines2024spotlighting}, StruQ accepts instructions only through a dedicated prompt channel \cite{chen2025struq}, and the instruction hierarchy teaches a model to rank system and user instructions above anything found in data \cite{wallace2024hierarchy}. A second family screens each input with a classifier: Prompt Guard~2 \cite{promptguard2025} and ProtectAI's classifier \cite{protectai2024} are small injection classifiers, Llama Guard \cite{inan2023llamaguard} judges content safety, and DataSentinel \cite{liu2025datasentinel} fine-tunes an LLM detector against adaptive attacks. At the agent level, Task Shield \cite{jia2025taskshield} asks an LLM whether each action serves the user task, and MELON \cite{zhu2025melon} replays the run with the user request hidden and looks for tool calls that appear anyway. System-level designs enforce information flow: CaMeL \cite{debenedetti2025camel} separates a privileged planner from a quarantined parser, and FIDES \cite{costa2025fides} enforces information-flow control with security labels on data, in the tradition of dynamic taint analysis \cite{newsome2005taint}. LlamaFirewall's AlignmentCheck \cite{chennabasappa2025llamafirewall} audits the whole trajectory with an LLM. Strong system-level designs require rebuilding the agent, and LLM monitors add an LLM call per check.
 
 \begin{table}[!t]
 \caption{Positioning of Representative Defences}
@@ -118,15 +119,21 @@ G-Safeguard \cite{wang2025gsafeguard} & agent graph & no & yes & no \\
 \end{tabular}
 \end{table}
 
-Table~\ref{tab:position} summarises where representative defences act, whether they need an additional LLM call per check, whether they use state that spans hops, and whether the agents can stay unchanged.
+Table~\ref{tab:position} summarises where representative defences act, whether an additional LLM call per check is needed, whether state that spans hops is used, and whether the agents can stay unchanged.
+
+\subsection{Comparison With Provenance-Aware and Agent-Level Defences}
+The closest defences differ from MAPIS along four axes: the unit that is tracked, where enforcement happens, the inference cost per check and the changes demanded of the agent. CaMeL \cite{debenedetti2025camel} keeps a privileged planner that sees only the trusted user query, parses untrusted data in a quarantined model and tracks data flow in a custom interpreter that applies capability-based policies to tool calls. FIDES \cite{costa2025fides} attaches integrity and confidentiality labels to data and enforces policies deterministically. Both follow the tradition of dynamic taint analysis \cite{newsome2005taint} and track the provenance of data, but the agent has to be rebuilt around the interpreter or the planner, and a quarantined LLM adds inference. Task Shield \cite{jia2025taskshield} checks each instruction or tool call against the user task with an LLM, and MELON \cite{zhu2025melon} compares the tool calls of the real run with those of a replay in which the user request is hidden. Both add LLM calls per check and judge an action against the user task instead of following where an individual address, URL or identifier first appeared. AlignmentCheck \cite{chennabasappa2025llamafirewall} audits the whole trajectory with an LLM, which keeps cross-hop context and leaves the agents unchanged, but adds an LLM call per check and gives no item-level evidence; a history-aware judge in this style was evaluated in Section~\ref{sec:llm} and held 21.5\% of benign sessions at 77.4\% recall, against 0.0\% and 99.6\% for MAPIS. G-Safeguard \cite{wang2025gsafeguard} scores utterances with a graph neural network and prunes edges, which presumes control of the communication topology and does not follow concrete items. MAPIS keeps the item-level provenance of the system-level designs, the cross-hop context of trajectory audits and the unchanged agents of message-level detectors, and requires no additional LLM call per check (Table~\ref{tab:position}). The price is that the decision is learned and probabilistic, so no guarantee by construction is offered, unlike CaMeL and FIDES. Only the detector-style baselines and the history-aware LLM judge were re-run in Section~\ref{sec:results}. CaMeL, FIDES, Task Shield and MELON require rebuilding the agent or additional LLM executions and were not re-run, so the comparison with these four rests on the design properties reported in the respective papers.
+
+\subsection{Learned Intrusion Detection}
+Learned detectors for intrusion and malware have a long record at the affiliated university. Deep neural networks were evaluated for intelligent intrusion detection \cite{vinayakumar2019ids}, convolutional networks were applied to network intrusion detection \cite{vinayakumar2017cnn}, recurrent networks and recurrent variants were evaluated on connection sequences \cite{vinayakumar2017rnn}, and deep models were used for malware detection \cite{vinayakumar2019malware}. These works classify network traffic or binaries. MAPIS carries the same idea of a learned, stateful detector over to the communication layer of LLM agent pipelines, with the provenance of concrete items as the state.
 
 \subsection{Research Gap}
-To our knowledge, no earlier work brings together (i) a lightweight monitor that runs in real time at a framework-neutral tap, (ii) cross-hop provenance of concrete items fed directly into the classifier, and (iii) an evaluation on fragment attacks with matched benign twins at a fixed false-positive budget. MAPIS covers all three, and the agents themselves do not need to change.
+To the best of the authors' knowledge, no earlier work brings together (i) a lightweight monitor that runs in real time at a framework-neutral tap, (ii) cross-hop provenance of concrete items fed directly into the classifier, and (iii) an evaluation on fragment attacks with matched benign twins at a fixed false-positive budget. MAPIS covers all three, and the agents do not need to change.
 
 % =====================================================================================================
 \section{Threat Model and Problem}
 \label{sec:threat}
-The user and the system prompt are trusted; the user's first message defines the goal. The attacker controls content that agents read: web pages, files, tool outputs, retrieved documents and memory records. The attacker cannot change the user request, the monitor or the model weights, and may know how MAPIS works (Section~\ref{sec:adaptive}). The attack succeeds if an agent performs a state-changing action that the user did not ask for, for example sending data to an attacker address, changing a payee, executing code or overriding a safety rule. A session is a sequence of hops $e_1,\dots,e_n$, each with a source, a target, a role (user, agent, tool output, memory read or write) and optional tool-call arguments. Before $e_i$ is delivered, the monitor must output a trust $t_i\in[0,1]$ (0 malicious, 1 safe) from $e_1,\dots,e_i$ alone. A session counts as detected if any of its hops is held.
+The user and the system prompt are trusted; the user's first message defines the goal. The attacker controls content that agents read: web pages, files, tool outputs, retrieved documents and memory records. The user's request, the monitor and the model weights are out of the attacker's reach, although the attacker may know how MAPIS works (Section~\ref{sec:adaptive}). The attack succeeds if an agent performs a state-changing action that the user did not ask for, for example sending data to an attacker address, changing a payee, executing code or overriding a safety rule. A session is a sequence of hops $e_1,\dots,e_n$, each with a source, a target, a role (user, agent, tool output, memory read or write) and optional tool-call arguments. Before $e_i$ is delivered, the monitor must output a trust $t_i\in[0,1]$ (0 malicious, 1 safe) from $e_1,\dots,e_i$ alone. A session counts as detected if any of its hops is held.
 
 % =====================================================================================================
 \section{MAPIS Design}
@@ -136,7 +143,7 @@ Fig.~\ref{fig:arch} shows the path of a message.
 \begin{figure*}[!t]
 \centering
 \includegraphics[width=\textwidth]{figures/fig_arch.pdf}
-\caption{Architecture of MAPIS. Every hop is sent to the tap before delivery; the session record supplies the signals that the classifier reads; the fused trust selects one of four tiers. BLOCK suspends the source-to-target channel and every alert carries an origin-relay-action trace.}
+\caption{Architecture of MAPIS: Stateful Provenance Tracking, Risk Fusion, and Tiered Enforcement}
 \label{fig:arch}
 \end{figure*}
 
@@ -144,7 +151,7 @@ Fig.~\ref{fig:arch} shows the path of a message.
 The tap is a FastAPI endpoint, \texttt{POST /inspect}, that the pipeline calls before it delivers any hop. In LangGraph \cite{langgraph2024} the call is placed in the graph before each delivery; in AutoGen~0.2 \cite{wu2024autogen} it is registered on the \texttt{process\_message\_before\_send} hook, and a withheld message ends the chat. The same five-agent testbed (planner, web, file, memory, code/e-mail) runs on both frameworks with three scenarios: a clean task, an overt injection in a document and the decomposed attack of Section~\ref{sec:intro}. If inspection fails, the message is held (fail closed).
 
 \subsection{Session Record}
-For every session MAPIS stores, in Redis with a time-to-live or in memory, (i) the goal from the first user message; (ii) \emph{tainted} items, namely e-mail addresses, URLs and their hosts, IBAN-like identifiers, long numbers and fragments of them, first seen in untrusted content (tool output, memory read or write), with the hop and source at which they appeared; (iii) \emph{trusted} items named by the user; (iv) untrusted authority claims (``approved by management'') and instruction cues; (v) per-agent baselines of tools and message lengths; and (vi) the session sensitivity and suspended channels. The same module builds the training data and runs live, and a unit test checks that both produce identical classifier texts.
+For every session MAPIS stores, in Redis with a time-to-live or in memory, (i) the goal from the first user message; (ii) \emph{tainted} items, namely e-mail addresses, URLs and URL hosts, IBAN-like identifiers, long numbers and fragments of these, first seen in untrusted content (tool output, memory read or write), with the hop and source at which each appeared; (iii) \emph{trusted} items named by the user; (iv) untrusted authority claims (``approved by management'') and instruction cues; (v) per-agent baselines of tools and message lengths; and (vi) the session sensitivity and suspended channels. The same module builds the training data and runs live, and a unit test checks that both produce identical classifier texts.
 
 \subsection{Classifier Input}
 The classifier reads one text with three blocks, always in this order: the current event, one line of session signals and the history (the goal first, then the newest hops clipped to 110 characters and up to three older untrusted hops). For example, an e-mail action whose recipient came from a file at hop 2 is rendered as
@@ -206,7 +213,7 @@ a noisy-OR in which one strong signal is sufficient and weak signals accumulate.
 \section{MAPIS-Bench and Experimental Setup}
 \label{sec:setup}
 \subsection{Benchmark Sets}
-Table~\ref{tab:data} lists the six sets of MAPIS-Bench. \emph{v1} converts 1,132 AgentDojo \cite{debenedetti2024agentdojo} sessions and 561 InjecAgent \cite{zhan2024injecagent} data-stealing cases, audited against the originals. \emph{BIPIA} \cite{yi2025bipia} supplies minimal pairs; its own test split is never trained on. \emph{MultiHop} is generated: fragments, namely a changed detail and an authority claim, are embedded in real BIPIA \cite{yi2025bipia} and AgentDojo \cite{debenedetti2024agentdojo} carrier text across untrusted hops, and the final action uses them. Four skeletons realise the five mechanisms of the threat model (document poisoning and tool-output manipulation, memory injection, cross-agent relay and goal hijacking) with 0, 2 or 4 extra benign hops. \emph{RealHarm} converts 510 InjecAgent direct-harm cases and ASB \cite{zhang2025asb} attacks from ten agents and 400 attacker tools, with held-out attacker tools and test agents. \emph{Adaptive} models an attacker who knows MAPIS and uses six evasion techniques (Section~\ref{sec:adaptive}). \emph{Decomposed} contains the memory-relay attack of Section~\ref{sec:intro} in 12 template families and is used for testing only. Two further test-only sets stress the monitor: \emph{StateAttack} (56 attacks, 112 twins) targets the session record, and a \emph{team-written} set of 20 attacks and 20 twins was written in plain English by the four student authors without the generators.
+Table~\ref{tab:data} lists the six sets of MAPIS-Bench. \emph{v1} converts 1,132 AgentDojo \cite{debenedetti2024agentdojo} sessions and 561 InjecAgent \cite{zhan2024injecagent} data-stealing cases, audited against the originals. \emph{BIPIA} \cite{yi2025bipia} supplies minimal pairs; its own test split is never trained on. \emph{MultiHop} is generated: fragments, namely a changed detail and an authority claim, are embedded in real BIPIA \cite{yi2025bipia} and AgentDojo \cite{debenedetti2024agentdojo} carrier text across untrusted hops, and the final action uses these fragments. Four skeletons realise the five mechanisms of the threat model (document poisoning and tool-output manipulation, memory injection, cross-agent relay and goal hijacking) with 0, 2 or 4 extra benign hops. \emph{RealHarm} converts 510 InjecAgent direct-harm cases and ASB \cite{zhang2025asb} attacks from ten agents and 400 attacker tools, with held-out attacker tools and test agents. \emph{Adaptive} models an attacker who knows MAPIS and uses six evasion techniques (Section~\ref{sec:adaptive}). \emph{Decomposed} contains the memory-relay attack of Section~\ref{sec:intro} in 12 template families and is used for testing only. Two further test-only sets stress the monitor: \emph{StateAttack} (56 attacks, 112 twins) targets the session record, and a \emph{team-written} set of 20 attacks and 20 twins was written in plain English by the four student authors without the generators.
 
 \begin{table}[!t]
 \caption{MAPIS-Bench Sets and Splits (Sessions)}
@@ -231,13 +238,13 @@ Team-written (40) & hand-written & -- & -- & 40 & 20/20 \\
 \end{tabular}
 \end{table}
 
-Every attack has matched benign \emph{twins}: \emph{authorized} (the user named the planted destination or rule), \emph{resisted} (the fragments are present but the agent acts correctly) and \emph{designated} (the user named the file that holds the item). Without twins, a detector can score well by flagging anything suspicious. MultiHop and Adaptive are split by template family and phrasing pool, and RealHarm by attacker tool and agent, so their test splits use families, phrasings, tools and agents never seen in training. The test set has 1,285 attacks and 1,019 benign sessions. Labels are per event: a fragment alone is safe, a relay is malicious only if it carries an actionable item, and the completing action is malicious.
+Every attack has matched benign \emph{twins}: \emph{authorized} (the user named the planted destination or rule), \emph{resisted} (the fragments are present but the agent acts correctly) and \emph{designated} (the user named the file that holds the item). Without twins, a detector can score well by flagging anything suspicious. MultiHop and Adaptive are split by template family and phrasing pool, and RealHarm by attacker tool and agent, so the test splits use families, phrasings, tools and agents never seen in training. The test set has 1,285 attacks and 1,019 benign sessions. Labels are per event: a fragment alone is safe, a relay is malicious only if it carries an actionable item, and the completing action is malicious.
 
 \subsection{Training}
-The training data replay every session through the session module, giving 44,632 training and 9,064 validation chunk rows. DeBERTa-v3-small \cite{he2023debertav3} (6 layers, hidden size 768) is fine-tuned with class-weighted cross-entropy, AdamW \cite{loshchilov2019adamw} (learning rate $2\times10^{-5}$, weight decay 0.01, 10\% warm-up), a batch of 4 with 4-step gradient accumulation, two epochs, a maximum length of 512 tokens and mixed precision with fp32 master weights \cite{micikevicius2018mixed}. The epoch with the highest validation F1 at a validation false-positive rate of at most 5\% is kept. The \emph{stateless} baseline is the same model trained on the same data with the event alone. Both models were trained five times, with random seeds 42, 42, 43, 44 and 45; the two seed-42 runs differ because mixed-precision GPU training is not bit-for-bit reproducible. One run takes 4.3~h (stateful) or 1.3~h (stateless) on an NVIDIA RTX 3050 Laptop GPU.
+The training data replay every session through the session module, giving 44,632 training and 9,064 validation chunk rows. The backbone is DeBERTa-v3-small \cite{he2023debertav3} (6 layers, hidden size 768). Fine-tuning minimises a cross-entropy loss whose class weights offset the label imbalance. The optimiser is AdamW \cite{loshchilov2019adamw} at a learning rate of $2\times10^{-5}$ with 0.01 weight decay and a linear warm-up over the first tenth of the steps; batches hold 4 examples, gradients are accumulated over 4 steps, inputs are cut at 512 tokens, and training runs for two epochs in mixed precision with fp32 master weights \cite{micikevicius2018mixed}. The epoch with the highest validation F1 at a validation false-positive rate of at most 5\% is kept. The \emph{stateless} baseline is the same model trained on the same data with the event alone. Both models were trained five times, with random seeds 42, 42, 43, 44 and 45; the two seed-42 runs differ because mixed-precision GPU training is not bit-for-bit reproducible. One run takes 4.3~h (stateful) or 1.3~h (stateless) on an NVIDIA RTX 3050 Laptop GPU.
 
 \subsection{Baselines and Metrics}
-We compare with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at their default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The LLM-based detectors use Qwen2.5 \cite{qwen2025} (7B; the judge also 14B; both 4-bit Q4\_K\_M quantised) through Ollama. All systems see the same events. We report recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
+MAPIS is compared with Llama Guard 3-1B \cite{inan2023llamaguard}, Prompt Guard 2 (86M) \cite{promptguard2025} and ProtectAI's DeBERTa-v3 injection classifier \cite{protectai2024} at the default thresholds, a regular-expression detector, NeMo Guardrails' self-check input rail \cite{rebedea2023nemo} and a history-aware LLM judge that reads the whole transcript once, in the style of AlignmentCheck \cite{chennabasappa2025llamafirewall}. The LLM-based detectors use Qwen2.5 \cite{qwen2025} (7B; the judge also 14B; both 4-bit Q4\_K\_M quantised) through Ollama. All systems see the same events. The metrics reported are recall (attack sessions held), false-positive rate (FPR, benign sessions held), precision, F1, accuracy, latency and CPU cost, with 95\% Wilson intervals \cite{wilson1927} where samples are small, and means $\pm$ standard deviations over the five runs.
 
 % =====================================================================================================
 \section{Results and Discussion}
@@ -253,32 +260,35 @@ Table~\ref{tab:head} gives all metrics on the 2,304 held-out sessions. Over five
 \toprule
 System & Recall & Prec. & F1 & FPR & Acc. \\
 \midrule
-\multicolumn{6}{l}{\emph{Mean $\pm$ std over five training runs}}\\
+\multicolumn{6}{l}{\emph{Five-run mean $\pm$ std (trained systems; seeds 42, 42, 43, 44, 45)}}\\
 \textbf{MAPIS} & \textbf{98.0$\pm$0.6} & -- & \textbf{98.6} & \textbf{0.9$\pm$0.8} & \textbf{98.5} \\
 Stateless DeBERTa & 94.1$\pm$0.9 & -- & -- & 33.2$\pm$3.5 & 82.0 \\
 \midrule
-\multicolumn{6}{l}{\emph{Seed-42 run and seed-independent systems}}\\
+\multicolumn{6}{l}{\emph{Single run, seed 42 (trained systems)}}\\
 \textbf{MAPIS} & \textbf{97.0} & \textbf{99.8} & \textbf{98.4} & \textbf{0.2} & \textbf{98.2} \\
 Stateless DeBERTa & 94.7 & 78.1 & 85.6 & 33.6 & 82.2 \\
+\midrule
+\multicolumn{6}{l}{\emph{Single run (other detectors, not trained here)}}\\
 Llama Guard 3-1B \cite{inan2023llamaguard} & 86.1 & 54.6 & 66.8 & 90.3 & 52.3 \\
 ProtectAI v2 \cite{protectai2024} & 53.3 & 57.6 & 55.4 & 49.5 & 52.1 \\
 Prompt Guard 2 \cite{promptguard2025} & 7.5 & 99.0 & 14.0 & 0.1 & 48.4 \\
 Regex & 12.5 & 100 & 22.1 & 0.0 & 51.2 \\
 \bottomrule
+\multicolumn{6}{@{}L{8.3cm}@{}}{\scriptsize Mean $\pm$ std: five training runs. Seed 42: one of those runs. Other detectors: a single evaluation at default settings, so no standard deviation is available.}
 \end{tabular}
 \end{table}
 
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/fig_head.pdf}
-\caption{Recall and false-positive rate on 2,304 held-out sessions (MAPIS and stateless: five-run means).}
+\caption{Attack Recall and False-Positive Rate of MAPIS and Baseline Detectors on 2,304 Held-Out Sessions}
 \label{fig:head}
 \end{figure}
 
 \begin{figure}[!t]
 \centering
 \includegraphics[width=\columnwidth]{figures/confusion.png}
-\caption{Confusion matrices of the seed-42 run on all 2,304 test sessions: stateless baseline (left) and MAPIS (right).}
+\caption{Confusion Matrices of MAPIS and the Stateless DeBERTa Baseline on the Held-Out Test Set}
 \label{fig:confusion}
 \end{figure}
 
@@ -357,7 +367,7 @@ Team-set recall with checks (19/20) & 95.0 & 76.4--99.1 \\
 \end{table}
 
 \subsection{Why Memory Matters: A Matched False-Positive Budget}
-At the default threshold the stateless model buys 86.5\% MultiHop recall with 51.1\% FPR. The reason is visible in the twins of the seed-42 run (Table~\ref{tab:twins}): it holds 89.2\% of the authorized and 76.9\% of the designated twins, because their final event is textually identical to the attack, whereas MAPIS holds 0.6\% (2 of 325) and 0\% (0 of 39). Resisted twins, in which the planted text is present but never acted on, are easy for both models. For a fair comparison we hold the stateless model to at most 5\% FPR, choosing its threshold on the validation split of each set and applying it to test (Table~\ref{tab:matched}, Fig.~\ref{fig:matched}). It then detects 4.3\% of MultiHop and 6.1\% of Adaptive attacks on average, against 100\% for MAPIS, a gain of about 96 and 94 points. The thresholds did not hold exactly on test (up to 7.7\% and 8.8\% FPR in single runs), so these baseline recalls are, if anything, generous. On RealHarm, whose attacks carry explicit injection text, the stateless model is competitive at zero FPR and the gap is at most 11 points. Without the matched budget, the plain recall gain on MultiHop is 13.5 points (100 against 86.5).
+At the default threshold the stateless model buys 86.5\% MultiHop recall with 51.1\% FPR. The reason is visible in the twins of the seed-42 run (Table~\ref{tab:twins}): it holds 89.2\% of the authorized and 76.9\% of the designated twins, because the final event of these twins is textually identical to the attack, whereas MAPIS holds 0.6\% (2 of 325) and 0\% (0 of 39). Resisted twins, in which the planted text is present but never acted on, are easy for both models. For a fair comparison, the stateless model is held to at most 5\% FPR, with the threshold chosen on the validation split of each set and applied to test (Table~\ref{tab:matched}, Fig.~\ref{fig:matched}). It then detects 4.3\% of MultiHop and 6.1\% of Adaptive attacks on average, against 100\% for MAPIS, a gain of about 96 and 94 points. The thresholds did not hold exactly on test (up to 7.7\% and 8.8\% FPR in single runs), so these baseline recalls are, if anything, generous. On RealHarm, whose attacks carry explicit injection text, the stateless model is competitive at zero FPR and the gap is at most 11 points. Without the matched budget, the plain recall gain on MultiHop is 13.5 points (100 against 86.5).
 
 \begin{table}[!t]
 \caption{False-Positive Rate by Benign Twin Type, Seed-42 Run (\%)}
@@ -400,7 +410,7 @@ ASB & 95.0/100/100/100/93.8 & 97.8 & 100 \\
 \end{figure}
 
 \subsection{Calibrated Hold Cut-Off}
-At the default hold cut-off of 0.50, two of the five runs exceed 5\% MultiHop FPR (5.3\% and 7.7\%). We therefore chose, on the validation split only, the cut-off at which no dataset family exceeds 2\% false positives (0.391, 0.124, 0.381, 0.268 and 0.268 for the five runs) and applied it once to test. MultiHop FPR fell from 1.2, 5.3, 0.0, 7.7 and 0.6\% to 0.6, 1.8, 0.0, 0.6 and 0.0\% (mean 3.0 to 0.6\%), recall stayed at 100\%, and no other set became worse, so every run meets the 5\% target.
+At the default hold cut-off of 0.50, two of the five runs exceed 5\% MultiHop FPR (5.3\% and 7.7\%). The cut-off at which no dataset family exceeds 2\% false positives (0.391, 0.124, 0.381, 0.268 and 0.268 for the five runs) was therefore chosen on the validation split only and applied once to test. MultiHop FPR fell from 1.2, 5.3, 0.0, 7.7 and 0.6\% to 0.6, 1.8, 0.0, 0.6 and 0.0\% (mean 3.0 to 0.6\%), recall stayed at 100\%, and no other set became worse, so every run meets the 5\% target.
 
 \subsection{Robustness to an Evasive Attacker}
 \label{sec:adaptive}
@@ -425,7 +435,7 @@ Combination & several techniques at once & 100/0 & 90.0/51.2 \\
 \end{table}
 
 \subsection{Public Guardrails by Set}
-Table~\ref{tab:guard} shows why the public guardrails fail. Llama Guard \cite{inan2023llamaguard} is a content-safety model and treats almost every agent session that mentions money, accounts or e-mail as unsafe, holding 100\% of the MultiHop and Adaptive twins. Prompt Guard 2 \cite{promptguard2025} looks for explicit instructions and finds none in fragment attacks (0\% recall on MultiHop and Adaptive). ProtectAI \cite{protectai2024} flags attacks and twins at nearly the same rate. None of them reads the history, so none can separate an attack from its twin.
+Table~\ref{tab:guard} shows why the public guardrails fail. Llama Guard \cite{inan2023llamaguard} is a content-safety model and treats almost every agent session that mentions money, accounts or e-mail as unsafe, holding 100\% of the MultiHop and Adaptive twins. Prompt Guard 2 \cite{promptguard2025} looks for explicit instructions and finds none in fragment attacks (0\% recall on MultiHop and Adaptive). ProtectAI \cite{protectai2024} flags attacks and twins at nearly the same rate. None of these guardrails reads the history, so none can separate an attack from its twin.
 
 \begin{table}[!t]
 \caption{Public Guardrails \cite{inan2023llamaguard,protectai2024,promptguard2025} on the Same Sessions, Recall / FPR (\%)}
@@ -445,6 +455,7 @@ BIPIA & 95.8/1.4 & 72.5/65.5 & 44.7/56.5 & 1.0 \\
 \end{table}
 
 \subsection{LLM-Based Detectors}
+\label{sec:llm}
 The LLM-based detectors were scored on a class-balanced subset of 434 test sessions (234 attacks, 200 benign; up to 60 per set) together with MAPIS and the stateless model (Table~\ref{tab:llm}). MAPIS misses one attack and raises no false alarm. The judge finds nearly every MultiHop attack but flags 63\% (7B) and 70\% (14B) of the MultiHop twins, because any transcript containing the fragments looks suspicious; the 14B judge raises recall from 70.9\% to 77.4\% yet holds 72.7\% of the resisted twins. NeMo \cite{rebedea2023nemo} detects 40\% of MultiHop and 30\% of Adaptive attacks. None separates an attack from the same action requested by the user. Amortised over a session's events, one judge call took 0.74 s per event (7B, laptop GPU) and 0.52 s (14B, T4 GPU), against 22 ms for the full MAPIS shield on the same sessions.
 
 \begin{table}[!t]
@@ -465,10 +476,10 @@ NeMo Guardrails \cite{rebedea2023nemo} (7B) & 49.6 & 22.0 & 62.7 \\
 \end{table}
 
 \subsection{Live Tool-Calling Agent}
-To test MAPIS inside a real agent loop we ran AgentDojo v1.2.1 \cite{debenedetti2024agentdojo} with qwen2.5:7b \cite{qwen2025} as the agent, the attack \texttt{important\_instructions\_no\_names} and four suites (banking, Slack, workspace, travel), giving 39 benign and 144 attacked runs per defence. MAPIS inspects the user query, every tool call before it runs and every tool output before the model reads it; a withheld call is not executed and a withheld output is replaced. Without a defence, 22 of 144 attacks succeeded (15.3\%); with MAPIS none did (0\%, 95\% upper bound 2.6\%), at the cost of one of 39 benign tasks (28.2\% to 25.6\%, Table~\ref{tab:live}). The stateless model also stopped every attack but lost three benign tasks. AgentDojo injections are explicit, so this experiment shows that MAPIS works inside a live loop at low cost; the multi-hop sets are what separate MAPIS from stateless detection. Both models were trained on AgentDojo-style injections.
+To test MAPIS inside a real agent loop, AgentDojo v1.2.1 \cite{debenedetti2024agentdojo} was run with qwen2.5:7b \cite{qwen2025} as the agent, the attack \texttt{important\_instructions\_no\_names} and four suites (banking, Slack, workspace, travel), giving 39 benign and 144 attacked runs per defence. MAPIS inspects the user query, every tool call before it runs and every tool output before the model reads it; a withheld call is not executed and a withheld output is replaced. Without a defence, 22 of 144 attacks succeeded (15.3\%); with MAPIS none did (0\%, 95\% upper bound 2.6\%), at the cost of one of 39 benign tasks (28.2\% to 25.6\%, Table~\ref{tab:live}). The stateless model also stopped every attack but lost three benign tasks. AgentDojo injections are explicit, so this experiment shows that MAPIS works inside a live loop at low cost; the multi-hop sets are what separate MAPIS from stateless detection. Both models were trained on AgentDojo-style injections.
 
 \begin{table}[!t]
-\caption{Live Agent on AgentDojo \cite{debenedetti2024agentdojo} (qwen2.5 7B), Rates in \%}
+\caption{Effect of MAPIS on Benign Utility and Attack Success in the Live Agent Experiment}
 \label{tab:live}
 \centering\footnotesize
 \begin{tabular}{L{1.65cm}C{1.65cm}C{1.95cm}C{1.65cm}}
@@ -483,7 +494,7 @@ Stateless & 20.5 (8/39) & 16.0 (23/144) & 0.0 (0/144) \\
 \end{table}
 
 \subsection{Harder Tests and Action-Argument Checks}
-The headline sets were built by us, so we added the two test-only sets of Section~\ref{sec:setup}, never used for training or tuning. Without the action-argument checks MAPIS detected 40\% of the team-written attacks on average (35--45\% over five runs) and 55.7\% of StateAttack. It caught attacks whose planted item is an e-mail address or URL and missed those that change a plain value: in the seed-42 run seven misses changed a value the user had given, four added a privilege or safety flag and two used a destination relayed by another agent. The checks of Section~\ref{sec:args} target exactly these groups (Table~\ref{tab:hard}). Team-set recall rose to 95\% in every run with an unchanged FPR of 7.0\%, StateAttack recall rose from 55.7\% to 80.4\% at an unchanged 10.2\% FPR, document-poisoning recall rose from 78.6\% to 100\%, and not a single decision changed on the 2,304 headline sessions. Items introduced by an agent rose from 25.0\% to 90.0\%, but items that the agent must decode (reversed or base64) stayed at 25.0\%. The baselines flag attacks and twins at the same rate on the team set, and the stateless model does so on StateAttack (69.3\% recall at 55.2\% FPR). Because the checks were designed after reading the team-set misses, the 95\% is not an independent estimate, and with 20 attacks its 95\% interval is 76--99\%.
+The headline sets were built by the authors, so the two test-only sets of Section~\ref{sec:setup} were added, never used for training or tuning. Without the action-argument checks MAPIS detected 40\% of the team-written attacks on average (35--45\% over five runs) and 55.7\% of StateAttack. It caught attacks whose planted item is an e-mail address or URL and missed those that change a plain value: in the seed-42 run seven misses changed a value the user had given, four added a privilege or safety flag and two used a destination relayed by another agent. The checks of Section~\ref{sec:args} target exactly these groups (Table~\ref{tab:hard}). Team-set recall rose to 95\% in every run with an unchanged FPR of 7.0\%, StateAttack recall rose from 55.7\% to 80.4\% at an unchanged 10.2\% FPR, document-poisoning recall rose from 78.6\% to 100\%, and not a single decision changed on the 2,304 headline sessions. Items introduced by an agent rose from 25.0\% to 90.0\%, but items that the agent must decode (reversed or base64) stayed at 25.0\%. The baselines flag attacks and twins at the same rate on the team set, and the stateless model does so on StateAttack (69.3\% recall at 55.2\% FPR). Because the checks were designed after reading the team-set misses, the 95\% is not an independent estimate, and with 20 attacks its 95\% interval is 76--99\%.
 
 \begin{table}[!t]
 \caption{Team-Written Set (Seed 42) and StateAttack (Five-Run Mean) Before and After the Action-Argument Checks (\%)}
@@ -508,7 +519,7 @@ All StateAttack (FPR 10.2 before and after) & 55.7 & \textbf{80.4} \\
 \end{table}
 
 \subsection{Ablation}
-Removing one component at a time (seed-42 run, 2,304 sessions) shows where the gain comes from (Table~\ref{tab:ablation}). Removing the session memory raises the FPR from 0.2\% to 33.6\%. Removing the rule fusion or the provenance rule leaves recall unchanged on the headline sets and removes one false positive, and on 978 harder sessions (Adaptive, MultiHop, StateAttack) the full system, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7--1.8\% FPR. The classifier has therefore absorbed the four rule signals from its input line; the rules remain as a safety net and as the human-readable reasons in each alert. The action-argument checks are the exception, because they compare argument values with the user request, which the classifier input does not encode.
+Removing one component at a time (seed-42 run, 2,304 sessions) shows where the gain comes from (Table~\ref{tab:ablation}). Removing the session memory raises the FPR from 0.2\% to 33.6\%. Removing the rule fusion or the provenance rule leaves recall unchanged on the headline sets and removes one false positive, and on 978 harder sessions (Adaptive, MultiHop, StateAttack) the full system, the classifier alone and the system without provenance all reach 92.0\% recall at 1.7--1.8\% FPR. The classifier has therefore absorbed the four rule signals from its input line; the rules remain as a safety net and as the human-readable reasons in each alert. The action-argument checks are the exception, because these checks compare argument values with the user request, which the classifier input does not encode.
 
 \begin{table}[!t]
 \caption{Ablation, Seed-42 Run on 2,304 Sessions (\%)}
@@ -528,7 +539,7 @@ Regular expressions only & 12.5 & 0.0 \\
 \end{table}
 
 \subsection{Training Behaviour, Latency and Cost}
-On the 9,064 validation events of the seed-42 run, the stateful model reaches an F1 of 0.991 and the stateless model levels off at 0.861 (Fig.~\ref{fig:train}). On the RTX 3050 Laptop GPU the classifier needs 63.0 ms per event when 40 test events are scored one at a time, including long multi-chunk events, and 51.4 ms in batches (Table~\ref{tab:cost}). Replaying all 2,304 test sessions through the full shield costs 23.4 ms per event on average (34.9 ms at the 95th percentile) and 50.5 CPU-ms per event, because most hops are short. A DeBERTa-v3-base \cite{he2023debertav3} variant trained on an earlier data configuration reached 99.9\% recall at 2.0\% FPR but 5.3\% MultiHop FPR and 115 ms per event, so the small model is our default. Every configuration stays well below the 200 ms target.
+On the 9,064 validation events of the seed-42 run, the stateful model reaches an F1 of 0.991 and the stateless model levels off at 0.861 (Fig.~\ref{fig:train}). On the RTX 3050 Laptop GPU the classifier needs 63.0 ms per event when 40 test events are scored one at a time, including long multi-chunk events, and 51.4 ms in batches (Table~\ref{tab:cost}). Replaying all 2,304 test sessions through the full shield costs 23.4 ms per event on average (34.9 ms at the 95th percentile) and 50.5 CPU-ms per event. This mean is below the one-at-a-time classifier latency because the two are measured on different event sets: the 40 test events behind the 63.0 ms figure include long multi-chunk events, whereas most hops in the replayed sessions are short. A DeBERTa-v3-base \cite{he2023debertav3} variant trained on an earlier data configuration reached 99.9\% recall at 2.0\% FPR but 5.3\% MultiHop FPR and 115 ms per event, so the small model is the default. Every configuration stays well below the 200 ms target.
 
 \begin{figure}[!t]
 \centering
@@ -538,21 +549,25 @@ On the 9,064 validation events of the seed-42 run, the stateful model reaches an
 \end{figure}
 
 \begin{table}[!t]
-\caption{Latency and Cost on an RTX 3050 Laptop GPU}
+\caption{Inference Latency and Training Cost of MAPIS on an NVIDIA RTX 3050 Laptop GPU}
 \label{tab:cost}
 \centering\footnotesize
-\begin{tabular}{L{4.6cm}r}
+\begin{tabular}{L{6.0cm}r}
 \toprule
 Measurement & Value \\
 \midrule
+\multicolumn{2}{l}{\emph{Classifier alone (40 test events, long multi-chunk events included)}}\\
 Classifier, one event at a time (small) & 63.0 ms \\
 Classifier, batched (small) & 51.4 ms \\
+Classifier, one event at a time (base) & 115 ms \\
+\midrule
+\multicolumn{2}{l}{\emph{Full shield (every event of the 2,304 test sessions)}}\\
 Full shield replay, mean / 95th percentile & 23.4 / 34.9 ms \\
 Full shield replay, CPU time per event & 50.5 ms \\
 Stateless replay, mean / 95th percentile & 15.0 / 23.1 ms \\
-Classifier, one event at a time (base) & 115 ms \\
 Training time per run, stateful / stateless & 4.3 / 1.3 h \\
 \bottomrule
+\multicolumn{2}{@{}L{8.3cm}@{}}{\scriptsize The classifier figures come from a different event set than the full-shield figures. The 40 test events include long multi-chunk events, whereas the full-shield figures average over all events of the 2,304 test sessions, most of which are short; the full-shield mean is therefore lower than the single-event classifier latency.}
 \end{tabular}
 \end{table}
 
@@ -560,11 +575,11 @@ Training time per run, stateful / stateless & 4.3 / 1.3 h \\
 Fig.~\ref{fig:console} shows the decomposed testbed scenario on LangGraph with the seed-42 model. Trust stays near 1 up to the file read at hop 4, which contains only ``Client account AC-9931. Archive contact on file: backup@evil.com.''; it dips at the memory write of hop 5 and falls to 0.280 at hop 7, where \texttt{send\_email} adds \texttt{cc=backup@evil.com}. The e-mail is quarantined and the alert lists the origin (hop 4, file agent), the two memory relays and the action; in the clean scenario every hop stays near 1 (0.999 at the e-mail) and the e-mail is sent. In the session inspector, a held-out 16-hop MultiHop attack (exfiltration by goal hijacking) passes hops 1--14 with trust near 1, is quarantined at the planner's ``standing procedure'' message of hop 15, which is also four times longer than that agent's usual messages, and is blocked at hop 16 with trust 0.000 when \texttt{upload\_file} targets \texttt{cdn-store7.example}, a host that first appeared in an untrusted web result at hop 12.
 
 \subsection{Discussion and Limitations}
-Looking back at the results, three things stand out to us. The first is that the session history is what separates an attack from the same action requested by the user, and a small classifier can make use of it once that history is turned into explicit signals; both the stateless model and an LLM judge that reads the whole transcript fail on the twins. The second is that provenance carries over to cases the model never saw in training, both deeper chains (eight-hop delays) and new evasion styles, because canonical matching works on the item itself rather than on its wording. The third is about evaluation: comparing at a matched false-positive budget is essential, since at default thresholds the stateless model's 86.5\% MultiHop recall hides a 51\% false-alarm rate.
+Looking back at the results, three observations stand out. The first is that the session history is what separates an attack from the same action requested by the user, and a small classifier can make use of it once that history is turned into explicit signals; both the stateless model and an LLM judge that reads the whole transcript fail on the twins. The second is that provenance carries over to cases the model never saw in training, both deeper chains (eight-hop delays) and new evasion styles, because canonical matching works on the item itself rather than on its wording. The third is about evaluation: comparing at a matched false-positive budget is essential, since at default thresholds the stateless model's 86.5\% MultiHop recall hides a 51\% false-alarm rate.
 
-In practice, deploying MAPIS needs no change to the agents, only one HTTP call per hop, a session store and a 44M-parameter backbone that fits on a laptop GPU. Since the user is the trust anchor, MAPIS cannot help if the user account itself is compromised. The session record also holds items from the conversation, so its time-to-live should follow the host's data-retention policy. We see MAPIS as complementary to system-level designs such as CaMeL \cite{debenedetti2025camel} and FIDES \cite{costa2025fides}: those prevent unsafe flows by construction in agents built around them, while MAPIS watches existing pipelines as they are.
+In practice, deploying MAPIS needs no change to the agents, only one HTTP call per hop, a session store and a 44M-parameter backbone that fits on a laptop GPU. Since the user is the trust anchor, MAPIS cannot help if the user account itself is compromised. The session record also holds items from the conversation, so its time-to-live should follow the host's data-retention policy. MAPIS is best viewed as complementary to system-level designs such as CaMeL \cite{debenedetti2025camel} and FIDES \cite{costa2025fides}: those prevent unsafe flows by construction in agents built around such designs, while MAPIS watches existing pipelines as deployed.
 
-Our evaluation also has limits. MultiHop, Adaptive and StateAttack come from templates, although their test splits use held-out families, phrasings and tools along with real carrier text. We designed the action-argument checks after reading the team-set misses. StateAttack shows two weak spots: items the agent has to decode stay at 25\% recall, and its 10.2\% FPR is above our 5\% target, mostly on twins whose item passed through memory. At the default cut-off, two of the five runs go above 5\% MultiHop FPR; the validation-calibrated cut-off fixes this. Finally, the LLM-based baselines used 7B and 14B models and the live agent a 7B model, MAPIS and the stateless model were both trained on AgentDojo-style injections, and the five-agent demonstration testbed is scripted.
+The evaluation also has limits. MultiHop, Adaptive and StateAttack come from templates, although the test splits use held-out families, phrasings and tools along with real carrier text. The action-argument checks were designed after reading the team-set misses. StateAttack shows two weak spots: items the agent has to decode stay at 25\% recall, and its 10.2\% FPR is above the 5\% target, mostly on twins whose item passed through memory. At the default cut-off, two of the five runs go above 5\% MultiHop FPR; the validation-calibrated cut-off fixes this. Finally, the LLM-based baselines used 7B and 14B models and the live agent a 7B model, MAPIS and the stateless model were both trained on AgentDojo-style injections, and the five-agent demonstration testbed is scripted.
 
 % =====================================================================================================
 \section{Conclusion}
@@ -581,32 +596,10 @@ Our evaluation also has limits. MultiHop, Adaptive and StateAttack come from tem
 \end{itemize}
 
 \section*{Acknowledgment}
-The authors thank the creators of AgentDojo, InjecAgent, BIPIA and the Agent Security Bench for releasing their benchmarks, and the maintainers of PyTorch, Hugging Face Transformers, FastAPI, LangGraph, AutoGen and Ollama, on which this work is built.
+The authors are grateful to the teams behind AgentDojo, InjecAgent, BIPIA and the Agent Security Bench, whose public benchmarks made this evaluation possible, and to the developers of PyTorch, Hugging Face Transformers, FastAPI, LangGraph, AutoGen and Ollama, whose open-source software MAPIS runs on.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}
-
-% =====================================================================================================
-\section*{Team Contributions and Details}
-This work is the B.Tech final-year project of Team A1, Amrita School of Artificial Intelligence, Amrita Vishwa Vidyapeetham, Coimbatore, carried out under the guidance of K.~Sripriyan, Assistant Professor (guide), and Anjana Sankar, Assistant Professor (co-guide).
-
-\begin{table}[!h]
-\centering\footnotesize
-\begin{tabular}{L{2.3cm}L{1.6cm}L{3.75cm}}
-\toprule
-Member & Role & Contribution \\
-\midrule
-Dodla Nithya Sai\newline{\scriptsize CB.SC.U4AIE23021} & Attack dataset and red-team lead & MAPIS-Bench construction, attack taxonomy (five classes, five mechanisms), multi-hop scenarios with benign twins, labelling policy \\
-M. Vishnu Vardhan\newline{\scriptsize CB.SC.U4AIE23043} & Testbed and orchestration lead & LangGraph and AutoGen testbed, agent-to-agent orchestration, FastAPI interception middleware \\
-Sreekar Reddy\newline{\scriptsize CB.SC.U4AIE23049} & Detection model lead & Session-context design, trust-scoring classifier, training, feature design, threshold calibration \\
-Beena Reddy\newline{\scriptsize CB.SC.U4AIE23065} & Response, dashboard and evaluation lead & Tiered response layer, forensic logging, operator dashboard, benchmark evaluation \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\noindent All four student authors wrote the hand-written test set (five attacks with twins each) and shared integration testing, code review, experiment tracking and the writing of this paper.
-
-\vspace{3pt}\noindent\textbf{Ethics and data availability.} All experiments ran in simulated agent environments; no real accounts were contacted, planted addresses use fictitious domains, and the benchmarks hold no personal data of real users. The public benchmarks are used under their licences. The code, the generators, MAPIS-Bench and the result files are available at \url{https://github.com/Vishnu868/Mapis}.
 
 \EOD
 \end{document}

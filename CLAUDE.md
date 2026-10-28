@@ -440,6 +440,12 @@ Code is unchanged (tampering checks stay on in the shield; in the demo the cc re
 - **Author order (23 Oct, final):** guide asked not to be listed; authors M. Vishnu Vardhan (corresponding), Dodla Nithya Sai, Sreekar Reddy, Beena Reddy; header "Vishnu Vardhan et al."; guides only named in the Team Contributions paragraph.
   Co-guide Anjana Sankar is no longer in the author line (owner asked for guide + 4 students); she stays in the Team Contributions section as co-guide.
 
+- **Sir's 9 review points + plagiarism report (28 Oct 2026):** owner edited in Overleaf; ported into `paper/mapis_paper.tex`: K. Sripriyan added as last author, affiliation "Amrita School of Artificial Intelligence, Coimbatore 641112,
+  Amrita Vishwa Vidyapeetham, India", Team Contributions section removed, new Sec. II-E (comparison with CaMeL/FIDES/Task Shield/MELON/AlignmentCheck/G-Safeguard) and II-F (learned intrusion detection, 4 Amrita
+  refs Vinayakumar et al. 2017/2019 -> 49 refs, all cited), no personal pronouns, sir's captions (Fig 1, 3, 4, Tables 14, 17), Table 5 row groups (5-run mean / seed-42 / other detectors) with a note, Table 17 split
+  (classifier alone vs full shield) with a note. Plagiarism-flagged body passages (intro IPI sentence, roadmap, II-A, II-D, threat model, training hyper-parameters, acknowledgment, abstract end) reworded; numbers unchanged.
+  11 full pages. Still open: corresponding-author e-mail and `*` marker (sir's sample format), owner to supply.
+
 ---------------------------------------------------------------------------------------------------------------------
 ## 5. History — what failed, what fixed it (chronological)
 - Start: previous status claimed DeBERTa numbers that were placeholders; only a heuristic baseline was real; Redis / 4 tiers not implemented. Rebuilt.
