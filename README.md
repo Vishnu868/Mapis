@@ -40,5 +40,8 @@ pytest                                             # 14+ tests
 ```
 Training the detector, evaluation and benchmarks: see **docs/TRAINING.md**.
 
+## Team
+M. Vishnu Vardhan, Dodla Nithya Sai, Sreekar Reddy and Beena Reddy (Amrita School of Artificial Intelligence, Coimbatore), guided by K. Sripriyan.
+
 ## Honest status
 See `docs/STATUS.md` for what is verified, what is measured, and what is still to do.
